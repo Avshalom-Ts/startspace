@@ -15,6 +15,25 @@ StartSpace is an open-source, local-first browser homepage/workspace. It runs en
 - Record architecture decisions in `docs/decisions/` as ADRs.
 - Update database guidance when the data model or migration approach changes (notes are Markdown files; tasks are workspace-stored; bookmarks come from the browser's Bookmark API — no traditional database in scope initially).
 
+## Tech Stack
+
+StartSpace is built with:
+
+- **Language:** TypeScript
+- **UI:** React
+- **Styling:** Tailwind CSS
+- **Build:** Vite
+- **Extension:** WebExtensions / Manifest V3
+- **Browser integration:** Browser Bookmarks API
+- **Local files:** File System Access API
+- **Notes:** Markdown (`.md`)
+- **Markdown rendering:** `marked`
+- **Local metadata:** JSON files
+- **Testing:** Vitest + Playwright
+- **Package manager:** Bun
+- **CI/CD:** GitHub Actions
+- **Backend:** None
+
 ## Engineering Standards
 
 - Follow the relevant guidance in `.rule/`.
