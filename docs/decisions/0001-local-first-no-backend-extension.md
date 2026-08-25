@@ -7,6 +7,7 @@
 **Context:**
 
 StartSpace is a browser homepage/workspace replacement. The product definition calls for:
+
 - A browser extension that replaces the New Tab / Home page.
 - No backend, no cloud service, no account, no vendor lock-in.
 - Bookmarks from the browser's Bookmark API (browser is source of truth).

@@ -15,8 +15,8 @@ Add upcoming work here when a lightweight ordered list is useful.
 ## Current
 
 - [x] Decide tech stack: TypeScript, React, Tailwind CSS, Vite, WebExtensions / Manifest V3, Browser Bookmarks API, File System Access API, Markdown notes (`.md`), `marked` for Markdown rendering, JSON for local metadata, Vitest + Playwright for testing, Bun as package manager, GitHub Actions for CI/CD, no backend. (Documented in `.doc/architecture.md`, `.rule/*`, `docs/getting-started.md`.)
-- [ ] Define the extension manifest, permissions, and storage model for StartSpace metadata/config (JSON in workspace vs extension storage).
-- [ ] Define data formats: notes (Markdown `.md`), tasks (workspace format), folders (real directories), StartSpace metadata linked to Bookmark IDs (JSON), config (JSON).
+- [x] Define the extension manifest, permissions, and storage model for StartSpace metadata/config (JSON in workspace vs extension storage). Recorded in `docs/decisions/0002-manifest-permissions-storage.md`: Manifest V3 sketch, intended permissions (`bookmarks`, `storage`, File System Access API runtime access), and the storage model decision (extension storage for config and bookmark-linked metadata; workspace folder for notes, tasks, folders, and any workspace-scoped JSON; open questions for manifest keys per browser, File System Access permission keys, web search host permission, exact JSON shapes, task format, and whether workspace JSON metadata is needed at all in the initial version).
+- [ ] Define data formats precisely: notes (Markdown `.md`), tasks (workspace format TBD), folders (real directories), StartSpace metadata linked to Bookmark IDs (JSON shape TBD), config (JSON shape TBD). Resolve the open questions listed in `docs/decisions/0002-manifest-permissions-storage.md` and record final shapes in the manifest/permissions/storage ADR in `docs/decisions/`.
 - [ ] Implement first render: homepage shell with navigation (Home · Links · Notes · Tasks · Settings · GitHub) and central search bar UI.
 - [ ] Implement bookmark read via Bookmark API; favorites display on homepage.
 - [ ] Implement workspace selection flow via File System Access API on first launch.
