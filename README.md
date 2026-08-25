@@ -80,12 +80,73 @@ Private, local-first, Markdown-first, user-owned, transparent, and open source. 
 
 ## Project structure
 
-- `.doc/` — product, architecture, and terminology templates.
-- `docs/` — human-facing guides, references, and ADRs.
-- `.plan/` — implementation plans and backlog.
-- `.rule/` — adjustable engineering standards.
-- `AGENTS.md` — instructions for coding assistants and collaborators.
-- `agents/` — optional role-specific instructions for multi-agent work.
+```text
+StartSpace/
+├── .doc/
+│   └── product, architecture, and terminology templates
+│
+├── .plan/
+│   └── implementation plans and backlog
+│
+├── .rule/
+│   └── adjustable engineering standards
+│
+├── agents/
+│   └── optional role-specific instructions
+│
+├── docs/
+│   └── human-facing guides, references, and ADRs
+│
+├── src/
+│   ├── app/
+│   ├── pages/
+│   │   ├── Home/
+│   │   ├── Links/
+│   │   ├── Notes/
+│   │   ├── Tasks/
+│   │   └── Settings/
+│   │
+│   ├── components/
+│   │   ├── ui/
+│   │   ├── navigation/
+│   │   ├── search/
+│   │   ├── bookmarks/
+│   │   ├── notes/
+│   │   └── tasks/
+│   │
+│   ├── services/
+│   │   ├── bookmarks/
+│   │   ├── workspace/
+│   │   ├── notes/
+│   │   ├── tasks/
+│   │   ├── search/
+│   │   └── settings/
+│   │
+│   ├── models/
+│   ├── hooks/
+│   ├── utils/
+│   └── styles/
+│
+├── public/
+│   ├── icons/
+│   └── manifest.json
+│
+├── tests/
+│   ├── unit/
+│   └── e2e/
+│
+├── .github/
+│   └── workflows/
+│
+├── AGENTS.md
+├── index.html
+├── package.json
+├── tsconfig.json
+├── vite.config.ts
+├── tailwind.config.ts
+├── README.md
+└── LICENSE
+```
 
 Add application code, tooling, and project-specific documentation as the project takes shape.
 
