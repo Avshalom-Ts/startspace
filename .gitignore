@@ -14,9 +14,15 @@ coverage/
 *.log
 *.tmp
 *.temp
+temp.md
 
 # Editor and operating-system files
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
+
+# Vite extension build output
+/dist
+# Vite build artifacts
+*.tsbuildinfo

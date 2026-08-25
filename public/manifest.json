@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "StartSpace",
+  "description": "A local-first browser homepage and workspace. No backend, no account.",
+  "version": "0.1.0",
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["bookmarks", "storage"],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

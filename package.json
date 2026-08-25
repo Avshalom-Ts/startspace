@@ -1,0 +1,33 @@
+{
+  "name": "startspace",
+  "version": "0.1.0",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:ui": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/bun": "latest",
+    "@types/chrome": "^0.2.7",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.0",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  },
+  "peerDependencies": {
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "marked": "^18.0.11",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}
