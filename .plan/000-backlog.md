@@ -19,7 +19,7 @@ Add upcoming work here when a lightweight ordered list is useful.
 - [x] Define data formats precisely: notes (Markdown `.md`), tasks (workspace format TBD), folders (real directories), StartSpace metadata linked to Bookmark IDs (JSON shape TBD), config (JSON shape TBD). Resolve the open questions listed in `docs/decisions/0002-manifest-permissions-storage.md` and record final shapes in the manifest/permissions/storage ADR in `docs/decisions/`.
 - [x] Implement first render: homepage shell with navigation (Home · Links · Notes · Tasks · Settings · GitHub) and central search bar UI.
 - [x] Implement bookmark read via Bookmark API; favorites display on homepage.
-- [ ] Implement Links page and all links with they folder like title then related links below it.
+- [x] Implement Links page and all links with they folder like title then related links below it.
 - [x] Implement workspace selection flow via File System Access API on first launch.
 - [ ] Implement notes: create/edit/delete/rename/move; folder organization; import; search titles and content.
 - [ ] Implement tasks: local Kanban board; link to notes and bookmarks.

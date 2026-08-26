@@ -16,11 +16,14 @@
 }
 
 [data-theme="dark"] {
-  --color-page: oklch(0.12 0.01 0);
-  --color-surface: oklch(0.18 0.01 0);
-  --color-border: oklch(0.28 0.01 0);
-  --color-fg: oklch(0.92 0.01 0);
-  --color-muted: oklch(0.62 0.01 0);
+  /* warm, low-contrast palette instead of a cold neutral gray */
+  --color-accent: oklch(0.74 0.14 65);
+  --color-accent-foreground: oklch(0.16 0.02 60);
+  --color-page: oklch(0.17 0.014 60);
+  --color-surface: oklch(0.22 0.016 60);
+  --color-border: oklch(0.31 0.02 60);
+  --color-fg: oklch(0.89 0.02 70);
+  --color-muted: oklch(0.66 0.025 65);
 }
 
 html,

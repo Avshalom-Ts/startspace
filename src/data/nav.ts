@@ -4,10 +4,10 @@ export interface NavItem {
 }
 
 export const NAV: NavItem[] = [
-  { label: "Home", href: "#" },
   { label: "Links", href: "#links" },
   { label: "Notes", href: "#notes" },
   { label: "Tasks", href: "#tasks" },
   { label: "Settings", href: "#settings" },
-  { label: "GitHub", href: "https://github.com/Avshalom-Ts/startspace.git" },
 ];
+
+export const GITHUB_URL = "https://github.com/Avshalom-Ts/startspace.git";

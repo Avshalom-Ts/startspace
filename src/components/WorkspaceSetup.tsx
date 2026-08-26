@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useConfig } from '../hooks/useConfig';
+import type { WorkspaceRef } from '../hooks/useConfig';
 import { useFavorites } from '../hooks/useFavorites';
 import { useWorkspace } from '../hooks/useWorkspace';
 
@@ -9,18 +10,26 @@ import { useWorkspace } from '../hooks/useWorkspace';
 
 /**
  * Shown when the user has not yet chosen a workspace folder.
- * Calls showDirectoryPicker() via useWorkspace, and
- * updates extension config so the homepage is shown on subsequent launches.
+ * Calls showDirectoryPicker() via useWorkspace, persists the result to
+ * chrome.storage.local via useConfig, so the homepage is shown on
+ * subsequent launches.
  */
 export function WorkspaceSetupPrompt() {
-  const { grant, error, chooseWorkspace } = useWorkspace();
+  const { grant, error, chooseWorkspace, reset } = useWorkspace();
+  const { config, save: saveConfig } = useConfig();
   const [pickedName, setPickedName] = useState<string>('');
 
+  // Persist the workspace identity to extension config when a folder is granted.
   useEffect(() => {
-    if (grant.handle) {
-      setPickedName(grant.name);
+    if (grant.handle && config) {
+      const ref: WorkspaceRef = {
+        id: `ws-${grant.handle.name}-${Date.now()}`,
+        name: grant.handle.name,
+      };
+      saveConfig({ ...config, currentWorkspace: ref });
+      setPickedName(grant.handle.name);
     }
-  }, [grant]);
+  }, [grant.handle, config, saveConfig]);
 
   const done = !!grant.handle;
 
@@ -35,7 +44,7 @@ export function WorkspaceSetupPrompt() {
 
         <div className="flex flex-col gap-3">
           <button
-            onClick={chooseWorkspace}
+            onClick={done ? reset : chooseWorkspace}
             className="rounded-md border border-border bg-page px-4 py-2 text-sm font-medium text-fg transition-colors hover:border-fg/40 hover:bg-page hover:text-accent focus-visible:outline-2 focus-visible:outline-fg"
           >
             {done ? 'Choose a different folder' : 'Choose workspace folder'}
@@ -63,18 +72,9 @@ export function WorkspaceSetupPrompt() {
 // PageContent — homepage shell with workspace-aware rendering.
 // ---------------------------------------------------------------------------
 
-/**
- * The content shown inside <main> after the search bar.
- *
- * When no workspace is configured: show the setup prompt.
- * When a workspace is configured: show favorites (backed by bookmarks).
- */
 export function PageContent() {
   const { config, loading: configLoading } = useConfig();
   const { favorites, loading: favoritesLoading } = useFavorites();
-
-  // The workspace selection dialog is async; once the user has chosen a folder
-  // and we have written config, the setup prompt should go away.
   const workspaceReady = config?.currentWorkspace != null;
 
   if (configLoading) {
@@ -104,7 +104,6 @@ export function PageContent() {
 // FavoritesList — render favorites from bookmarks + extension metadata.
 // ---------------------------------------------------------------------------
 
-/** Re-export so other modules can import workspace hooks from one barrel. */
 export { useFavorites } from '../hooks/useFavorites';
 export { useConfig } from '../hooks/useConfig';
 export { useWorkspace } from '../hooks/useWorkspace';
@@ -157,4 +156,76 @@ export function FavoritesList({
       </p>
     </section>
   );
+}
+
+// ---------------------------------------------------------------------------
+// useFavoritesWrite — toggle favorites in extension storage (shared with LinksPage).
+// ---------------------------------------------------------------------------
+
+export function useFavoritesWrite() {
+  const [loading, setLoading] = useState(false);
+
+  const toggle = useCallback(
+    async (id: string, current: boolean) => {
+      setLoading(true);
+      try {
+        const chromeExt = (globalThis as {
+          chrome?: {
+            storage?: {
+              local: {
+                get: (
+                  keys: string[],
+                  cb: (result: Record<string, unknown>) => void
+                ) => void;
+                set: (items: Record<string, unknown>, cb?: () => void) => void;
+              };
+            };
+          };
+        }).chrome;
+
+        if (!chromeExt?.storage?.local) {
+          setLoading(false);
+          return;
+        }
+
+        const local = chromeExt.storage.local;
+        const META_KEY = 'startspace.bookmarkMetadata';
+
+        const existing = await new Promise<Record<string, unknown>>((resolve) => {
+          local.get([META_KEY], (result: Record<string, unknown>) => {
+            resolve(result);
+          });
+        });
+
+        const raw = existing[META_KEY];
+        const meta: Record<string, { favorites: boolean; tags: string[]; dateAdded: string; relatedNotes: string[]; relatedTasks: string[] }> =
+          raw && typeof raw === 'object' ? (raw as Record<string, { favorites: boolean; tags: string[]; dateAdded: string; relatedNotes: string[]; relatedTasks: string[] }>) : {};
+
+        const entry = meta[id] ?? {
+          favorites: false,
+          tags: [],
+          dateAdded: new Date().toISOString(),
+          relatedNotes: [],
+          relatedTasks: [],
+        };
+
+        entry.favorites = !current;
+        meta[id] = entry;
+
+        await new Promise<void>((resolve) => {
+          local.set({ [META_KEY]: meta }, () => {
+            resolve();
+          });
+        });
+
+        setLoading(false);
+      } catch (err) {
+        console.warn('[StartSpace] failed to toggle favorite:', err);
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  return { toggle, loading };
 }
