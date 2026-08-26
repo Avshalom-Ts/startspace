@@ -3,10 +3,12 @@ import { Header } from './Header';
 import { SearchBar, Favorites, PageFooter } from './components';
 import { NAV } from './data/nav';
 import { useTheme } from './hooks/useTheme';
+import { useFavorites } from './hooks/useFavorites';
 
 export function AppShell() {
   const [searchQuery, setSearchQuery] = useState('');
   const { mounted } = useTheme();
+  const { favorites, loading: favoritesLoading } = useFavorites();
 
   return (
     <div className="min-h-screen flex flex-col bg-page">
@@ -17,7 +19,7 @@ export function AppShell() {
           <SearchBar value={searchQuery} onChange={setSearchQuery} />
         </div>
 
-        <Favorites items={[]} />
+        <Favorites items={favorites} loading={favoritesLoading} />
       </main>
 
       <PageFooter />

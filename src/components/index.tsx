@@ -37,15 +37,20 @@ export const SearchBar = forwardRef<HTMLInputElement, { value: string; onChange:
 
 SearchBar.displayName = 'SearchBar';
 
-export function Favorites({ items = [] }: { items?: { id: string; title: string; url: string }[] }) {
+export function Favorites({ items = [], loading = false }: { items?: { id: string; title: string; url: string }[]; loading?: boolean }) {
   return (
     <section className="w-full mt-6">
       <h2 className="text-sm font-medium uppercase tracking-wide text-muted mb-3">Favorites</h2>
-      <div className="flex flex-wrap gap-2">
-        {items.length === 0 ? (
-          <span className="text-sm text-muted">No favorites yet.</span>
-        ) : (
-          items.map((item) => (
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-muted">
+          <div className="w-4 h-4 border-2 border-border border-t-fg rounded-full animate-spin" />
+          <span>Loading favorites…</span>
+        </div>
+      ) : items.length === 0 ? (
+        <span className="text-sm text-muted">No favorites yet.</span>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {items.map((item) => (
             <a
               key={item.id}
               href={item.url}
@@ -53,9 +58,9 @@ export function Favorites({ items = [] }: { items?: { id: string; title: string;
             >
               {item.title}
             </a>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
       <p className="mt-4 text-xs text-muted">
         Favorites are backed by browser bookmarks linked by Bookmark ID.
       </p>
