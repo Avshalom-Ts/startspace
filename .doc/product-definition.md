@@ -22,7 +22,8 @@ The product outcome: a browser homepage that feels like the user's own workspace
 
 ## Value Proposition
 
-- **Local-first, no backend:** everything runs on the user's computer. No account, no cloud database, no server dependency.
+- Local-first, no backend: everything runs on the user's computer. No account, no cloud database, no server dependency.
+- **Themes:** light and dark mode, switchable from the header. Preference persisted in browser storage. (v1 — moved out of the deferred list.)
 - **Your data, your tooling:** bookmarks come from the browser's Bookmark API (browser is source of truth); notes are real Markdown files the user can edit anywhere (VS Code, Obsidian, etc.); tasks are local and linkable.
 - **Unified local search:** one search bar covers Bookmarks → Notes → Tasks → Web, with a configurable web search engine fallback.
 - **Open source and transparent:** users can audit, build from source, load unpacked, and migrate their workspace easily.
@@ -75,7 +76,7 @@ The product outcome: a browser homepage that feels like the user's own workspace
 - Real-time collaboration.
 - Remote storage or hosted workspace.
 - Non-browser platforms (PWA/standalone is a future consideration, not initial).
-- Command Palette, keyboard shortcuts, custom dashboard/widgets, advanced tagging/filtering, themes, additional browser support — deferred to future versions.
+- Command Palette, keyboard shortcuts, custom dashboard/widgets, advanced tagging/filtering, additional browser support — deferred to future versions.
 
 ## Success Metrics
 

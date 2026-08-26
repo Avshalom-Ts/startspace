@@ -1,1 +1,40 @@
 @import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
+
+@theme {
+  /* accent palette */
+  --color-accent: oklch(0.65 0.18 245);
+  --color-accent-foreground: oklch(0.99 0 0);
+
+  /* semantic tokens (overridden per theme below) */
+  --color-page: oklch(0.99 0 0);
+  --color-surface: oklch(0.97 0 0);
+  --color-border: oklch(0.91 0.01 0);
+  --color-fg: oklch(0.18 0.01 0);
+  --color-muted: oklch(0.45 0.01 0);
+}
+
+[data-theme="dark"] {
+  --color-page: oklch(0.12 0.01 0);
+  --color-surface: oklch(0.18 0.01 0);
+  --color-border: oklch(0.28 0.01 0);
+  --color-fg: oklch(0.92 0.01 0);
+  --color-muted: oklch(0.62 0.01 0);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-page);
+  color: var(--color-fg);
+}
+
+/* reversible animation for favicon / transitions */
+::selection {
+  background-color: color-mix(in oklch, var(--color-accent) 40%, transparent);
+}

@@ -27,6 +27,13 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 - Manages extension lifecycle, permissions, and storage for StartSpace-specific metadata.
 - On first launch, prompts the user to choose a workspace folder via the File System Access API.
 
+### Theme Module (Light / Dark)
+
+- Light and dark mode, switchable from the header.
+- Preference persisted in browser storage (``localStorage`` key ``startspace.theme``).
+- Tailwind v4 CSS custom properties (``--color-page``, ``--color-surface``, ``--color-border``, ``--color-fg``, ``--color-muted``, ``--color-accent``, ``--color-accent-foreground``) swap values per theme via a ``[data-theme="dark"]`` selector.
+- Applied at the root (``<html>``) via ``data-theme``; the UI reads the attribute on mount and on toggle.
+
 ### Search Bar (Central Entry Point)
 
 - Single search input on the homepage.
