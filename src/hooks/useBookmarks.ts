@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from "react";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -68,7 +68,9 @@ function flattenBookmarks(nodes: BookmarkNode[]): BookmarkNode[] {
 // extension context. Guard against missing globals so the code also compiles
 // and runs gracefully outside an extension page (e.g. during preview/dev).
 
-const chromeBookmarks: typeof globalThis.chrome | undefined = (globalThis as { chrome?: typeof globalThis.chrome }).chrome;
+const chromeBookmarks: typeof globalThis.chrome | undefined = (
+  globalThis as { chrome?: typeof globalThis.chrome }
+).chrome;
 
 /**
  * Try to read the bookmark tree from the Chrome Bookmarks API. Returns `null`
@@ -85,7 +87,7 @@ async function readBookmarkTree(): Promise<BookmarkNode[] | null> {
     // getTree returns BookmarkTreeNode[] — map to our narrower shape.
     return (result as unknown as BookmarkNode[]) ?? [];
   } catch (err) {
-    console.warn('[StartSpace] chrome.bookmarks.getTree failed:', err);
+    console.warn("[StartSpace] chrome.bookmarks.getTree failed:", err);
     return null;
   }
 }
@@ -112,7 +114,6 @@ export function useBookmarks() {
     setError(null);
 
     const tree = await readBookmarkTree();
-
     if (tree === null) {
       // API unavailable — not an error, just no bookmarks reachable.
       setBookmarks([]);
