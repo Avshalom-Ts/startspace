@@ -6,7 +6,7 @@ import { GITHUB_URL } from './data/nav';
 export function Header({ nav }: { nav: { label: string; href: string }[] }) {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-page/80 backdrop-blur supports-backdrop-filter:bg-page/60">
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center max-w-3xl mx-auto px-6 py-3">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center max-w-6xl mx-auto px-6 py-3">
         <div className="flex items-center">
           <Logo />
         </div>

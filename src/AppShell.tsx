@@ -5,6 +5,7 @@ import { NAV } from './data/nav';
 import { useTheme } from './hooks/useTheme';
 import { PageContent } from './components/WorkspaceSetup';
 import { LinksPage } from './components/LinksPage';
+import { SettingsPage } from './components/SettingsPage';
 import { useBookmarkTree, useBookmarkMetadata } from './hooks/useBookmarkTree';
 import type { BookmarkMetadata } from './hooks/useBookmarks';
 
@@ -109,6 +110,7 @@ export function AppShell() {
   const { toggle: toggleFavorite, loading: toggleLoading } = useFavoritesWrite();
 
   const isLinks = page === 'links';
+  const isSettings = page === 'settings';
   const showLoading = treeLoading || metaLoading || toggleLoading;
 
   return (
@@ -127,6 +129,8 @@ export function AppShell() {
             onToggleFavorite={toggleFavorite}
             loading={showLoading}
           />
+        ) : isSettings ? (
+          <SettingsPage />
         ) : (
           <PageContent />
         )}
