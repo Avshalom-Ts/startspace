@@ -21,17 +21,20 @@ export function WorkspaceSetupPrompt() {
 
   // Persist the workspace identity to extension config when a folder is granted.
   useEffect(() => {
-    if (grant.handle && config) {
+    if (grant.handle && config && config.currentWorkspace?.name !== grant.handle.name) {
       const ref: WorkspaceRef = {
-        id: `ws-${grant.handle.name}-${Date.now()}`,
+        id: `ws-${grant.handle.name}`,
         name: grant.handle.name,
       };
-      saveConfig({ ...config, currentWorkspace: ref });
+      void saveConfig({ ...config, currentWorkspace: ref });
+      setPickedName(grant.handle.name);
+    } else if (grant.handle) {
       setPickedName(grant.handle.name);
     }
   }, [grant.handle, config, saveConfig]);
 
-  const done = !!grant.handle;
+  const done = !!grant.handle && grant.permission === 'granted';
+  const remembered = !!grant.handle && !done;
 
   return (
     <div className="w-full max-w-xl">
@@ -47,7 +50,7 @@ export function WorkspaceSetupPrompt() {
             onClick={done ? reset : chooseWorkspace}
             className="rounded-md border border-border bg-page px-4 py-2 text-sm font-medium text-fg transition-colors hover:border-fg/40 hover:bg-page hover:text-accent focus-visible:outline-2 focus-visible:outline-fg"
           >
-            {done ? 'Choose a different folder' : 'Choose workspace folder'}
+            {done ? 'Choose a different folder' : remembered ? 'Reconnect workspace folder' : 'Choose workspace folder'}
           </button>
 
           {error ? (

@@ -5,6 +5,7 @@ import { NAV } from './data/nav';
 import { useTheme } from './hooks/useTheme';
 import { PageContent } from './components/WorkspaceSetup';
 import { LinksPage } from './components/LinksPage';
+import { NotesPage } from './notes/notes-page';
 import { SettingsPage } from './components/SettingsPage';
 import { useBookmarkTree, useBookmarkMetadata } from './hooks/useBookmarkTree';
 import type { BookmarkMetadata } from './hooks/useBookmarks';
@@ -110,6 +111,7 @@ export function AppShell() {
   const { toggle: toggleFavorite, loading: toggleLoading } = useFavoritesWrite();
 
   const isLinks = page === 'links';
+  const isNotes = page === 'notes';
   const isSettings = page === 'settings';
   const showLoading = treeLoading || metaLoading || toggleLoading;
 
@@ -118,11 +120,15 @@ export function AppShell() {
       <Header nav={nav} />
 
       <main className="flex-1 flex flex-col items-center px-6 py-12 max-w-6xl mx-auto w-full">
-        <div className="w-full py-3">
-          <SearchBar value={searchQuery} onChange={setSearchQuery} />
-        </div>
+        {page === 'home' && (
+          <div className="w-full py-3">
+            <SearchBar value={searchQuery} onChange={setSearchQuery} />
+          </div>
+        )}
 
-        {isLinks ? (
+        {isNotes ? (
+          <NotesPage />
+        ) : isLinks ? (
           <LinksPage
             tree={tree}
             metadata={metadata}
