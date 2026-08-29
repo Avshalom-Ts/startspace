@@ -7,6 +7,7 @@ import { PageContent } from './components/WorkspaceSetup';
 import { LinksPage } from './components/LinksPage';
 import { NotesPage } from './notes/notes-page';
 import { SettingsPage } from './components/SettingsPage';
+import { TasksPage } from './tasks/tasks-page';
 import { useBookmarkTree, useBookmarkMetadata } from './hooks/useBookmarkTree';
 import type { BookmarkMetadata } from './hooks/useBookmarks';
 
@@ -128,6 +129,8 @@ export function AppShell() {
 
         {isNotes ? (
           <NotesPage />
+        ) : page === 'tasks' ? (
+          <TasksPage />
         ) : isLinks ? (
           <LinksPage
             tree={tree}

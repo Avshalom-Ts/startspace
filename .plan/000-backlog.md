@@ -21,7 +21,7 @@ Add upcoming work here when a lightweight ordered list is useful.
 - [x] Implement bookmark read via Bookmark API; favorites display on homepage.
 - [x] Implement Links page and all links with they folder like title then related links below it.
 - [x] Implement workspace selection flow via File System Access API on first launch.
-- [ ] Implement notes: create/edit/delete/rename/move; folder organization; import; search titles and content.
+- [ ] Implement notes: create/edit/delete/rename/move; folder organization; import; search titles and content. (Implemented partial, notes page not fully functional - Handle notes not working properly)
 - [ ] Implement tasks: local Kanban board; link to notes and bookmarks.
 - [ ] Implement search orchestration: Bookmarks → Notes → Tasks → Web (configurable web search engine fallback).
 - [ ] Implement Settings: web search engine configuration, workspace, import/export.

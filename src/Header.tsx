@@ -4,6 +4,15 @@ import { Logo } from './components/Logo';
 import { GITHUB_URL } from './data/nav';
 
 export function Header({ nav }: { nav: { label: string; href: string }[] }) {
+  const [activeHref, setActiveHref] = useState('#home');
+
+  useEffect(() => {
+    const updateActiveRoute = () => setActiveHref(window.location.hash || '#home');
+    updateActiveRoute();
+    window.addEventListener('hashchange', updateActiveRoute);
+    return () => window.removeEventListener('hashchange', updateActiveRoute);
+  }, []);
+
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-page/80 backdrop-blur supports-backdrop-filter:bg-page/60">
       <div className="grid grid-cols-[1fr_auto_1fr] items-center max-w-6xl mx-auto px-6 py-3">
@@ -13,7 +22,7 @@ export function Header({ nav }: { nav: { label: string; href: string }[] }) {
 
         <nav className="hidden sm:flex items-center justify-center gap-4 text-sm font-medium">
           {nav.map((item) => (
-            <Link key={item.label} label={item.label} href={item.href} />
+            <Link key={item.label} label={item.label} href={item.href} active={item.href === activeHref} />
           ))}
         </nav>
 
