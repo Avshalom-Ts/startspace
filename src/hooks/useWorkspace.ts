@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from "react";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -23,33 +23,50 @@ export interface WorkspaceGrant {
   permission: PermissionState;
 }
 
-const WORKSPACE_DB = 'startspace.workspace';
-const WORKSPACE_STORE = 'handles';
+const WORKSPACE_DB = "startspace.workspace";
+const WORKSPACE_STORE = "handles";
 
 function loadPersistedHandle(): Promise<FileSystemDirectoryHandle | null> {
   return new Promise((resolve) => {
-    if (typeof indexedDB === 'undefined') { resolve(null); return; }
+    if (typeof indexedDB === "undefined") {
+      resolve(null);
+      return;
+    }
     const request = indexedDB.open(WORKSPACE_DB, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore(WORKSPACE_STORE);
+    request.onupgradeneeded = () =>
+      request.result.createObjectStore(WORKSPACE_STORE);
     request.onerror = () => resolve(null);
     request.onsuccess = () => {
-      const transaction = request.result.transaction(WORKSPACE_STORE, 'readonly');
-      const get = transaction.objectStore(WORKSPACE_STORE).get('current');
-      get.onsuccess = () => resolve((get.result as FileSystemDirectoryHandle | undefined) ?? null);
+      const transaction = request.result.transaction(
+        WORKSPACE_STORE,
+        "readonly",
+      );
+      const get = transaction.objectStore(WORKSPACE_STORE).get("current");
+      get.onsuccess = () =>
+        resolve((get.result as FileSystemDirectoryHandle | undefined) ?? null);
       get.onerror = () => resolve(null);
     };
   });
 }
 
-function persistHandle(handle: FileSystemDirectoryHandle | null): Promise<void> {
+function persistHandle(
+  handle: FileSystemDirectoryHandle | null,
+): Promise<void> {
   return new Promise((resolve) => {
-    if (typeof indexedDB === 'undefined') { resolve(); return; }
+    if (typeof indexedDB === "undefined") {
+      resolve();
+      return;
+    }
     const request = indexedDB.open(WORKSPACE_DB, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore(WORKSPACE_STORE);
+    request.onupgradeneeded = () =>
+      request.result.createObjectStore(WORKSPACE_STORE);
     request.onerror = () => resolve();
     request.onsuccess = () => {
-      const transaction = request.result.transaction(WORKSPACE_STORE, 'readwrite');
-      transaction.objectStore(WORKSPACE_STORE).put(handle, 'current');
+      const transaction = request.result.transaction(
+        WORKSPACE_STORE,
+        "readwrite",
+      );
+      transaction.objectStore(WORKSPACE_STORE).put(handle, "current");
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => resolve();
     };
@@ -74,7 +91,11 @@ function persistHandle(handle: FileSystemDirectoryHandle | null): Promise<void> 
  *  no workspace was chosen this time.
  */
 export function useWorkspace() {
-  const [grant, setGrant] = useState<WorkspaceGrant>({ handle: null, name: '', permission: 'denied' });
+  const [grant, setGrant] = useState<WorkspaceGrant>({
+    handle: null,
+    name: "",
+    permission: "denied",
+  });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -82,61 +103,96 @@ export function useWorkspace() {
     void loadPersistedHandle().then(async (handle) => {
       if (!active || !handle) return;
       try {
-        const permission = await (handle as FileSystemDirectoryHandle & {
-          queryPermission?: (descriptor: { mode: 'read' | 'readwrite' }) => Promise<PermissionState>;
-        }).queryPermission?.({ mode: 'readwrite' });
-        if (active) setGrant({ handle, name: handle.name, permission: permission ?? 'prompt' });
+        const permission = await (
+          handle as FileSystemDirectoryHandle & {
+            queryPermission?: (descriptor: {
+              mode: "read" | "readwrite";
+            }) => Promise<PermissionState>;
+          }
+        ).queryPermission?.({ mode: "readwrite" });
+        if (active)
+          setGrant({
+            handle,
+            name: handle.name,
+            permission: permission ?? "prompt",
+          });
       } catch {
         await persistHandle(null);
       }
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const chooseWorkspace = useCallback(async (): Promise<FileSystemDirectoryHandle | null> => {
-    setError(null);
+  const chooseWorkspace =
+    useCallback(async (): Promise<FileSystemDirectoryHandle | null> => {
+      setError(null);
 
-    if (typeof window === 'undefined' || !('showDirectoryPicker' in window)) {
-      setError('File System Access API not available in this browser.');
-      return null;
-    }
-
-    try {
-      if (grant.handle && grant.permission !== 'granted') {
-        const requestPermission = (grant.handle as FileSystemDirectoryHandle & {
-          requestPermission?: (descriptor: { mode: 'read' | 'readwrite' }) => Promise<PermissionState>;
-        }).requestPermission;
-        const permission = requestPermission
-          ? await requestPermission.call(grant.handle, { mode: 'readwrite' })
-          : 'granted';
-        setGrant({ handle: grant.handle, name: grant.handle.name, permission });
-        if (permission !== 'granted') {
-          setError('Workspace permission was not granted.');
-          return null;
-        }
-        await persistHandle(grant.handle);
-        return grant.handle;
-      }
-
-      const picker = (window as { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
-      if (!picker) {
-        setError('File System Access API not available in this browser.');
+      if (typeof window === "undefined" || !("showDirectoryPicker" in window)) {
+        setError("File System Access API not available in this browser.");
         return null;
       }
-      const picked = await picker();
-      setGrant({ handle: picked, name: picked.name, permission: 'granted' });
-      await persistHandle(picked);
-      return picked;
-    } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'name' in err && (err as { name: string }).name === 'AbortError') return null;
-      const message = err && typeof err === 'object' && 'message' in err ? String((err as { message: string }).message) : 'Failed to choose workspace.';
-      setError(message);
-      return null;
-    }
-  }, [grant.handle, grant.permission]);
+
+      try {
+        if (grant.handle && grant.permission !== "granted") {
+          const requestPermission = (
+            grant.handle as FileSystemDirectoryHandle & {
+              requestPermission?: (descriptor: {
+                mode: "read" | "readwrite";
+              }) => Promise<PermissionState>;
+            }
+          ).requestPermission;
+          const permission = requestPermission
+            ? await requestPermission.call(grant.handle, { mode: "readwrite" })
+            : "granted";
+          setGrant({
+            handle: grant.handle,
+            name: grant.handle.name,
+            permission,
+          });
+          if (permission !== "granted") {
+            setError("Workspace permission was not granted.");
+            return null;
+          }
+          await persistHandle(grant.handle);
+          return grant.handle;
+        }
+
+        const picker = (
+          window as {
+            showDirectoryPicker?: (options?: {
+              mode?: "read" | "readwrite";
+            }) => Promise<FileSystemDirectoryHandle>;
+          }
+        ).showDirectoryPicker;
+        if (!picker) {
+          setError("File System Access API not available in this browser.");
+          return null;
+        }
+        const picked = await picker({ mode: "readwrite" });
+        setGrant({ handle: picked, name: picked.name, permission: "granted" });
+        await persistHandle(picked);
+        return picked;
+      } catch (err: unknown) {
+        if (
+          err &&
+          typeof err === "object" &&
+          "name" in err &&
+          (err as { name: string }).name === "AbortError"
+        )
+          return null;
+        const message =
+          err && typeof err === "object" && "message" in err
+            ? String((err as { message: string }).message)
+            : "Failed to choose workspace.";
+        setError(message);
+        return null;
+      }
+    }, [grant.handle, grant.permission]);
 
   const reset = useCallback(() => {
-    setGrant({ handle: null, name: '', permission: 'denied' });
+    setGrant({ handle: null, name: "", permission: "denied" });
     setError(null);
     void persistHandle(null);
   }, []);

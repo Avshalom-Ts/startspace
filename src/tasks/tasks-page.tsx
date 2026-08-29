@@ -10,6 +10,7 @@ import { useNotes } from '../notes/use-notes';
 import { useBookmarkTree } from '../hooks/useBookmarkTree';
 import type { BookmarkNode } from '../hooks/useBookmarks';
 import { filterTasks, type Task, type TaskColumn, type TaskStatus } from './tasks-model';
+import { buildTaskBoardColumns } from './task-board-columns';
 import { useTasks } from './use-tasks';
 
 function flattenBookmarks(nodes: BookmarkNode[]): BookmarkNode[] {
@@ -38,9 +39,11 @@ export function TasksPage() {
   const [draftDescription, setDraftDescription] = useState('');
   const [draftStatus, setDraftStatus] = useState<TaskStatus>('todo');
   const [message, setMessage] = useState<string | null>(null);
+  const [columnPendingDelete, setColumnPendingDelete] = useState<TaskColumn | null>(null);
 
   const visibleTasks = useMemo(() => filterTasks(board.tasks, query), [board.tasks, query]);
   const visibleColumns = board.columns.filter((column) => column.visible);
+  const taskBoardColumns = buildTaskBoardColumns(board.columns);
   const columnsViewportRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -127,8 +130,10 @@ export function TasksPage() {
     if (title && await board.renameColumn(column.id, title)) setMessage('Column renamed.');
   };
 
-  const deleteColumn = async (column: TaskColumn) => {
-    if (window.confirm(`Delete \\"${column.title}\\"? Tasks in it will move to another column.`) && await board.deleteColumn(column.id)) setMessage('Column deleted.');
+  const confirmDeleteColumn = async () => {
+    if (!columnPendingDelete) return;
+    if (await board.deleteColumn(columnPendingDelete.id)) setMessage('Column deleted.');
+    setColumnPendingDelete(null);
   };
 
   if (!grant.handle || grant.permission !== 'granted') {
@@ -154,12 +159,6 @@ export function TasksPage() {
           <input value={newTitle} onChange={(event) => setNewTitle(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && void addTask()} placeholder="New task title" className="w-52 rounded border border-border bg-surface px-3 py-2 text-sm text-fg placeholder-muted focus:border-fg/40 focus:outline-none" />
           <button onClick={() => void addTask()} className="rounded border border-border bg-page px-3 py-2 text-sm font-medium text-fg hover:border-fg/40 hover:bg-surface">+ Add task</button>
         </div>
-
-        {/* New column input */}
-        <div className="ml-auto flex gap-2">
-          <input value={newColumnTitle} onChange={(event) => setNewColumnTitle(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && void addColumn()} placeholder="New column name" className="w-40 rounded border border-border bg-surface px-2 py-2 text-sm text-fg placeholder-muted focus:border-fg/40 focus:outline-none" />
-          <button onClick={() => void addColumn()} className="rounded border border-border bg-page px-3 py-2 text-sm text-fg hover:border-fg/40 hover:bg-surface">+ Column</button>
-        </div>
       </div>
         {(board.loading || notes.loading) && <span className="text-xs text-muted">Loading…</span>}
         {message && <span className="text-xs text-muted">{message}</span>}
@@ -178,23 +177,40 @@ export function TasksPage() {
             disabled={!canScrollLeft}
             aria-label="Scroll task columns left"
             title="Scroll columns left"
-            className="my-auto shrink-0 rounded-full border border-border bg-surface p-2 text-lg leading-none text-fg shadow-sm hover:border-fg/40 hover:bg-page disabled:cursor-not-allowed disabled:opacity-35"
+            className="my-auto shrink-0 rounded-full border border-border bg-surface p-2 text-lg leading-none text-fg shadow-sm hover:border-fg/40 hover:bg-page disabled:cursor-not-allowed disabled:opacity-35 cursor-pointer"
           >
             ‹
           </button>
           <div
             ref={columnsViewportRef}
-            className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden scroll-smooth"
+            className="app-scrollbar min-h-0 flex-1 overflow-x-auto overflow-y-hidden scroll-smooth"
           >
-            <div className="flex h-full min-w-max gap-4 pr-1">
-        {visibleColumns.map((column) => {
+            <div className="flex h-full min-w-full gap-4 p-2">
+        {taskBoardColumns.map((item) => {
+          if (item.kind === 'add-column') {
+            return (
+              <section key="add-column" className="flex min-h-0 w-[calc((100%-3rem)/4)] min-w-52 shrink-0 flex-col rounded-lg border border-dashed border-border bg-surface/20 p-4">
+                <input
+                  value={newColumnTitle}
+                  onChange={(event) => setNewColumnTitle(event.target.value)}
+                  onKeyDown={(event) => event.key === 'Enter' && void addColumn()}
+                  placeholder="Column name"
+                  aria-label="New column name"
+                  className="mt-4 w-full rounded border border-border bg-surface px-3 py-2 text-sm text-fg placeholder-muted focus:border-fg/40 focus:outline-none"
+                />
+                <button onClick={() => void addColumn()} className="mt-2 rounded border border-border bg-page px-3 py-2 text-sm font-medium text-fg hover:border-fg/40 hover:bg-surface">+ Add column</button>
+              </section>
+            );
+          }
+
+          const { column } = item;
           const columnTasks = visibleTasks.filter((task) => task.status === column.id);
           return (
             <section key={column.id} onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
               const taskId = event.dataTransfer.getData('text/task-id');
               const task = board.tasks.find((item) => item.id === taskId);
               if (task && task.status !== column.id) void moveTask(task, column.id);
-            }} className="flex min-h-0 w-80 shrink-0 flex-col rounded-lg border border-border bg-surface/30 p-3">
+            }} className="flex min-h-0 w-[calc((100%-3rem)/4)] min-w-52 shrink-0 flex-col rounded-lg border border-border bg-surface/30 p-3">
               <div className="mb-3 flex shrink-0 items-center gap-2">
                 <button onClick={() => void board.toggleColumn(column.id)} title="Hide column" aria-label={`Hide ${column.title}`} className="shrink-0 text-base text-muted hover:text-fg">👁</button>
                 {editingColumnId === column.id ? (
@@ -219,9 +235,9 @@ export function TasksPage() {
                   </button>
                 )}
                 <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">{columnTasks.length}</span>
-                <button onClick={() => void deleteColumn(column)} title="Delete column" aria-label={`Delete ${column.title}`} className="text-xs text-muted hover:text-red-500">✕</button>
+                <button onClick={() => setColumnPendingDelete(column)} title="Delete column" aria-label={`Delete ${column.title}`} className="text-xs text-muted hover:text-red-500">✕</button>
               </div>
-              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+              <div className="app-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                 {columnTasks.map((task) => (
                   <article key={task.id} draggable onDragStart={(event) => event.dataTransfer.setData('text/task-id', task.id)} className={`cursor-grab rounded-lg border bg-page p-3 active:cursor-grabbing ${selectedId === task.id ? 'border-fg' : 'border-border'}`}>
                     <div className="flex items-start gap-2">
@@ -250,7 +266,7 @@ export function TasksPage() {
             disabled={!canScrollRight}
             aria-label="Scroll task columns right"
             title="Scroll columns right"
-            className="my-auto shrink-0 rounded-full border border-border bg-surface p-2 text-lg leading-none text-fg shadow-sm hover:border-fg/40 hover:bg-page disabled:cursor-not-allowed disabled:opacity-35"
+            className="my-auto shrink-0 rounded-full border border-border bg-surface p-2 text-lg leading-none text-fg shadow-sm hover:border-fg/40 hover:bg-page disabled:cursor-not-allowed disabled:opacity-35 cursor-pointer"
           >
             ›
           </button>
@@ -258,9 +274,22 @@ export function TasksPage() {
         {visibleColumns.length === 0 && <p className="rounded-lg border border-border p-6 text-center text-sm text-muted">All columns are hidden. Use the buttons above to show one.</p>}
       </div>
 
+      {columnPendingDelete && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setColumnPendingDelete(null)}>
+          <div role="alertdialog" aria-modal="true" aria-labelledby="delete-column-title" className="w-full max-w-sm rounded-xl border border-border bg-page p-5 shadow-xl">
+            <h2 id="delete-column-title" className="mb-2 text-sm font-semibold text-fg">Delete column</h2>
+            <p className="mb-4 text-sm text-muted">Delete "{columnPendingDelete.title}"? Tasks in it will move to another column.</p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setColumnPendingDelete(null)} className="rounded border border-border px-3 py-2 text-sm text-fg hover:border-fg/40 hover:bg-surface">Cancel</button>
+              <button onClick={() => void confirmDeleteColumn()} className="rounded border border-red-500 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-500/20">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedTask && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setSelectedId(null)}>
-          <div role="dialog" aria-modal="true" aria-labelledby="task-details-title" className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-border bg-page p-5 shadow-xl">
+          <div role="dialog" aria-modal="true" aria-labelledby="task-details-title" className="app-scrollbar max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-border bg-page p-5 shadow-xl">
             <TaskDetails
               task={selectedTask}
               title={draftTitle}
@@ -335,7 +364,7 @@ function LinkPicker({ title, items, selected, onToggle }: { title: string; items
   return (
     <div>
       <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">{title}</h3>
-      <div className="max-h-44 space-y-1 overflow-y-auto rounded border border-border p-2">
+      <div className="app-scrollbar max-h-44 space-y-1 overflow-y-auto rounded border border-border p-2">
         {items.length === 0 ? <p className="text-xs text-muted">None available</p> : items.map((item) => (
           <label key={item.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-xs text-fg hover:bg-surface">
             <input type="checkbox" checked={selected.includes(item.id)} onChange={() => onToggle(item.id)} />
