@@ -1,713 +1,585 @@
 // notes-page.tsx
 //
-// Owns the Notes feature's main page: folder tree, note list, note editor,
-// and the action bar (create, import, search within notes).
-//
-// Routing: the Notes page is rendered inside AppShell when the hash is "#notes".
-// The note editor is a single-panel view (no split-pane in v1) with a title
-// field, a Markdown textarea, and save/delete/rename actions.
-//
-// Folder organization: the left panel shows the workspace folder tree; clicking
-// a folder narrows the note list to that folder's notes. The root (all notes)
-// view shows every note. The editor is independent of folder navigation — once
-// a note is selected, the editor shows it regardless of the current folder view.
+// Renders the Notes feature's persistent two-pane workspace. The explorer
+// reflects the granted filesystem while useNotes owns filesystem operations.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNotes } from './use-notes';
-import { useWorkspace } from '../hooks/useWorkspace';
-import { searchNotes, type NoteSearchResult } from './notes-search';
-import { slugifyNoteName } from '../types/notes-path';
-import type { NoteEntry, FolderEntry } from '../types/notes';
+import { useEffect, useState, type ReactNode } from "react";
+import { marked } from "marked";
+import { useWorkspace } from "../hooks/useWorkspace";
+import { slugifyNoteName } from "../types/notes-path";
+import type { FolderEntry, NoteEntry } from "../types/notes";
+import { searchNotes, type NoteSearchResult } from "./notes-search";
+import { useNotes } from "./use-notes";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-type PageMode = 'list' | 'editor';
-
-// ---------------------------------------------------------------------------
-// NotesPage
-// ---------------------------------------------------------------------------
+function renderMarkdown(content: string): string {
+  return marked.parse(content, { async: false }) as string;
+}
 
 export function NotesPage() {
   const notes = useNotes();
   const { grant, chooseWorkspace } = useWorkspace();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [activeFolderId, setActiveFolderId] = useState("");
+  const [newNoteName, setNewNoteName] = useState("");
+  const [newFolderName, setNewFolderName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
 
-  const [mode, setMode] = useState<PageMode>('list');
-  const [folderFilter, setFolderFilter] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newFolderName, setNewFolderName] = useState('');
-  const [localError, setLocalError] = useState<string | null>(null);
-  const [localSuccess, setLocalSuccess] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<NoteSearchResult[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-
-  // Sync selected note from the hook.
   useEffect(() => {
-    if (notes.selectedNoteId && !notes.selectedNote) {
-      notes.selectNote(notes.selectedNoteId);
-    }
-  }, [notes.selectedNoteId, notes.selectedNote, notes.selectNote]);
+    if (!message) return;
+    const timer = window.setTimeout(() => setMessage(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [message]);
 
-  // Clear local message after a short delay.
   useEffect(() => {
-    if (!localSuccess && !localError) return;
-    const timer = setTimeout(() => {
-      setLocalSuccess(null);
-      setLocalError(null);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [localSuccess, localError]);
+    const refreshOnFocus = () => void notes.refresh();
+    window.addEventListener("focus", refreshOnFocus);
+    return () => window.removeEventListener("focus", refreshOnFocus);
+  }, [notes.refresh]);
 
-  // Filtered notes for the current folder view.
-  const displayedNotes = notes.index?.notes.filter((n) => n.folder === folderFilter) ?? [];
-
-  // Search within all notes.
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    setSearchLoading(true);
-    const timer = setTimeout(() => {
-      if (notes.index) {
-        const results = searchNotes(notes.index.notes, searchQuery);
-        setSearchResults(results);
-      }
-      setSearchLoading(false);
-    }, 150);
-    return () => clearTimeout(timer);
-  }, [searchQuery, notes.index]);
+    const selectLinkedNote = () => {
+      const noteId = new URLSearchParams(
+        window.location.hash.split("?")[1] ?? "",
+      ).get("note");
+      if (noteId) void notes.selectNote(noteId);
+    };
+    selectLinkedNote();
+    window.addEventListener("hashchange", selectLinkedNote);
+    return () => window.removeEventListener("hashchange", selectLinkedNote);
+  }, [notes.selectNote]);
 
-  // When the selected note content changes via textarea, update the local
-  // selectedNote so the title field can read it (but don't trigger a save).
-  const handleContentChange = useCallback((content: string) => {
-    if (notes.selectedNote) {
-      notes.selectedNote.content = content;
-    }
-  }, [notes.selectedNote]);
+  const createNote = async () => {
+    const name = newNoteName.trim();
+    if (!name) return setMessage("Enter a note name.");
+    const result = await notes.createNote(
+      activeFolderId,
+      `${slugifyNoteName(name)}.md`,
+      `# ${name}\n\n`,
+    );
+    if (!result.ok) return setMessage(result.error.message);
+    setNewNoteName("");
+    await notes.selectNote(result.value.id);
+    setMessage(`Created ${result.value.title}.`);
+  };
 
-  const handleCreateNote = useCallback(async () => {
-    const name = newName.trim();
-    if (!name) {
-      setLocalError('Enter a note name.');
-      return;
-    }
-    const result = await notes.createNote(folderFilter, `${slugifyNoteName(name)}.md`, `# ${name}\n\n`);
-    if (result.ok) {
-      setLocalSuccess(`Created note "${result.value.title}".`);
-      setNewName('');
-      setMode('editor');
-      await notes.selectNote(result.value.id);
-    } else {
-      setLocalError(result.error.message);
-    }
-  }, [folderFilter, newName, notes.createNote, notes.selectNote]);
-
-  const handleSaveNote = useCallback(async () => {
-    if (!notes.selectedNote) return;
-    const content = textareaRef.current?.value ?? notes.selectedNote.content;
-    handleContentChange(content);
-    const result = await notes.editNote(notes.selectedNote.id, content);
-    if (result.ok) {
-      setLocalSuccess('Saved.');
-    } else {
-      setLocalError(result.error.message);
-    }
-  }, [notes.selectedNote, notes.editNote, handleContentChange]);
-
-  const handleDeleteNote = useCallback(async () => {
-    if (!notes.selectedNote) return;
-    const result = await notes.deleteNote(notes.selectedNote.id);
-    if (result.ok) {
-      setLocalSuccess('Deleted.');
-      setMode('list');
-      await notes.selectNote(null);
-    } else {
-      setLocalError(result.error.message);
-    }
-  }, [notes.selectedNote, notes.deleteNote, notes.selectNote]);
-
-  const handleRenameNote = useCallback(async () => {
-    if (!notes.selectedNote) return;
-    const name = newName.trim();
-    if (!name) {
-      setLocalError('Enter a name.');
-      return;
-    }
-    const result = await notes.renameNote(notes.selectedNote.id, `${slugifyNoteName(name)}.md`);
-    if (result.ok) {
-      setLocalSuccess(`Renamed to "${result.value.title}".`);
-      setNewName('');
-    } else {
-      setLocalError(result.error.message);
-    }
-  }, [notes.selectedNote, newName, notes.renameNote]);
-
-  const handleMoveNote = useCallback(async (targetFolderId: string) => {
-    if (!notes.selectedNote) return;
-    const name = newName.trim() || notes.selectedNote.title;
-    const result = await notes.moveNote(notes.selectedNote.id, targetFolderId, slugifyNoteName(name));
-    if (result.ok) {
-      setLocalSuccess('Moved.');
-      setNewName('');
-      await notes.selectNote(result.value.id);
-    } else {
-      setLocalError(result.error.message);
-    }
-  }, [newName, notes.moveNote, notes.selectNote, notes.selectedNote]);
-
-
-  const handleCreateFolder = useCallback(async () => {
+  const createFolder = async () => {
     const name = newFolderName.trim();
-    if (!name) {
-      setLocalError('Enter a folder name.');
-      return;
+    if (!name) return setMessage("Enter a folder name.");
+    const result = await notes.createFolder(activeFolderId, name);
+    if (!result.ok) return setMessage(result.error.message);
+    setNewFolderName("");
+    setMessage(`Created ${name}.`);
+  };
+
+  const renameFolder = async (folderId: string, name: string) => {
+    const result = await notes.renameFolder(folderId, name);
+    if (!result.ok) {
+      setMessage(result.error.message);
+      return false;
     }
-    const result = await notes.createFolder(folderFilter, name);
-    if (result.ok) {
-      setLocalSuccess(`Created folder "${name}".`);
-      setNewFolderName('');
-    } else {
-      setLocalError(result.error.message);
-    }
-  }, [folderFilter, newFolderName, notes.createFolder]);
+    setActiveFolderId((current) =>
+      current.startsWith(folderId)
+        ? `${result.value.id}${current.slice(folderId.length)}`
+        : current,
+    );
+    setMessage(`Renamed ${name}.`);
+    return true;
+  };
 
-  const handleDeleteFolder = useCallback(async (folderId: string) => {
-    const result = await notes.deleteFolder(folderId);
-    if (result.ok) {
-      setLocalSuccess('Folder deleted.');
-      if (folderFilter === folderId) {
-        setFolderFilter('');
-      }
-    } else {
-      setLocalError(result.error.message);
-    }
-  }, [folderFilter, notes.deleteFolder]);
-
-  const handleImport = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(e.target.files ?? []);
-      if (files.length === 0) return;
-      const result = await notes.importFiles(files, folderFilter);
-      if (result.ok) {
-        setLocalSuccess(`Imported ${result.value.imported.length} note(s).`);
-      } else {
-        setLocalError(result.error.message);
-      }
-      e.target.value = '';
-    },
-    [folderFilter, notes.importFiles],
-  );
-
-  const handleSearchApply = useCallback(() => {
-    setSearchQuery((q) => q);
-  }, []);
-
-  const handleTitleChange = useCallback((title: string) => {
-    if (!notes.selectedNote || !textareaRef.current) return;
-    const newContent = title ? `# ${title}\n\n${notes.selectedNote.content.replace(/^#\s+.+$/m, '').trimStart()}` : notes.selectedNote.content;
-    textareaRef.current.value = newContent;
-    notes.selectedNote.content = newContent;
-    notes.selectedNote.title = title;
-  }, [notes.selectedNote]);
-
-  if (!grant.handle || grant.permission !== 'granted') {
+  if (!grant.handle || grant.permission !== "granted") {
     return (
-      <section className="w-full max-w-xl rounded-lg border border-border bg-surface p-6 text-center">
-        <h2 className="text-lg font-medium text-fg mb-2">Notes workspace not selected</h2>
-        <p className="text-sm text-muted mb-4">Choose a workspace folder in Settings before creating, importing, or searching notes.</p>
+      <section className="w-full max-w-xl border border-border bg-surface p-6 text-center">
+        <h2 className="mb-2 text-lg font-medium text-fg">
+          Notes workspace not selected
+        </h2>
+        <p className="mb-4 text-sm text-muted">
+          Choose a workspace folder before working with local Markdown notes.
+        </p>
         <div className="flex justify-center gap-2">
-          <button onClick={() => void chooseWorkspace()} className="rounded-md border border-border bg-page px-4 py-2 text-sm font-medium text-fg hover:border-fg/40">Choose folder</button>
-          <a href="#settings" className="rounded-md border border-border px-4 py-2 text-sm text-fg hover:bg-page">Open Settings</a>
+          <button
+            onClick={() => void chooseWorkspace()}
+            className="border border-border bg-page px-4 py-2 text-sm text-fg hover:border-fg/40"
+          >
+            Choose folder
+          </button>
+          <a
+            href="#settings"
+            className="border border-border px-4 py-2 text-sm text-fg hover:bg-page"
+          >
+            Open Settings
+          </a>
         </div>
       </section>
     );
   }
 
+  const searchResults =
+    searchQuery.trim() && notes.index
+      ? searchNotes(notes.index.notes, searchQuery)
+      : [];
   return (
-    <div className="w-full max-w-6xl">
-      {/* Page header */}
-      <div className="mb-6 flex items-center justify-between">
-      {/* Note search */}
-      <div className="flex-1 mr-4">
-        <input
-          type="search"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearchApply()}
-          placeholder="Search notes by title or content…"
-          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg placeholder-muted focus:border-fg/40 focus:outline-none"
-        />
-        {searchQuery && (
-          <div className="mt-2 flex items-center justify-between">
-            <p className="text-xs text-muted">
-              {searchLoading ? 'Searching…' : `${searchResults.length} result(s)`}
-            </p>
-            <button
-              onClick={() => setSearchQuery('')}
-              className="text-xs text-muted hover:text-fg"
-            >
-              Clear
-            </button>
-          </div>
-        )}
-      </div>
-          {/* Import notes */}
-              <div className="flex items-center">
-          <button
-            onClick={handleImport}
-            className="rounded-md border border-border bg-page px-3 py-2 text-sm text-fg transition-colors hover:border-fg/40 hover:bg-surface hover:text-accent focus-visible:outline-2 focus-visible:outline-fg"
-          >
-            Import notes
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".md,.txt"
-            multiple
-            className="hidden"
-            onChange={handleFileChange}
-          />
+    <section className="w-full max-w-7xl">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-fg">Notes</h2>
+          <p className="text-sm text-muted">Local Markdown workspace</p>
         </div>
+        <button
+          onClick={() => void notes.refresh()}
+          className="border border-border bg-surface px-3 py-2 text-sm text-fg hover:bg-page"
+        >
+          Refresh workspace
+        </button>
       </div>
-
-      {/* Messages */}
-      {(localSuccess || localError) && (
-        <div className="mb-4 rounded-md border p-3 text-sm">
-          {localSuccess ? (
-            <div className="text-fg">{localSuccess}</div>
-          ) : (
-            <div className="text-red-500">{localError}</div>
-          )}
-        </div>
+      {message && (
+        <p
+          className="mb-4 border border-border bg-surface px-3 py-2 text-sm text-fg"
+          role="status"
+        >
+          {message}
+        </p>
       )}
-
-
-      {/* Two-column layout: folder tree + note list / editor */}
-      <div className="flex flex-col md:flex-row gap-6">
-        {/* Left: folder tree */}
-        <aside className="w-full md:w-56 shrink-0">
-          <FolderTree
-            workspaceName={grant.name}
-            folders={notes.index?.folders ?? []}
-            notes={notes.index?.notes ?? []}
-            currentFolder={folderFilter}
-            onSelect={setFolderFilter}
-            onSelectNote={(id) => {
-              void notes.selectNote(id);
-              setMode('editor');
-            }}
-            onCreateFolder={handleCreateFolder}
-            onDeleteFolder={handleDeleteFolder}
-            newFolderName={newFolderName}
-            setNewFolderName={setNewFolderName}
-          />
+      {notes.error && (
+        <p
+          className="mb-4 border border-red-500 bg-red-50 px-3 py-2 text-sm text-red-600"
+          role="alert"
+        >
+          {notes.error.message}
+        </p>
+      )}
+      <div className="grid min-h-144 grid-cols-1 border border-border bg-surface lg:grid-cols-[17rem_minmax(0,1fr)]">
+        <aside className="border-b border-border lg:border-r lg:border-b-0">
+          <div className="border-b border-border p-3">
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              type="search"
+              placeholder="Search notes"
+              aria-label="Search notes"
+              className="w-full border border-border bg-page px-3 py-2 text-sm text-fg placeholder-muted focus:outline-none"
+            />
+          </div>
+          <div className="border-b border-border p-3">
+            <label
+              className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted"
+              htmlFor="new-note-name"
+            >
+              New note in {activeFolderId || "workspace root"}
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="new-note-name"
+                value={newNoteName}
+                onChange={(event) => setNewNoteName(event.target.value)}
+                onKeyDown={(event) =>
+                  event.key === "Enter" && void createNote()
+                }
+                placeholder="Note name"
+                className="min-w-0 flex-1 border border-border bg-page px-2 py-1.5 text-sm text-fg"
+              />
+              <button
+                onClick={() => void createNote()}
+                className="border border-border px-2 py-1 text-sm text-fg hover:bg-page"
+              >
+                New
+              </button>
+            </div>
+            <label
+              className="mb-1 mt-3 block text-xs font-medium uppercase tracking-wide text-muted"
+              htmlFor="new-folder-name"
+            >
+              New folder
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="new-folder-name"
+                value={newFolderName}
+                onChange={(event) => setNewFolderName(event.target.value)}
+                onKeyDown={(event) =>
+                  event.key === "Enter" && void createFolder()
+                }
+                placeholder="Folder name"
+                className="min-w-0 flex-1 border border-border bg-page px-2 py-1.5 text-sm text-fg"
+              />
+              <button
+                onClick={() => void createFolder()}
+                className="border border-border px-2 py-1 text-sm text-fg hover:bg-page"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+          <div className="app-scrollbar max-h-112 overflow-y-auto p-2 lg:max-h-[calc(100vh-16rem)]">
+            {notes.loading && !notes.index ? (
+              <p className="p-2 text-sm text-muted">Loading workspace...</p>
+            ) : (
+              <NoteExplorer
+                workspaceName={grant.name}
+                folders={notes.index?.folders ?? []}
+                notes={notes.index?.notes ?? []}
+                activeFolderId={activeFolderId}
+                selectedNoteId={notes.selectedNoteId}
+                onSelectFolder={setActiveFolderId}
+                onSelectNote={(id) => void notes.selectNote(id)}
+                onRenameFolder={renameFolder}
+                onDeleteFolder={async (id) => {
+                  const result = await notes.deleteFolder(id);
+                  setMessage(
+                    result.ok ? "Folder deleted." : result.error.message,
+                  );
+                  return result.ok;
+                }}
+              />
+            )}
+          </div>
         </aside>
-
-        {/* Right: note list or editor */}
-        <div className="flex-1 min-w-0">
-          {notes.loading && !notes.selectedNote ? (
-            <div className="flex items-center gap-2 text-sm text-muted py-4">
-              <div className="w-4 h-4 border-2 border-border border-t-fg rounded-full animate-spin" />
-              <span>Loading notes…</span>
-            </div>
-          ) : notes.error ? (
-            <div className="rounded-lg border border-red-500 bg-red-50 p-4 text-sm text-red-500">
-              <p>{notes.error.message}</p>
-            </div>
-          ) : searchResults.length > 0 && searchQuery ? (
-            <section className="rounded-lg border border-border">
-              <h3 className="px-4 py-2 text-sm font-medium text-muted uppercase tracking-wide">
-                Search results
-              </h3>
-              <ul className="divide-y divide-border">
-                {searchResults.map((r) => (
-                  <li key={r.note.id} className="px-4 py-3">
-                    <button
-                      onClick={() => {
-                        notes.selectNote(r.note.id);
-                        setMode('editor');
-                        setSearchQuery('');
-                      }}
-                      className="w-full text-left transition-colors hover:bg-surface rounded p-1"
-                    >
-                      <p className="text-sm font-medium text-fg truncate">{r.note.title}</p>
-                      <p className="text-xs text-muted truncate">{r.note.id}</p>
-                      <p className="text-xs text-muted">Matched {r.matchType === 'title' ? 'title' : 'content'}</p>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : mode === 'editor' && notes.selectedNote ? (
+        <main className="min-w-0">
+          {searchQuery.trim() ? (
+            <SearchResults
+              results={searchResults}
+              onSelect={(id) => {
+                void notes.selectNote(id);
+                setSearchQuery("");
+              }}
+            />
+          ) : notes.selectedNote ? (
             <NoteEditor
               note={notes.selectedNote}
-              onSave={handleSaveNote}
-              onDelete={handleDeleteNote}
-              onRename={handleRenameNote}
-              onMove={handleMoveNote}
               folders={notes.index?.folders ?? []}
-              onChangeName={setNewName}
-              editingName={newName}
-              editingTitle={notes.selectedNote.title}
-              onTitleChange={handleTitleChange}
-              textareaRef={textareaRef}
+              onSave={async (content) => {
+                const result = await notes.editNote(
+                  notes.selectedNote!.id,
+                  content,
+                );
+                setMessage(result.ok ? "Saved." : result.error.message);
+                return result.ok;
+              }}
+              onRename={async (name) => {
+                const result = await notes.renameNote(
+                  notes.selectedNote!.id,
+                  `${slugifyNoteName(name)}.md`,
+                );
+                setMessage(result.ok ? "Note renamed." : result.error.message);
+                return result.ok;
+              }}
+              onMove={async (folderId, name) => {
+                const result = await notes.moveNote(
+                  notes.selectedNote!.id,
+                  folderId,
+                  slugifyNoteName(name),
+                );
+                if (result.ok) await notes.selectNote(result.value.id);
+                setMessage(result.ok ? "Note moved." : result.error.message);
+                return result.ok;
+              }}
+              onDelete={async () => {
+                const result = await notes.deleteNote(notes.selectedNote!.id);
+                if (result.ok) await notes.selectNote(null);
+                setMessage(result.ok ? "Note deleted." : result.error.message);
+              }}
             />
           ) : (
-            <NoteList
-              notes={displayedNotes}
-              folders={notes.index?.folders ?? []}
-              folderFilter={folderFilter}
-              onSelectNote={(id) => {
-                notes.selectNote(id);
-                setMode('editor');
-              }}
-              onCreateNote={handleCreateNote}
-              onNewNameChange={setNewName}
-              newNoteName={newName}
-            />
+            <EmptyEditor hasNotes={(notes.index?.notes.length ?? 0) > 0} />
           )}
-        </div>
+        </main>
       </div>
-    </div>
+    </section>
   );
 }
 
-// ---------------------------------------------------------------------------
-// FolderTree
-// ---------------------------------------------------------------------------
-
-function FolderTree({
+function NoteExplorer({
   workspaceName,
   folders,
   notes,
-  currentFolder,
-  onSelect,
+  activeFolderId,
+  selectedNoteId,
+  onSelectFolder,
   onSelectNote,
-  onCreateFolder,
+  onRenameFolder,
   onDeleteFolder,
-  newFolderName,
-  setNewFolderName,
 }: {
   workspaceName: string;
   folders: FolderEntry[];
   notes: NoteEntry[];
-  currentFolder: string;
-  onSelect: (id: string) => void;
+  activeFolderId: string;
+  selectedNoteId: string | null;
+  onSelectFolder: (id: string) => void;
   onSelectNote: (id: string) => void;
-  onCreateFolder: (name: string) => void;
-  onDeleteFolder: (id: string) => void;
-  newFolderName: string;
-  setNewFolderName: (name: string) => void;
+  onRenameFolder: (id: string, name: string) => Promise<boolean>;
+  onDeleteFolder: (id: string) => Promise<boolean>;
 }) {
-  const childrenOf = (parentId: string) => folders
-    .filter((folder) => {
-      if (!folder.id || folder.id === parentId) return false;
-      const parent = folder.id.slice(0, Math.max(0, folder.id.lastIndexOf('/')));
-      return parent === parentId;
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
-  const notesIn = (folderId: string) => notes
-    .filter((note) => note.folder === folderId)
-    .sort((a, b) => a.title.localeCompare(b.title));
-
-  const renderFolder = (folder: FolderEntry) => {
-    const children = childrenOf(folder.id);
-    const folderNotes = notesIn(folder.id);
-    return (
-      <li key={folder.id} className="border-t border-border">
-        <details open={!currentFolder || currentFolder === folder.id || folder.id.startsWith(`${currentFolder}/`)}>
-          <summary className="flex cursor-pointer list-none items-center gap-1 px-2 py-1.5 text-sm text-fg hover:bg-surface [&::-webkit-details-marker]:hidden">
-            <span className="text-xs text-muted">▶</span>
-            <button
-              onClick={(event) => {
-                event.preventDefault();
-                onSelect(folder.id);
-              }}
-              className={`min-w-0 flex-1 truncate rounded px-1 text-left ${currentFolder === folder.id ? 'bg-surface font-medium' : ''}`}
-            >
-              {folder.name}
-            </button>
-            <span className="text-xs text-muted">{folder.noteCount}</span>
-            <button
-              onClick={(event) => {
-                event.preventDefault();
-                onDeleteFolder(folder.id);
-              }}
-              aria-label={`Delete ${folder.name}`}
-              className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:border-red-500 hover:text-red-500 focus-visible:outline-2 focus-visible:outline-fg"
-            >
-              ✕
-            </button>
-          </summary>
-          <div className="ml-3 border-l border-border pl-2">
-            {children.length > 0 && <ul>{children.map(renderFolder)}</ul>}
-            {folderNotes.length > 0 && (
-              <ul className="pb-1">
-                {folderNotes.map((note) => (
-                  <li key={note.id}>
-                    <button
-                      onClick={() => onSelectNote(note.id)}
-                      className="w-full truncate rounded px-2 py-1 text-left text-xs text-muted hover:bg-surface hover:text-fg"
-                    >
-                      {note.title}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </details>
-      </li>
-    );
-  };
-
-  const rootNotes = notesIn('');
-
-  return (
-    <div className="rounded-lg border border-border">
-      <div className="p-3">
-        <div className="mb-3">
-          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted">New folder</label>
-          <div className="flex gap-2">
-            <input
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && onCreateFolder(newFolderName.trim())}
-              placeholder="Folder name"
-              className="min-w-0 flex-1 rounded border border-border bg-surface px-2 py-1 text-sm text-fg placeholder-muted focus:border-fg/40 focus:outline-none"
-            />
-            <button
-              onClick={() => onCreateFolder(newFolderName.trim())}
-              className="rounded border border-border bg-page px-2 py-1 text-sm text-fg hover:border-fg/40 hover:bg-surface focus-visible:outline-2 focus-visible:outline-fg"
-            >
-              Add
-            </button>
-          </div>
-        </div>
-        <h3 className="text-xs font-medium uppercase tracking-wide text-muted">Folders</h3>
-        <button
-          onClick={() => onSelect('')}
-          className={`w-full rounded-md px-3 py-1.5 text-sm transition-colors ${currentFolder === '' ? 'bg-surface text-fg font-medium' : 'text-fg hover:bg-surface'}`}
+  const childrenOf = (parentId: string) =>
+    folders
+      .filter(
+        (folder) =>
+          folder.id !== parentId &&
+          folder.id.slice(0, Math.max(0, folder.id.lastIndexOf("/"))) ===
+            parentId,
+      )
+      .sort((left, right) => left.name.localeCompare(right.name));
+  const notesIn = (folderId: string) =>
+    notes
+      .filter((note) => note.folder === folderId)
+      .sort((left, right) => left.title.localeCompare(right.title));
+  const tree = (folderId: string) => (
+    <ul className={folderId ? "ml-3 border-l border-border pl-2" : ""}>
+      {notesIn(folderId).map((note) => (
+        <li key={note.id}>
+          <button
+            onClick={() => onSelectNote(note.id)}
+            className={`w-full truncate px-2 py-1 text-left text-sm ${selectedNoteId === note.id ? "bg-accent text-accent-foreground" : "text-muted hover:bg-page hover:text-fg"}`}
+          >
+            {note.title}
+          </button>
+        </li>
+      ))}
+      {childrenOf(folderId).map((folder) => (
+        <FolderNode
+          key={folder.id}
+          folder={folder}
+          active={activeFolderId === folder.id}
+          onSelect={() => onSelectFolder(folder.id)}
+          onRename={onRenameFolder}
+          onDelete={onDeleteFolder}
         >
-          All notes
-        </button>
-        <div className="mt-2 flex items-center gap-1 px-1 text-sm font-medium text-fg" title={workspaceName}>
-          <span aria-hidden="true">📁</span>
-          <span className="truncate">{workspaceName}</span>
-        </div>
-        {rootNotes.length > 0 && (
-          <ul className="mt-1 border-l border-border pl-3">
-            {rootNotes.map((note) => (
-              <li key={note.id}>
-                <button onClick={() => onSelectNote(note.id)} className="w-full truncate rounded px-2 py-1 text-left text-xs text-muted hover:bg-surface hover:text-fg">
-                  {note.title}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      <ul className="border-t border-border">
-        {childrenOf('').map(renderFolder)}
-        {folders.length === 0 && (
-          <li className="px-3 py-2 text-xs text-muted">
-            No folders yet.
-          </li>
-        )}
-      </ul>
-    </div>
+          {tree(folder.id)}
+        </FolderNode>
+      ))}
+    </ul>
+  );
+  return (
+    <nav aria-label="Note explorer">
+      <button
+        onClick={() => onSelectFolder("")}
+        className={`mb-1 flex w-full px-2 py-1.5 text-left text-sm font-medium ${activeFolderId === "" ? "bg-page text-fg" : "text-fg hover:bg-page"}`}
+        title={workspaceName}
+      >
+        {workspaceName}
+      </button>
+      {tree("")}
+    </nav>
   );
 }
 
-// ---------------------------------------------------------------------------
-// NoteList — the list view when no note is being edited
-// ---------------------------------------------------------------------------
-
-function NoteList({
-  notes,
-  folders,
-  folderFilter,
-  onSelectNote,
-  onCreateNote,
-  onNewNameChange,
-  newNoteName,
+function FolderNode({
+  folder,
+  active,
+  onSelect,
+  onRename,
+  onDelete,
+  children,
 }: {
-  notes: NoteEntry[];
-  folders: FolderEntry[];
-  folderFilter: string;
-  onSelectNote: (id: string) => void;
-  onCreateNote: () => void;
-  onNewNameChange: (name: string) => void;
-  newNoteName: string;
+  folder: FolderEntry;
+  active: boolean;
+  onSelect: () => void;
+  onRename: (id: string, name: string) => Promise<boolean>;
+  onDelete: (id: string) => Promise<boolean>;
+  children: ReactNode;
 }) {
-  const folderTitle = folderFilter ? (folders.find((f) => f.id === folderFilter)?.name ?? folderFilter) : 'All notes';
+  const [expanded, setExpanded] = useState(true);
+  const [renaming, setRenaming] = useState(false);
+  const [name, setName] = useState(folder.name);
+  useEffect(() => setName(folder.name), [folder.name]);
+  const saveRename = async () => {
+    if (name.trim() && (await onRename(folder.id, name.trim())))
+      setRenaming(false);
+  };
   return (
-    <div>
-      {/* Folder breadcrumb + actions */}
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-medium text-fg">{folderTitle}</h3>
-          <p className="text-xs text-muted">{notes.length} note(s)</p>
-        </div>
-        <div className="flex items-center gap-2">
+    <li>
+      <div className={`flex items-center gap-1 ${active ? "bg-page" : ""}`}>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          aria-label={`${expanded ? "Collapse" : "Expand"} ${folder.name}`}
+          className="w-6 py-1 text-xs text-muted hover:text-fg"
+        >
+          {expanded ? "-" : "+"}
+        </button>
+        {renaming ? (
           <input
-            value={newNoteName}
-            onChange={(e) => onNewNameChange(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onCreateNote()}
-            placeholder="New note name"
-            className="w-40 rounded border border-border bg-surface px-2 py-1 text-sm text-fg placeholder-muted focus:border-fg/40 focus:outline-none"
+            autoFocus
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") void saveRename();
+              if (event.key === "Escape") setRenaming(false);
+            }}
+            onBlur={() => void saveRename()}
+            className="min-w-0 flex-1 border border-border bg-page px-1 py-0.5 text-sm text-fg"
+            aria-label="Folder name"
           />
+        ) : (
           <button
-            onClick={onCreateNote}
-            className="rounded border border-border bg-page px-3 py-1.5 text-sm text-fg hover:border-fg/40 hover:bg-surface focus-visible:outline-2 focus-visible:outline-fg"
+            onClick={onSelect}
+            className="min-w-0 flex-1 truncate py-1 text-left text-sm text-fg hover:text-accent"
           >
-            + New note
+            {folder.name}
           </button>
-        </div>
+        )}
+        <button
+          onClick={() => setRenaming(true)}
+          className="px-1 text-xs text-muted hover:text-fg"
+          aria-label={`Rename ${folder.name}`}
+        >
+          Rename
+        </button>
+        <button
+          onClick={() => void onDelete(folder.id)}
+          className="px-1 text-xs text-muted hover:text-red-600"
+          aria-label={`Delete ${folder.name}`}
+        >
+          Delete
+        </button>
       </div>
+      {expanded && children}
+    </li>
+  );
+}
 
-      {notes.length === 0 ? (
-        <div className="rounded-lg border border-border p-6 text-center">
-          <p className="text-sm text-muted">
-            {folderFilter ? 'No notes in this folder.' : 'No notes yet. Create one or import Markdown files.'}
-          </p>
-        </div>
-      ) : (
-        <ul className="divide-y divide-border">
-          {notes.map((note) => (
+function SearchResults({
+  results,
+  onSelect,
+}: {
+  results: NoteSearchResult[];
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="p-5">
+      <h3 className="mb-3 text-sm font-medium text-muted">Search results</h3>
+      {results.length ? (
+        <ul className="divide-y divide-border border border-border">
+          {results.map(({ note, matchType }) => (
             <li key={note.id}>
               <button
-                onClick={() => onSelectNote(note.id)}
-                className="w-full px-4 py-3 text-left transition-colors hover:bg-surface rounded-t-lg"
+                onClick={() => onSelect(note.id)}
+                className="w-full px-4 py-3 text-left hover:bg-page"
               >
-                <p className="text-sm font-medium text-fg truncate">{note.title}</p>
-                <p className="text-xs text-muted mt-0.5 truncate">{note.id}</p>
+                <p className="text-sm font-medium text-fg">{note.title}</p>
+                <p className="text-xs text-muted">
+                  {note.id} - matched {matchType}
+                </p>
               </button>
             </li>
           ))}
         </ul>
+      ) : (
+        <p className="text-sm text-muted">No notes match this search.</p>
       )}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// NoteEditor — the editor view for a selected note
-// ---------------------------------------------------------------------------
+function EmptyEditor({ hasNotes }: { hasNotes: boolean }) {
+  return (
+    <div className="flex min-h-120 flex-col items-center justify-center p-8 text-center">
+      <h3 className="text-lg font-medium text-fg">
+        {hasNotes ? "Select a note" : "Start your workspace"}
+      </h3>
+      <p className="mt-2 max-w-sm text-sm text-muted">
+        {hasNotes
+          ? "Choose a Markdown file from the explorer to open it here."
+          : "Create your first local Markdown note from the explorer."}
+      </p>
+    </div>
+  );
+}
 
 function NoteEditor({
   note,
+  folders,
   onSave,
-  onDelete,
   onRename,
   onMove,
-  folders,
-  onChangeName,
-  editingName,
-  editingTitle,
-  onTitleChange,
-  textareaRef,
+  onDelete,
 }: {
   note: NoteEntry;
-  onSave: () => void;
-  onDelete: () => void;
-  onRename: () => void;
-  onMove: (folderId: string) => void;
   folders: FolderEntry[];
-  onChangeName: (name: string) => void;
-  editingName: string;
-  editingTitle: string;
-  onTitleChange: (title: string) => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  onSave: (content: string) => Promise<boolean>;
+  onRename: (name: string) => Promise<boolean>;
+  onMove: (folderId: string, name: string) => Promise<boolean>;
+  onDelete: () => Promise<void>;
 }) {
+  const [content, setContent] = useState(note.content);
+  const [fileName, setFileName] = useState(
+    note.id.split("/").pop()?.replace(/\.md$/, "") ?? "",
+  );
+  const [mode, setMode] = useState<"edit" | "preview">("edit");
+  useEffect(() => {
+    setContent(note.content);
+    setFileName(note.id.split("/").pop()?.replace(/\.md$/, "") ?? "");
+  }, [note.id, note.content]);
   return (
-    <div className="rounded-lg border border-border overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-2 min-w-0">
+    <div className="flex min-h-144 flex-col">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-3">
+        <div className="flex min-w-0 items-center gap-2">
           <input
-            value={editingName}
-            onChange={(e) => onChangeName(e.target.value)}
-            placeholder="Note name"
-            className="min-w-0 rounded border border-border bg-surface px-2 py-1 text-sm text-fg placeholder-muted focus:border-fg/40 focus:outline-none"
+            value={fileName}
+            onChange={(event) => setFileName(event.target.value)}
+            aria-label="Note file name"
+            className="w-40 max-w-full border border-border bg-page px-2 py-1 text-sm text-fg"
           />
-          <span className="text-xs text-muted">.md</span>
+          <span className="text-sm text-muted">.md</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={onRename}
-            className="rounded border border-border px-2 py-1 text-xs text-fg hover:border-fg/40 hover:bg-surface focus-visible:outline-2 focus-visible:outline-fg"
+            onClick={() => void onRename(fileName)}
+            className="border border-border px-2 py-1 text-sm text-fg hover:bg-page"
           >
             Rename
           </button>
+          <select
+            value={note.folder}
+            onChange={(event) => void onMove(event.target.value, fileName)}
+            aria-label="Move note to folder"
+            className="border border-border bg-page px-2 py-1 text-sm text-fg"
+          >
+            <option value="">Move to workspace root</option>
+            {folders.map((folder) => (
+              <option key={folder.id} value={folder.id}>
+                Move to {folder.id}
+              </option>
+            ))}
+          </select>
           <button
-            onClick={onSave}
-            className="rounded border border-border px-2 py-1 text-xs text-fg hover:border-fg/40 hover:bg-surface focus-visible:outline-2 focus-visible:outline-fg"
+            onClick={() => void onSave(content)}
+            className="border border-border bg-page px-2 py-1 text-sm text-fg hover:border-fg/40"
           >
             Save
           </button>
           <button
-            onClick={onDelete}
-            className="rounded border border-border px-2 py-1 text-xs text-red-500 hover:border-red-500/40 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-fg"
+            onClick={() => void onDelete()}
+            className="border border-red-500 px-2 py-1 text-sm text-red-600 hover:bg-red-50"
           >
             Delete
           </button>
-          <select
-            aria-label="Move note to folder"
-            defaultValue={note.folder}
-            onChange={(e) => onMove(e.target.value)}
-            className="rounded border border-border bg-surface px-2 py-1 text-xs text-fg"
-          >
-            <option value="">Root folder</option>
-            {folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.id}</option>)}
-          </select>
         </div>
+      </header>
+      <div className="flex border-b border-border">
+        <button
+          onClick={() => setMode("edit")}
+          className={`px-4 py-2 text-sm ${mode === "edit" ? "border-b-2 border-accent text-fg" : "text-muted"}`}
+        >
+          Edit
+        </button>
+        <button
+          onClick={() => setMode("preview")}
+          className={`px-4 py-2 text-sm ${mode === "preview" ? "border-b-2 border-accent text-fg" : "text-muted"}`}
+        >
+          Preview
+        </button>
       </div>
-
-      {/* Title */}
-      <div className="px-4 py-3 border-b border-border">
-        <input
-          type="text"
-          value={editingTitle}
-          onChange={(e) => onTitleChange(e.target.value)}
-          placeholder="Untitled"
-          className="w-full rounded border border-border bg-surface px-3 py-2 text-base font-medium text-fg placeholder-muted focus:border-fg/40 focus:outline-none"
-        />
-      </div>
-
-      {/* Content */}
-      <div className="px-4 py-3">
+      {mode === "edit" ? (
         <textarea
-          ref={textareaRef}
-          value={note.content}
-          onChange={(e) => {
-            // The parent's handleContentChange will update the note's content
-            // via the ref, but the aria-selected changes are ephemeral in React
-            // controlled inputs — we use the textarea's on change to update the
-            // local note.content so the title field can derive from it.
-            if (note.content !== e.target.value) {
-              note.content = e.target.value;
-            }
-          }}
-          placeholder="Write Markdown…"
-          className="w-full min-h-[300px] rounded border border-border bg-surface p-3 text-sm text-fg placeholder-muted focus:border-fg/40 focus:outline-none resize-y"
+          value={content}
+          onChange={(event) => setContent(event.target.value)}
+          aria-label="Markdown content"
+          className="app-scrollbar min-h-116 flex-1 resize-y bg-page p-5 font-mono text-sm leading-6 text-fg focus:outline-none"
         />
-      </div>
-
-      {/* Metadata line */}
-      <div className="px-4 py-2 border-t border-border text-xs text-muted flex items-center gap-4">
-        <span>Folder: {note.folder || '(root)'}</span>
-        <span>Modified: {new Date(note.modifiedAt).toLocaleString()}</span>
-      </div>
+      ) : (
+        <article
+          className="app-scrollbar min-h-116 max-w-none overflow-auto p-5 text-fg"
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+        />
+      )}
     </div>
   );
 }

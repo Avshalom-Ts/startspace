@@ -8,7 +8,7 @@ Your browser. Your workspace. Your data.
 
 - **Browser extension** that replaces the New Tab / Home page. Built as a WebExtensions extension with Manifest V3, using TypeScript, React, Tailwind CSS, and Vite.
 - **Central search bar** with search order: Bookmarks → Notes → Tasks → Web.
-- **Configurable web search engine** as the fallback.
+- **Web search fallback** selected from Google, Bing, DuckDuckGo, or Brave Search.
 - **Favorites** displayed on the homepage, backed by browser bookmarks (by Bookmark ID).
 - **Navigation:** Home · Links · Notes · Tasks · Settings · GitHub.
 - **Markdown rendering** in the UI via `marked` where note content is shown.
@@ -20,7 +20,7 @@ Uses the browser's Bookmark API. The browser remains the source of truth for URL
 
 ### Notes
 
-Notes are normal Markdown (`.md`) files stored in your workspace. Create, edit, delete, rename, and move notes. Organize with folders (real directories created via the File System Access API from the Notes page UI). Import existing Markdown notes/folders, or use an existing Markdown folder directly as your workspace. Notes remain usable with external tools such as VS Code or Obsidian. The main search covers both note titles and content. Markdown rendering in the UI uses `marked`.
+Notes are normal Markdown (`.md`) files stored in your workspace. The Notes page has a persistent recursive explorer and an adjacent editor or Markdown preview. Create, edit, delete, rename, and move notes; create, rename, and delete real filesystem folders. Import existing Markdown notes, or use an existing Markdown folder directly as your workspace. Notes remain usable with external tools such as VS Code or Obsidian. The main search covers both note titles and content. Markdown rendering in the UI uses `marked`.
 
 ### Tasks
 

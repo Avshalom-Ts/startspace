@@ -37,8 +37,10 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 ### Search Bar (Central Entry Point)
 
 - Single search input on the homepage.
-- Search order: Bookmarks → Notes → Tasks → Web.
-- Configurable web search engine as the final/fallback step.
+- Search order and display groups: Bookmarks → Notes → Tasks → Web.
+- Results render in a bounded, scrollable dropdown below the centered input. Arrow Up/Down cycles through results; Enter opens the active result or runs the web fallback when no result is active.
+- Note and task results carry their relative note path or task ID in the hash route and open the exact selected item.
+- Web fallback is selected from the allowlisted Google, Bing, DuckDuckGo, and Brave Search catalog stored in extension config.
 - Searches note titles and content (not just titles).
 
 ### Bookmarks Module (Links)
@@ -52,8 +54,9 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 ### Notes Module
 
 - Notes are normal Markdown (`.md`) files in the user's workspace.
-- Operations: create, edit, delete, rename, move.
-- Folder organization within the workspace.
+- Persistent two-pane workspace: recursive filesystem explorer in the left pane and active Markdown editor or preview in the main pane.
+- Operations: create, edit, delete, rename, and move notes; create, rename, and recursively delete folders.
+- Folder rename copies all entries to a new sibling directory, then removes the original because the File System Access API has no native rename operation.
 - Import existing Markdown notes/folders; optionally use an existing Markdown folder directly as the workspace.
 - Notes remain usable with external tools (VS Code, Obsidian, etc.).
 - Search indexes both note titles and content.
@@ -96,9 +99,10 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 
 3. **Search flow**
    - User types in the central search bar.
-   - Search proceeds in order: Bookmarks → Notes → Tasks → Web.
+   - Matching local groups appear in Bookmarks → Notes → Tasks order, followed by a Web result.
+   - Arrow Up/Down selects a result in the dropdown; Enter opens that result. With no active selection, Enter opens the configured web search URL.
    - Notes search covers titles and content (Markdown files in the workspace).
-   - If no local match, the configurable web search engine is used as fallback.
+   - Notes and Tasks changes publish an in-page workspace-change event, causing the search cache to reload.
 
 4. **Bookmarks flow**
    - StartSpace reads bookmarks via the browser's Bookmark API.
@@ -107,8 +111,9 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 
 5. **Notes flow**
    - Notes are read/written as Markdown files in the workspace via the File System Access API.
-   - The Notes page UI provides a "New folder" action that creates a real directory in the workspace via `getDirectoryHandle(name, { create: true })`; nested folders are supported. Folders are ordinary directories on disk.
-   - Folders organize notes; renaming and moving update the file system (extension-side rename/move is typically copy-and-swap, or the user can rename externally in their file manager / editor).
+   - The Notes page keeps the recursive explorer visible while editing or previewing the active note. It refreshes when the page regains focus and has a manual refresh action.
+   - The New folder action creates a real directory via `getDirectoryHandle(name, { create: true })`; nested folders are supported. Folders are ordinary directories on disk.
+   - Folders organize notes; renaming and moving update the file system. Folder rename uses copy-and-remove; notes are copied to their destination before their source is removed.
    - Import can bring in existing Markdown notes/folders; an existing folder can optionally serve directly as the workspace.
 
 6. **Tasks flow**
@@ -139,5 +144,8 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 |            | notes (`.md`), `marked` for Markdown rendering, JSON for local        |
 |            | metadata, Vitest + Playwright for testing, Bun as package manager,    |
 |            | GitHub Actions for CI/CD, no backend.                                  |
+| 2026-09-01 | Implemented a two-pane filesystem Notes workspace and central search   |
+|            | dropdown with keyboard selection, exact note/task routing, and a       |
+|            | predefined web-engine catalog stored in extension config.              |
 | _Pending_  | Fill in manifest/permissions, storage model, and detailed data        |
 |            | formats once implementation begins.                                    |

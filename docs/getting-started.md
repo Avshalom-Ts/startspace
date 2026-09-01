@@ -112,18 +112,18 @@ Once installed and your workspace is chosen:
 
 1. **Home** — your homepage with favorites (from bookmarks) and the central search bar.
 2. **Links** — manage your browser bookmarks from StartSpace; mark favorites, add tags, link notes/tasks.
-3. **Notes** — create, edit, organize, and import Markdown notes in your workspace.
+3. **Notes** — browse the persistent folder explorer, then create, edit, preview, organize, rename, move, and import Markdown notes in your workspace.
 4. **Tasks** — a local Kanban board for tasks; link tasks to notes and bookmarks.
-5. **Settings** — configure your web search engine, workspace, import/export, and other options.
+5. **Settings** — choose your workspace and select Google, Bing, DuckDuckGo, or Brave Search as the web fallback. Import/export is planned, not yet available.
 6. **GitHub** — link to the source repository.
 
-**Search:** type in the central search bar. It searches in order: Bookmarks → Notes → Tasks → Web (configurable web search engine as the fallback).
+**Search:** type in the central search bar. It searches in order: Bookmarks → Notes → Tasks → Web. Results appear in a scrollable dropdown below the input. Use Arrow Up/Down to select a result and Enter to open it; press Enter without a selected result to search using the configured web engine.
 
 ## Import, Export, Backup, and Migration
 
 - **Import Markdown notes:** bring existing Markdown notes/folders into your workspace.
-- **Export / import configuration and metadata:** move your StartSpace settings and metadata between installations.
-- **Backup and restore:** back up your workspace folder to restore later or migrate to another computer.
+- **Export / import configuration and metadata:** planned; not implemented yet.
+- **Backup and restore:** planned; back up the workspace folder yourself until these flows are available.
 - **Migration:** because your workspace is a regular folder and your bookmarks live in the browser, moving to another computer means installing StartSpace there, choosing a workspace, and importing your data.
 
 ## Philosophy

@@ -25,7 +25,7 @@ The product outcome: a browser homepage that feels like the user's own workspace
 - Local-first, no backend: everything runs on the user's computer. No account, no cloud database, no server dependency.
 - **Themes:** light and dark mode, switchable from the header. Preference persisted in browser storage. (v1 — moved out of the deferred list.)
 - **Your data, your tooling:** bookmarks come from the browser's Bookmark API (browser is source of truth); notes are real Markdown files the user can edit anywhere (VS Code, Obsidian, etc.); tasks are local and linkable.
-- **Unified local search:** one search bar covers Bookmarks → Notes → Tasks → Web, with a configurable web search engine fallback.
+- **Unified local search:** one homepage search bar covers Bookmarks → Notes → Tasks → Web. Results appear in a keyboard-navigable dropdown; Enter opens the selected result or runs the configured web fallback.
 - **Open source and transparent:** users can audit, build from source, load unpacked, and migrate their workspace easily.
 - **Private by default:** no telemetry, no account, no vendor lock-in. "Your browser. Your workspace. Your data."
 
@@ -35,7 +35,7 @@ The product outcome: a browser homepage that feels like the user's own workspace
 
 - Browser extension replacing the browser's New Tab / Home page.
 - Central search bar with search order: Bookmarks → Notes → Tasks → Web.
-- Configurable web search engine.
+- Web fallback selected from the built-in Google, Bing, DuckDuckGo, and Brave Search catalog.
 - Favorites displayed on the homepage (linked to browser bookmarks via Bookmark ID).
 - Navigation: Home · Links · Notes · Tasks · Settings · GitHub.
 - **Browser Bookmarks:**
@@ -45,8 +45,8 @@ The product outcome: a browser homepage that feels like the user's own workspace
   - Bookmarks manageable from the Links page.
 - **Notes:**
   - Normal Markdown (`.md`) files stored in the user's workspace.
-  - Create, edit, delete, rename, and move notes.
-  - Organize notes with folders.
+  - Persistent two-pane workspace: recursive folder explorer beside the active editor or Markdown preview.
+  - Create, edit, delete, rename, and move notes; create, rename, and delete folders.
 - Folders are real directories created in the user's workspace via the browser's File System Access API from the Notes page UI. Nested folders are supported. Folders and notes are ordinary files and directories on disk, visible to and usable from external tools.
   - Import existing Markdown notes/folders.
   - Optionally use an existing Markdown folder directly as the workspace.
@@ -95,7 +95,7 @@ _To be refined once the project has users or a release._
 - **Local-first, no backend:** all user data lives in the browser (bookmarks) and the user's chosen workspace folder (notes, tasks, config, metadata). No server is involved.
 - **Source of truth:** browser bookmarks are the source of truth for bookmark data. StartSpace metadata is derived/linked, not a replacement for the browser's bookmark store.
 - **Markdown-first notes:** notes are real `.md` files, not a proprietary format. They must remain usable outside StartSpace. Markdown rendering in the UI uses `marked`.
-- **Local metadata:** StartSpace metadata and configuration are stored as JSON files (in the workspace, or in extension storage as decided during implementation). JSON makes the data inspectable, portable, and editable outside StartSpace where appropriate.
+- **Local metadata:** StartSpace configuration and bookmark-linked metadata are stored in extension storage. Notes and tasks remain workspace-owned data; note contents are never duplicated into a database or extension storage.
 - **Workspace is user-chosen:** the user picks the workspace folder via the File System Access API on first launch; StartSpace does not create or move the user's existing files without consent.
 - **Stateless extension, stateful workspace:** the extension itself is managed by the browser (install/uninstall/update by the browser); the workspace is the durable data location the user controls.
 - **Initial simplicity:** the first version intentionally keeps scope narrow. Future features (command palette, shortcuts, widgets, themes, PWA, more browsers) are explicitly deferred.

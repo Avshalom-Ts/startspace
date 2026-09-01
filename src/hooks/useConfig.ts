@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from "react";
 
 // ---------------------------------------------------------------------------
 // Types — match the JSON shape decided in .plan/001-define-data-formats.md,
@@ -9,6 +9,20 @@ export interface WebSearchEngine {
   name: string;
   urlTemplate: string;
 }
+
+/** The allowlisted web search engines available in StartSpace Settings. */
+export const WEB_SEARCH_ENGINES: readonly WebSearchEngine[] = [
+  { name: "Google", urlTemplate: "https://www.google.com/search?q={query}" },
+  { name: "Bing", urlTemplate: "https://www.bing.com/search?q={query}" },
+  { name: "DuckDuckGo", urlTemplate: "https://duckduckgo.com/?q={query}" },
+  {
+    name: "Brave Search",
+    urlTemplate: "https://search.brave.com/search?q={query}",
+  },
+];
+
+/** The engine used for first-run config and invalid legacy config values. */
+export const DEFAULT_WEB_SEARCH_ENGINE = WEB_SEARCH_ENGINES[0]!;
 
 export interface WorkspaceRef {
   /** StartSpace-generated stable identity for the granted workspace handle.
@@ -29,29 +43,58 @@ export interface Config {
 // Storage helpers — extension storage via chrome.storage.local.
 // ---------------------------------------------------------------------------
 
-const CONFIG_KEY = 'startspace.config';
+const CONFIG_KEY = "startspace.config";
 
 function readConfig(): Promise<Config | null> {
   return new Promise((resolve) => {
-    const chromeExt = (globalThis as { chrome?: { storage?: { local: { get: (keys: string[], callback: (result: Record<string, unknown>) => void) => void } } } }).chrome;
+    const chromeExt = (
+      globalThis as {
+        chrome?: {
+          storage?: {
+            local: {
+              get: (
+                keys: string[],
+                callback: (result: Record<string, unknown>) => void,
+              ) => void;
+            };
+          };
+        };
+      }
+    ).chrome;
     if (!chromeExt?.storage?.local) {
       resolve(null);
       return;
     }
-    chromeExt.storage.local.get([CONFIG_KEY], (result: Record<string, unknown>) => {
-      const raw = result[CONFIG_KEY];
-      if (raw && typeof raw === 'object') {
-        resolve(raw as Config);
-      } else {
-        resolve(null);
-      }
-    });
+    chromeExt.storage.local.get(
+      [CONFIG_KEY],
+      (result: Record<string, unknown>) => {
+        const raw = result[CONFIG_KEY];
+        if (raw && typeof raw === "object") {
+          resolve(raw as Config);
+        } else {
+          resolve(null);
+        }
+      },
+    );
   });
 }
 
 function writeConfig(config: Config): Promise<void> {
   return new Promise((resolve) => {
-    const chromeExt = (globalThis as { chrome?: { storage?: { local: { set: (items: Record<string, unknown>, callback?: () => void) => void } } } }).chrome;
+    const chromeExt = (
+      globalThis as {
+        chrome?: {
+          storage?: {
+            local: {
+              set: (
+                items: Record<string, unknown>,
+                callback?: () => void,
+              ) => void;
+            };
+          };
+        };
+      }
+    ).chrome;
     if (!chromeExt?.storage?.local) {
       resolve();
       return;
@@ -60,6 +103,24 @@ function writeConfig(config: Config): Promise<void> {
       resolve();
     });
   });
+}
+
+/** Notifies other in-page config consumers after the extension config changes. */
+function notifyConfigChanged(): void {
+  window.dispatchEvent(new Event("startspace:config-changed"));
+}
+
+/** Returns a configured engine only when it belongs to the supported catalog. */
+function knownSearchEngine(
+  engine: WebSearchEngine | undefined,
+): WebSearchEngine {
+  return (
+    WEB_SEARCH_ENGINES.find(
+      (candidate) =>
+        candidate.name === engine?.name &&
+        candidate.urlTemplate === engine.urlTemplate,
+    ) ?? DEFAULT_WEB_SEARCH_ENGINE
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -79,23 +140,29 @@ export function useConfig() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    readConfig().then((cfg) => {
-      // If no config exists yet, seed a default so the rest of the app can
-      // read a sensible config shape even before the user has chosen a workspace.
-      const defaultCfg: Config = cfg ?? {
-        version: 1,
-        webSearchEngine: { name: 'Google', urlTemplate: 'https://www.google.com/search?q={query}' },
-        currentWorkspace: null,
-      };
-      setConfig(defaultCfg);
-      setLoading(false);
-    });
+    const load = () => {
+      setLoading(true);
+      readConfig().then((cfg) => {
+        // If no config exists yet, seed a default so the rest of the app can
+        // read a sensible config shape even before the user has chosen a workspace.
+        const defaultCfg: Config = {
+          version: 1,
+          webSearchEngine: knownSearchEngine(cfg?.webSearchEngine),
+          currentWorkspace: cfg?.currentWorkspace ?? null,
+        };
+        setConfig(defaultCfg);
+        setLoading(false);
+      });
+    };
+    load();
+    window.addEventListener("startspace:config-changed", load);
+    return () => window.removeEventListener("startspace:config-changed", load);
   }, []);
 
   const save = useCallback(async (next: Config) => {
     await writeConfig(next);
     setConfig(next);
+    notifyConfigChanged();
   }, []);
 
   return { config, loading, save };

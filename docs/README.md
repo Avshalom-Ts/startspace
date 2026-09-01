@@ -6,6 +6,7 @@ Use this folder for documentation intended primarily for people working on or us
 
 - `getting-started.md` — setup and local development instructions.
 - `decisions/` — architecture decision records (ADRs).
+	- `0004-homepage-search-and-engine-selection.md` — homepage search dropdown, keyboard navigation, exact-result routing, and predefined web engines.
 
 ## Source of truth
 

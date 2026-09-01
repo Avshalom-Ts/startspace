@@ -1,4 +1,4 @@
-# ADR 0003: Local Markdown Notes and Recursive Workspace Tree
+# ADR 0003: Local Markdown Notes Workspace and Recursive Explorer
 
 **Status:** Accepted
 
@@ -34,8 +34,9 @@ The Notes page also needs to make the selected workspace understandable and usab
 - Each folder can be expanded or collapsed.
 - Notes directly contained in a folder are displayed beneath that folder.
 - Root-level notes are displayed beneath the workspace root.
-- Selecting a folder filters the main note list to notes directly inside that folder.
-- Selecting a note from the tree opens that Markdown file in the Notes editor.
+- The tree is the note explorer in a persistent left pane; it remains visible while a note is open.
+- Selecting a folder keeps it available as the context for folder operations. It does not replace the active editor with a filtered note-list view.
+- Selecting a note from the tree opens that Markdown file in the main-pane editor or viewer.
 - Folder deletion remains available from each folder node and uses the existing recursive filesystem deletion behavior.
 
 ### Contextual folder creation
@@ -43,6 +44,23 @@ The Notes page also needs to make the selected workspace understandable and usab
 - The New folder input and action are displayed at the top of the FolderTree.
 - When a folder is selected, a new folder is created inside that folder.
 - When the root or All notes view is selected, a new folder is created directly in the workspace root.
+
+### Two-pane Notes workspace
+
+- The Notes page uses a two-pane workspace layout inspired by the note workflow of tools such as Obsidian, without copying their visual design or branding.
+- The left pane is the note explorer. The main pane is the active note editor or viewer.
+- Clicking a note selects it, opens it in the main pane, and keeps it highlighted in the explorer.
+- The selected note is preserved while navigating within the Notes page.
+- Users can open another note directly from the explorer without leaving the Notes page.
+- When no note is selected, the main pane presents a useful empty state. When the workspace has no notes, it includes an option to create one.
+
+### Note editing and file operations
+
+- The initial implementation supports Markdown editing, Markdown rendering, and saving edits to the original `.md` file.
+- Users can create, rename, delete, and move notes between folders.
+- Users can create, rename, and delete folders.
+- Empty folders remain visible in the explorer.
+- Exact editor interaction details may evolve separately from this decision.
 
 ### Workspace access and persistence
 
@@ -59,12 +77,28 @@ The Notes page also needs to make the selected workspace understandable and usab
 - Notes search runs against the loaded note index and matches both note titles and Markdown content.
 - The homepage global search bar is not rendered on the Notes page.
 
+### Filesystem synchronization
+
+- StartSpace metadata must not replace the workspace's filesystem structure or store Markdown content separately from `.md` files.
+- Changes made outside StartSpace are detectable, and the UI refreshes when workspace changes are detected.
+
+### MVP boundaries
+
+The initial Notes workspace does not include graph view, backlinks, tags, advanced search filters, plugins, canvas, note databases, version history, or real-time collaboration. These features may be considered later.
+
+### Implementation rules
+
+- Implementation must inspect and reuse the existing Notes workspace and filesystem services.
+- File system access, note-tree loading, note selection, note editing, note saving, explorer UI, and editor UI are kept as independently testable concerns.
+- No backend, cloud service, or separate database for note contents is introduced.
+
 ## Consequences
 
 ### Positive
 
 - Notes remain portable, inspectable, and editable in external Markdown tools.
 - The UI accurately reflects the user's real filesystem hierarchy, including nested and empty folders.
+- The persistent explorer supports quick note switching while the main pane keeps the active note in context.
 - There is one source of truth for notes and folders: the workspace directory.
 - Reopening StartSpace can recover the selected directory handle without requiring the user to pick the folder again in the normal case.
 - Permission loss is explicit and recoverable without silently exposing an unusable Notes interface.
@@ -75,8 +109,7 @@ The Notes page also needs to make the selected workspace understandable and usab
 - File System Access API support and permission behavior vary between browsers.
 - A browser may require a user gesture to restore permission after reopening, even when the handle is persisted.
 - Scanning the workspace is required to refresh the note and folder view; very large workspaces may require later performance improvements.
-- External changes to files or directories are reflected after a refresh or another operation, not necessarily through real-time filesystem events.
-- The Notes page currently filters notes directly within the selected folder; recursive aggregate folder counts and recursive folder filtering are not implied by this decision.
+- Detecting external filesystem changes depends on browser capabilities and may require a refresh strategy rather than real-time filesystem events.
 
 ## Rejected alternatives
 
@@ -86,6 +119,23 @@ The Notes page also needs to make the selected workspace understandable and usab
 - **Flatten the folder tree:** rejected because it obscures hierarchy and makes nested workspace organization harder to navigate.
 - **Always reopen the directory picker after restart:** rejected because the persisted handle can identify the previous directory; when only permission must be renewed, requesting permission on that handle is a better user experience.
 - **Use the homepage search bar on every page:** rejected because Notes search has different scope and semantics from homepage search.
+
+## Acceptance criteria
+
+The Notes page is complete when:
+
+1. The workspace folder appears as the root explorer node.
+2. Root-level and nested notes are visible under their actual folders.
+3. Nested folders and empty folders are visible.
+4. Folders can expand and collapse.
+5. Clicking a note opens it in the main pane and highlights it in the explorer.
+6. The explorer remains visible while editing a note, and users can navigate to another note without leaving the page.
+7. The selected note can be edited and saved to its original `.md` file.
+8. Users can create, rename, delete, and move notes between folders.
+9. Users can create, rename, and delete folders.
+10. The UI reflects the real filesystem structure and refreshes when external workspace changes are detected.
+11. No backend, cloud service, or separate database stores note content.
+12. Existing Markdown files remain usable outside StartSpace.
 
 ## Recording
 

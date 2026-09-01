@@ -1,15 +1,18 @@
-import { useState, useEffect } from 'react';
-import { Header } from './Header';
-import { SearchBar, PageFooter } from './components';
-import { NAV } from './data/nav';
-import { useTheme } from './hooks/useTheme';
-import { PageContent } from './components/WorkspaceSetup';
-import { LinksPage } from './components/LinksPage';
-import { NotesPage } from './notes/notes-page';
-import { SettingsPage } from './components/SettingsPage';
-import { TasksPage } from './tasks/tasks-page';
-import { useBookmarkTree, useBookmarkMetadata } from './hooks/useBookmarkTree';
-import type { BookmarkMetadata } from './hooks/useBookmarks';
+import { useState, useEffect, useMemo } from "react";
+import { Header } from "./Header";
+import { SearchBar, PageFooter } from "./components";
+import { NAV } from "./data/nav";
+import { useTheme } from "./hooks/useTheme";
+import { PageContent } from "./components/WorkspaceSetup";
+import { LinksPage } from "./components/LinksPage";
+import { NotesPage } from "./notes/notes-page";
+import { SettingsPage } from "./components/SettingsPage";
+import { TasksPage } from "./tasks/tasks-page";
+import { useBookmarkTree, useBookmarkMetadata } from "./hooks/useBookmarkTree";
+import type { BookmarkMetadata } from "./hooks/useBookmarks";
+import { useSearchData } from "./search/use-search-data";
+import { orchestrateSearch } from "./search/search";
+import { SearchResults } from "./search/SearchResults";
 
 // ---------------------------------------------------------------------------
 // useFavoritesWrite — toggle the favorites flag in extension storage.
@@ -21,22 +24,21 @@ function useFavoritesWrite() {
   const toggle = async (id: string, current: boolean): Promise<void> => {
     setLoading(true);
     try {
-      const chromeExt = (globalThis as {
-        chrome?: {
-          storage?: {
-            local: {
-              get: (
-                keys: string[],
-                cb: (result: Record<string, unknown>) => void
-              ) => void;
-              set: (
-                items: Record<string, unknown>,
-                cb?: () => void
-              ) => void;
+      const chromeExt = (
+        globalThis as {
+          chrome?: {
+            storage?: {
+              local: {
+                get: (
+                  keys: string[],
+                  cb: (result: Record<string, unknown>) => void,
+                ) => void;
+                set: (items: Record<string, unknown>, cb?: () => void) => void;
+              };
             };
           };
-        };
-      }).chrome;
+        }
+      ).chrome;
 
       if (!chromeExt?.storage?.local) {
         setLoading(false);
@@ -44,11 +46,11 @@ function useFavoritesWrite() {
       }
 
       const local = chromeExt.storage.local;
-      const META_KEY = 'startspace.bookmarkMetadata';
+      const META_KEY = "startspace.bookmarkMetadata";
       local.get([META_KEY], (result: Record<string, unknown>) => {
         const raw = result[META_KEY];
         const meta =
-          raw && typeof raw === 'object'
+          raw && typeof raw === "object"
             ? (raw as Record<string, BookmarkMetadata>)
             : {};
 
@@ -68,7 +70,7 @@ function useFavoritesWrite() {
         });
       });
     } catch (err) {
-      console.warn('[StartSpace] failed to toggle favorite:', err);
+      console.warn("[StartSpace] failed to toggle favorite:", err);
       setLoading(false);
     }
   };
@@ -80,23 +82,29 @@ function useFavoritesWrite() {
 // AppShell — hash-based page routing
 // ---------------------------------------------------------------------------
 
-const PAGE_NAMES = ['home', 'links', 'notes', 'tasks', 'settings'] as const;
+const PAGE_NAMES = ["home", "links", "notes", "tasks", "settings"] as const;
 type PageName = (typeof PAGE_NAMES)[number];
 
 export function AppShell() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSearchResult, setActiveSearchResult] = useState(-1);
   const { mounted } = useTheme();
-  const [page, setPage] = useState<PageName>('home');
+  const [page, setPage] = useState<PageName>("home");
 
   // Derive the active page from the URL hash on mount and on hashchange.
   useEffect(() => {
     function derive() {
-      const raw = window.location.hash.replace(/^#/, '') || 'home';
-      setPage((PAGE_NAMES as readonly string[]).includes(raw) ? (raw as PageName) : 'home');
+      const raw =
+        window.location.hash.replace(/^#/, "").split("?")[0] || "home";
+      setPage(
+        (PAGE_NAMES as readonly string[]).includes(raw)
+          ? (raw as PageName)
+          : "home",
+      );
     }
     derive();
-    window.addEventListener('hashchange', derive);
-    return () => window.removeEventListener('hashchange', derive);
+    window.addEventListener("hashchange", derive);
+    return () => window.removeEventListener("hashchange", derive);
   }, []);
 
   // Update nav items to produce hash hrefs that the router understands.
@@ -107,29 +115,82 @@ export function AppShell() {
   });
 
   // Data needed by pages.
+  const searchData = useSearchData();
+  const searchResults = useMemo(
+    () => orchestrateSearch(searchData, searchQuery),
+    [searchData, searchQuery],
+  );
+  const searchResultUrls = useMemo(
+    () => [
+      ...searchResults.bookmarks.map((result) => result.bookmark.url),
+      ...searchResults.notes.map(
+        (result) => `#notes?note=${encodeURIComponent(result.note.id)}`,
+      ),
+      ...searchResults.tasks.map(
+        (task) => `#tasks?task=${encodeURIComponent(task.id)}`,
+      ),
+      ...(searchResults.webUrl ? [searchResults.webUrl] : []),
+    ],
+    [searchResults],
+  );
+  useEffect(() => setActiveSearchResult(-1), [searchQuery]);
+  const submitSearch = () => {
+    const url = searchResultUrls[activeSearchResult] ?? searchResults.webUrl;
+    if (url) window.location.assign(url);
+  };
+  const navigateSearchResults = (direction: "previous" | "next") => {
+    if (!searchResultUrls.length) return;
+    setActiveSearchResult((current) => {
+      if (current === -1) {
+        return direction === "next" ? 0 : searchResultUrls.length - 1;
+      }
+      const offset = direction === "next" ? 1 : -1;
+      return (
+        (current + offset + searchResultUrls.length) % searchResultUrls.length
+      );
+    });
+  };
   const { tree, loading: treeLoading } = useBookmarkTree();
   const { metadata, loading: metaLoading } = useBookmarkMetadata();
-  const { toggle: toggleFavorite, loading: toggleLoading } = useFavoritesWrite();
+  const { toggle: toggleFavorite, loading: toggleLoading } =
+    useFavoritesWrite();
 
-  const isLinks = page === 'links';
-  const isNotes = page === 'notes';
-  const isSettings = page === 'settings';
+  const isLinks = page === "links";
+  const isNotes = page === "notes";
+  const isSettings = page === "settings";
   const showLoading = treeLoading || metaLoading || toggleLoading;
 
   return (
     <div className="min-h-screen flex flex-col bg-page">
       <Header nav={nav} />
 
-      <main className="flex-1 flex flex-col items-center px-6 py-12 max-w-6xl mx-auto w-full">
-        {page === 'home' && (
-          <div className="w-full py-3">
-            <SearchBar value={searchQuery} onChange={setSearchQuery} />
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-12 max-w-6xl mx-auto w-full">
+        {page === "home" && (
+          <div className="relative w-full max-w-3xl py-3">
+            <SearchBar
+              value={searchQuery}
+              onChange={(query) => {
+                setSearchQuery(query);
+                setActiveSearchResult(-1);
+              }}
+              onSubmit={submitSearch}
+              onNavigate={navigateSearchResults}
+            />
+            {searchQuery.trim() && (
+              <div className="absolute inset-x-0 top-full z-20 mt-2">
+                <SearchResults
+                  results={searchResults}
+                  query={searchQuery}
+                  activeResultIndex={activeSearchResult}
+                />
+              </div>
+            )}
           </div>
         )}
 
         {isNotes ? (
           <NotesPage />
-        ) : page === 'tasks' ? (
+        ) : page === "tasks" ? (
           <TasksPage />
         ) : isLinks ? (
           <LinksPage
@@ -140,7 +201,7 @@ export function AppShell() {
           />
         ) : isSettings ? (
           <SettingsPage />
-        ) : (
+        ) : searchQuery.trim() ? null : (
           <PageContent />
         )}
       </main>

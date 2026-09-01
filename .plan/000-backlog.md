@@ -21,11 +21,11 @@ Add upcoming work here when a lightweight ordered list is useful.
 - [x] Implement bookmark read via Bookmark API; favorites display on homepage.
 - [x] Implement Links page and all links with they folder like title then related links below it.
 - [x] Implement workspace selection flow via File System Access API on first launch.
-- [ ] Implement notes: create/edit/delete/rename/move; folder organization; import; search titles and content. (Implemented partial, notes page not fully functional - Handle notes not working properly)
-- [ ] Implement tasks: local Kanban board; link to notes and bookmarks.
-- [ ] Implement search orchestration: Bookmarks → Notes → Tasks → Web (configurable web search engine fallback).
-- [ ] Implement Settings: web search engine configuration, workspace, import/export.
-- [ ] Implement import/export/backup/restore/migration flows.
+- [x] Implement notes: two-pane editor/preview and recursive filesystem explorer; create/edit/delete/rename/move notes; create/rename/delete folders; import; search titles and content.
+- [x] Implement tasks: local Kanban board; link to notes and bookmarks.
+- [x] Implement search orchestration: Bookmarks → Notes → Tasks → Web (configurable web search engine fallback).
+- [ ] Implement Settings: workspace and predefined web search engine selection are complete; import/export remains.
+- [ ] Implement import/export/backup/restore/migration flows.(Part of the settings page).
 - [ ] Prepare developer build path: clone → build → load unpacked documentation and scripts.
 - [ ] Optional: store listing preparation (Chrome Web Store / Firefox Add-ons) when ready.
 
