@@ -154,7 +154,7 @@ export function FavoritesList({
             <li key={item.id}>
               <a
                 href={item.url}
-                target="_blank"
+                target="_self"
                 rel="noopener noreferrer"
                 className="inline-flex items-center rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-fg transition-colors hover:border-fg/40 hover:bg-page hover:text-accent"
               >
