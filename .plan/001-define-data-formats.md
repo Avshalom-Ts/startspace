@@ -1,6 +1,6 @@
 # Plan: Define Data Formats Precisely
 
-Status: active
+Status: done
 Date: 2026-08-25
 Related backlog item: `.plan/000-backlog.md` — "Define data formats precisely: notes (Markdown `.md`), tasks (workspace format TBD), folders (real directories), StartSpace metadata linked to Bookmark IDs (JSON shape TBD), config (JSON shape TBD)."
 Related ADR: `docs/decisions/0002-manifest-permissions-storage.md` — record final shapes here.

@@ -109,7 +109,9 @@ Keep two layers separate:
 
 Both storage layers are JSON-serializable, so export/import/backup/migration can cover both: workspace folder contents plus a serialized export of extension-stored config and bookmark-linked metadata.
 
-- **Backup and restore:** back up the workspace folder (notes, tasks, folders, any workspace JSON) and, separately, export extension-stored config and bookmark-linked metadata as JSON. Restore both to re-create a StartSpace setup on another machine or after loss.
+- **Backup and restore:** export workspace files together with extension-stored
+  config and bookmark-linked metadata in one versioned JSON backup. Restore it
+  into an explicitly selected destination workspace; see ADR 0006.
 - **Import / export:** import existing Markdown notes into the workspace; export/import StartSpace configuration and metadata as JSON. Keep the export/import format self-describing and versioned where practical.
 - **Migration to another computer:** install StartSpace, choose the workspace folder, import the workspace contents and the exported config/metadata JSON. Bookmarks re-sync from the browser's bookmark store on the new machine (the browser is the source of truth); StartSpace re-links its metadata by Bookmark ID once the bookmarks are present.
 

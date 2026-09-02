@@ -76,15 +76,18 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 ### Workspace (User Data Layer)
 
 - A folder chosen by the user on first launch (File System Access API).
-- Contains the user's actual data: notes (Markdown), tasks, StartSpace configuration, and metadata.
+- Contains the user's actual workspace data: notes (Markdown), folders, and
+  `tasks.json`. Configuration and bookmark-linked metadata remain in extension
+  storage.
 - Does not depend on a server; the extension references it by reference, not by owning it.
-- Backup/restore and export/import operate on the workspace.
+- Backup/restore spans workspace files and extension-owned state in one
+  versioned local JSON export.
 
 ### Import / Export / Backup
 
 - Import existing Markdown notes.
-- Export/import StartSpace configuration and metadata.
-- Backup and restore the workspace.
+- Export/import StartSpace configuration and bookmark-linked metadata.
+- Backup and restore every workspace file without deleting unrelated files.
 - Supports migration to another computer.
 
 ### Distribution
@@ -97,7 +100,7 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 
 1. **First launch / workspace setup**
    - Extension loads; if no workspace is chosen, prompt the user via the File System Access API to select a folder.
-   - The chosen folder becomes the workspace root for notes, tasks, config, and metadata.
+   - The chosen folder becomes the workspace root for notes, folders, and tasks.
 
 2. **Homepage / navigation**
    - The extension renders the New Tab / Home page with navigation: Home · Links · Notes · Tasks · Settings · GitHub.
@@ -127,15 +130,19 @@ StartSpace is an open-source, local-first browser extension that replaces the br
    - Tasks can be linked to notes and bookmarks.
 
 7. **Import / Export / Backup flow**
-   - Export/import configuration and metadata.
-   - Backup/restore the workspace folder contents.
+   - Export/import configuration, theme, and bookmark-linked metadata in a
+     versioned JSON document.
+   - Backup/restore every workspace file with validated relative paths and
+     binary-safe base64 payloads. Restore overwrites included paths but does not
+     delete unrelated workspace files.
    - Import Markdown notes from external sources.
 
 ## External Dependencies
 
 - **Browser platform:** extension runtime, manifest, permissions model.
 - **Browser Bookmarks API:** source of truth for bookmark data (URL, name, folder structure, bookmark ID).
-- **File System Access API:** workspace folder access for notes, tasks, config, metadata, import/export/backup.
+- **File System Access API:** workspace folder access for notes, tasks, and
+  import/export/backup.
 - **Web search engine:** configurable external web search used as the final step of the search order (user-configurable).
 - **Distribution platforms (future):** Chrome Web Store / Firefox Add-ons for end-user installation.
 - **Source control:** GitHub for source, builds, and developer load-unpacked flow.
@@ -153,5 +160,7 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 | 2026-09-01 | Implemented a two-pane filesystem Notes workspace and central search   |
 |            | dropdown with keyboard selection, exact note/task routing, and a       |
 |            | predefined web-engine catalog stored in extension config.              |
+| 2026-09-02 | Added a versioned, binary-safe JSON backup spanning workspace files and |
+|            | extension-owned settings/metadata, with non-destructive restore.        |
 | _Pending_  | Fill in manifest/permissions, storage model, and detailed data        |
 |            | formats once implementation begins.                                    |

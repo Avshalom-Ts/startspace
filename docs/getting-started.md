@@ -10,18 +10,17 @@ Your browser bookmarks stay in the browser (the browser is the source of truth).
 
 ## End-User Installation
 
+StartSpace has not been published to an extension store yet. For the MVP, use
+the developer installation below.
+
 ### Chrome / Chromium
 
-1. Open the Chrome Web Store listing for StartSpace (link TBD).
-2. Click **Add to Chrome**.
-3. On first launch, StartSpace prompts you to choose a workspace folder using the File System Access API.
-4. Pick a folder — that folder becomes your workspace for notes, tasks, config, and metadata.
+Store installation will be documented after a listing is published.
 
 ### Firefox
 
-1. Open the Firefox Add-ons listing for StartSpace (link TBD).
-2. Click **Add to Firefox**.
-3. On first launch, choose your workspace folder when prompted.
+Firefox is not supported by the MVP because its File System Access API support
+does not currently provide the required workspace flow.
 
 ## Developer Installation (Build from Source)
 
@@ -37,13 +36,16 @@ Follow this path if you want to build StartSpace from source, contribute, or loa
 ### Clone and Build
 
 ```bash
-git clone https://github.com/<owner>/startspace.git
+git clone https://github.com/Avshalom-Ts/startspace.git
 cd startspace
 bun install
 bun run build
 ```
 
-The build is a Vite build configured for a WebExtensions / Manifest V3 extension. The output is an extension directory ready to load unpacked.
+The build type-checks the source, creates a Vite/WebExtensions Manifest V3
+bundle, and verifies that the required manifest, New Tab page, service worker,
+and icons exist. A successful command prints
+`Verified load-unpacked extension in dist/.`
 
 ### Development Workflow
 
@@ -64,19 +66,13 @@ The build is a Vite build configured for a WebExtensions / Manifest V3 extension
    - Chrome: `chrome://extensions/`
    - Firefox: `about:debugging` → "Load Temporary Add-on" (or the equivalent)
 2. Enable **Developer mode** if required.
-3. Load the built extension directory as an unpacked extension.
-4. Set StartSpace as your New Tab / Home page if the browser requires it.
+3. Choose **Load unpacked** and select the repository's generated `dist/`
+   directory.
+4. Open a new tab. The manifest installs StartSpace as the New Tab page.
 
 On first launch, StartSpace will prompt you to choose a workspace folder.
 
-### Development Workflow
-
-- Make changes to the source.
-- Rebuild (`npm run build`).
-- Reload the unpacked extension in the browser's extension management page.
-- Test in the New Tab page.
-
-### Repository Structure (initial)
+### Repository Structure
 
 The project is a TypeScript + React + Tailwind CSS browser extension built with Vite and WebExtensions / Manifest V3. Expected top-level areas:
 
@@ -84,12 +80,12 @@ The project is a TypeScript + React + Tailwind CSS browser extension built with 
 - React UI components and pages (Home, Links, Notes, Tasks, Settings, GitHub).
 - Styling via Tailwind CSS with a shared `tailwind.config.ts`.
 - Markdown rendering via `marked` where note content is rendered in the UI.
-- Data and storage: browser bookmarks via the Bookmark API; workspace notes (Markdown), tasks, folders, and StartSpace metadata/config as JSON files; extension storage as needed.
+- Data and storage: browser bookmarks via the Bookmark API; workspace notes,
+  folders, and `tasks.json`; config and bookmark-linked metadata in extension
+  storage.
 - Build tooling and configuration (Vite, TypeScript, Bun scripts).
 - Testing: Vitest for unit tests, Playwright for browser/extension-page tests.
 - Documentation (`.doc/`, `docs/`, `.rule/`, `.plan/`, `AGENTS.md`).
-
-The exact tree is finalized during implementation; this list reflects the intended structure based on the selected stack.
 
 ## First Launch: Choosing Your Workspace
 
@@ -98,13 +94,14 @@ On first launch, StartSpace asks you to choose a workspace folder using the File
 **What happens:**
 - You pick a folder on your computer.
 - That folder becomes your workspace.
-- StartSpace stores your notes (Markdown files), tasks, configuration, and metadata there.
+- StartSpace stores your notes (Markdown files), folders, and `tasks.json` there.
+  Small app settings and bookmark-linked metadata stay in extension storage.
 - The extension itself is managed by the browser; the workspace is yours and does not depend on a server.
 
 **Things to know:**
 - You can use an existing Markdown folder as your workspace if you want — your existing notes remain usable.
 - You can edit notes with any Markdown editor (VS Code, Obsidian, etc.) — StartSpace reads and writes ordinary `.md` files.
-- You can change or re-select your workspace as needed (workflow TBD).
+- You can change or reconnect your workspace from Settings.
 
 ## Quick Tour
 
@@ -115,7 +112,8 @@ Once installed and your workspace is chosen:
    and deleting browser-backed links and folders; mark links as favorites.
 3. **Notes** — browse the persistent folder explorer, then create, edit, preview, organize, rename, move, and import Markdown notes in your workspace.
 4. **Tasks** — a local Kanban board for tasks; link tasks to notes and bookmarks.
-5. **Settings** — choose your workspace and select Google, Bing, DuckDuckGo, or Brave Search as the web fallback. Import/export is planned, not yet available.
+5. **Settings** — choose your workspace, select Google, Bing, DuckDuckGo, or
+   Brave Search as the web fallback, and export or restore a backup.
 6. **GitHub** — link to the source repository.
 
 **Search:** type in the central search bar. It searches in order: Bookmarks → Notes → Tasks → Web. Results appear in a scrollable dropdown below the input. Use Arrow Up/Down to select a result and Enter to open it; press Enter without a selected result to search using the configured web engine.
@@ -123,9 +121,16 @@ Once installed and your workspace is chosen:
 ## Import, Export, Backup, and Migration
 
 - **Import Markdown notes:** bring existing Markdown notes/folders into your workspace.
-- **Export / import configuration and metadata:** planned; not implemented yet.
-- **Backup and restore:** planned; back up the workspace folder yourself until these flows are available.
-- **Migration:** because your workspace is a regular folder and your bookmarks live in the browser, moving to another computer means installing StartSpace there, choosing a workspace, and importing your data.
+- **Export backup:** in Settings, choose **Export backup**. The downloaded,
+  versioned JSON includes every workspace file, StartSpace settings, theme, and
+  bookmark-linked metadata. Browser bookmarks themselves remain in the browser.
+- **Restore backup:** connect the destination workspace, then choose **Restore
+  backup** and select the exported JSON. Matching files are overwritten; files
+  not represented by the backup are preserved.
+- **Migration:** move the JSON backup to the new computer, install StartSpace,
+  choose an empty or existing destination workspace, and restore. Browser
+  bookmark sync/export remains the browser's responsibility; linked metadata
+  reconnects only when Bookmark IDs are preserved.
 
 ## Philosophy
 

@@ -93,7 +93,9 @@ _To be refined once the project has users or a release._
 
 - **Browser extension model:** the product is a WebExtensions browser extension replacing the New Tab/Home page, built with Manifest V3. It depends on browser APIs (Bookmark API, File System Access API, extension manifest and permissions). Browser support and API availability shape what is possible.
 - **Tech stack:** TypeScript, React, Tailwind CSS, Vite, `marked` for Markdown rendering, JSON for local metadata, Vitest + Playwright for testing, Bun as the package manager, GitHub Actions for CI/CD. No backend.
-- **Local-first, no backend:** all user data lives in the browser (bookmarks) and the user's chosen workspace folder (notes, tasks, config, metadata). No server is involved.
+- **Local-first, no backend:** all user data lives in the browser or extension
+  storage (bookmarks, config, bookmark-linked metadata) and the user's chosen
+  workspace folder (notes and tasks). No server is involved.
 - **Source of truth:** browser bookmarks are the source of truth for bookmark data. StartSpace metadata is derived/linked, not a replacement for the browser's bookmark store.
 - **Markdown-first notes:** notes are real `.md` files, not a proprietary format. They must remain usable outside StartSpace. Markdown rendering in the UI uses `marked`.
 - **Local metadata:** StartSpace configuration and bookmark-linked metadata are stored in extension storage. Notes and tasks remain workspace-owned data; note contents are never duplicated into a database or extension storage.

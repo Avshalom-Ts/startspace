@@ -24,9 +24,9 @@ Add upcoming work here when a lightweight ordered list is useful.
 - [x] Implement notes: two-pane editor/preview and recursive filesystem explorer; create/edit/delete/rename/move notes; create/rename/delete folders; import; search titles and content.
 - [x] Implement tasks: local Kanban board; link to notes and bookmarks.
 - [x] Implement search orchestration: Bookmarks → Notes → Tasks → Web (configurable web search engine fallback).
-- [ ] Implement Settings: workspace and predefined web search engine selection are complete; import/export remains.
-- [ ] Implement import/export/backup/restore/migration flows.(Part of the settings page).
-- [ ] Prepare developer build path: clone → build → load unpacked documentation and scripts.
+- [x] Implement Settings: workspace selection, predefined web search engine selection, and portable backup/restore.
+- [x] Implement import/export/backup/restore/migration flows in Settings. The versioned backup includes extension-owned config/metadata and all workspace files; restore validates before writing and preserves unrelated files.
+- [x] Prepare developer build path: clone → build → verified `dist/` → load unpacked documentation and scripts.
 - [ ] Optional: store listing preparation (Chrome Web Store / Firefox Add-ons) when ready.
 
 ## Later (future scope, not initial)
