@@ -10,25 +10,21 @@ import { slugifyNoteName } from "../types/notes-path";
 import type { FolderEntry, NoteEntry } from "../types/notes";
 import { searchNotes, type NoteSearchResult } from "./notes-search";
 import { useNotes } from "./use-notes";
+import { useNotifications } from "../notifications/notification-context";
 
 function renderMarkdown(content: string): string {
   return marked.parse(content, { async: false }) as string;
 }
 
 export function NotesPage() {
+  const notifications = useNotifications();
   const notes = useNotes();
   const { grant, chooseWorkspace } = useWorkspace();
   const [activeFolderId, setActiveFolderId] = useState("");
   const [newNoteName, setNewNoteName] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!message) return;
-    const timer = window.setTimeout(() => setMessage(null), 3000);
-    return () => window.clearTimeout(timer);
-  }, [message]);
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const refreshOnFocus = () => void notes.refresh();
@@ -50,31 +46,33 @@ export function NotesPage() {
 
   const createNote = async () => {
     const name = newNoteName.trim();
-    if (!name) return setMessage("Enter a note name.");
+    if (!name) return setValidationMessage("Enter a note name.");
     const result = await notes.createNote(
       activeFolderId,
       `${slugifyNoteName(name)}.md`,
       `# ${name}\n\n`,
     );
-    if (!result.ok) return setMessage(result.error.message);
+    if (!result.ok) return notifications.error(result.error.message);
     setNewNoteName("");
     await notes.selectNote(result.value.id);
-    setMessage(`Created ${result.value.title}.`);
+    setValidationMessage(null);
+    notifications.success(`Created ${result.value.title}.`);
   };
 
   const createFolder = async () => {
     const name = newFolderName.trim();
-    if (!name) return setMessage("Enter a folder name.");
+    if (!name) return setValidationMessage("Enter a folder name.");
     const result = await notes.createFolder(activeFolderId, name);
-    if (!result.ok) return setMessage(result.error.message);
+    if (!result.ok) return notifications.error(result.error.message);
     setNewFolderName("");
-    setMessage(`Created ${name}.`);
+    setValidationMessage(null);
+    notifications.success(`Created ${name}.`);
   };
 
   const renameFolder = async (folderId: string, name: string) => {
     const result = await notes.renameFolder(folderId, name);
     if (!result.ok) {
-      setMessage(result.error.message);
+      notifications.error(result.error.message);
       return false;
     }
     setActiveFolderId((current) =>
@@ -82,7 +80,7 @@ export function NotesPage() {
         ? `${result.value.id}${current.slice(folderId.length)}`
         : current,
     );
-    setMessage(`Renamed ${name}.`);
+    notifications.success(`Renamed ${name}.`);
     return true;
   };
 
@@ -131,12 +129,12 @@ export function NotesPage() {
           Refresh workspace
         </button>
       </div>
-      {message && (
+      {validationMessage && (
         <p
           className="mb-4 border border-border bg-surface px-3 py-2 text-sm text-fg"
-          role="status"
+          role="alert"
         >
-          {message}
+          {validationMessage}
         </p>
       )}
       {notes.error && (
@@ -224,9 +222,9 @@ export function NotesPage() {
                 onRenameFolder={renameFolder}
                 onDeleteFolder={async (id) => {
                   const result = await notes.deleteFolder(id);
-                  setMessage(
-                    result.ok ? "Folder deleted." : result.error.message,
-                  );
+                  result.ok
+                    ? notifications.success("Folder deleted.")
+                    : notifications.error(result.error.message);
                   return result.ok;
                 }}
               />
@@ -251,7 +249,9 @@ export function NotesPage() {
                   notes.selectedNote!.id,
                   content,
                 );
-                setMessage(result.ok ? "Saved." : result.error.message);
+                result.ok
+                  ? notifications.success("Saved.")
+                  : notifications.error(result.error.message);
                 return result.ok;
               }}
               onRename={async (name) => {
@@ -259,7 +259,9 @@ export function NotesPage() {
                   notes.selectedNote!.id,
                   `${slugifyNoteName(name)}.md`,
                 );
-                setMessage(result.ok ? "Note renamed." : result.error.message);
+                result.ok
+                  ? notifications.success("Note renamed.")
+                  : notifications.error(result.error.message);
                 return result.ok;
               }}
               onMove={async (folderId, name) => {
@@ -269,13 +271,17 @@ export function NotesPage() {
                   slugifyNoteName(name),
                 );
                 if (result.ok) await notes.selectNote(result.value.id);
-                setMessage(result.ok ? "Note moved." : result.error.message);
+                result.ok
+                  ? notifications.success("Note moved.")
+                  : notifications.error(result.error.message);
                 return result.ok;
               }}
               onDelete={async () => {
                 const result = await notes.deleteNote(notes.selectedNote!.id);
                 if (result.ok) await notes.selectNote(null);
-                setMessage(result.ok ? "Note deleted." : result.error.message);
+                result.ok
+                  ? notifications.success("Note deleted.")
+                  : notifications.error(result.error.message);
               }}
             />
           ) : (

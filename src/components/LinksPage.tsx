@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { collectBookmarkFolders, collectBookmarkLinks, collectBookmarkNodeIds, findBookmarkNode, unwrapBookmarkRoots } from "../bookmarks/bookmark-tree";
 import type { CreateBookmarkInput, UpdateBookmarkInput } from "../bookmarks/bookmark-service";
 import type { BookmarkMetadata, BookmarkNode } from "../hooks/useBookmarks";
+import { useNotifications } from "../notifications/notification-context";
 
 type EditorState = { mode: "create-link" | "create-folder" | "edit"; node?: BookmarkNode };
 
@@ -26,6 +27,7 @@ interface LinksPageProps {
 
 /** Renders folder navigation and browser-backed bookmark management. */
 export function LinksPage({ tree, metadata, onToggleFavorite, onCreate, onUpdate, onMove, onDelete, loading, mutating, error, onClearError }: LinksPageProps) {
+  const notifications = useNotifications();
   const [pathIds, setPathIds] = useState<string[]>([]);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [deleting, setDeleting] = useState<BookmarkNode | null>(null);
@@ -80,16 +82,34 @@ export function LinksPage({ tree, metadata, onToggleFavorite, onCreate, onUpdate
       {cards.length ? <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">{cards.map(({ node, folderTitle }) => <LinkCard key={node.id} node={node} meta={metadata[node.id]} folderTitle={folderTitle} onToggleFavorite={onToggleFavorite} onEdit={() => setEditor({ mode: "edit", node })} />)}</ul> : <p className="text-sm text-muted">No links in this folder.</p>}
 
       {editor && <BookmarkEditor editor={editor} currentFolder={currentFolder} folderTree={roots} folders={folders} busy={mutating} onSave={async (values) => {
-        if (editor.mode === "create-link") await onCreate({ parentId: values.parentId, title: values.title, url: values.url });
-        else if (editor.mode === "create-folder") await onCreate({ parentId: values.parentId, title: values.title });
-        else if (editor.node) {
-          await onUpdate(editor.node.id, editor.node.url ? { title: values.title, url: values.url } : { title: values.title });
-          if (values.parentId !== editor.node.parentId) await onMove(editor.node.id, values.parentId);
+        try {
+          if (editor.mode === "create-link") await onCreate({ parentId: values.parentId, title: values.title, url: values.url });
+          else if (editor.mode === "create-folder") await onCreate({ parentId: values.parentId, title: values.title });
+          else if (editor.node) {
+            await onUpdate(editor.node.id, editor.node.url ? { title: values.title, url: values.url } : { title: values.title });
+            if (values.parentId !== editor.node.parentId) await onMove(editor.node.id, values.parentId);
+          }
+          notifications.success(editor.mode === "create-link" ? "Link created." : editor.mode === "create-folder" ? "Folder created." : "Bookmark updated.");
+          setEditor(null);
+        } catch (failure) {
+          notifications.error(failure instanceof Error ? failure.message : "The bookmark operation failed. Try again.");
+          onClearError();
+          throw failure;
         }
-        setEditor(null);
       }} onRequestDelete={editor.node && !rootIds.has(editor.node.id) ? () => { setDeleting(editor.node ?? null); setEditor(null); } : undefined} onClose={() => setEditor(null)} />}
 
-      {deleting && <DeleteDialog node={deleting} busy={mutating} onConfirm={async () => { await onDelete(deleting); setDeleting(null); }} onClose={() => setDeleting(null)} />}
+      {deleting && <DeleteDialog node={deleting} busy={mutating} onConfirm={async () => {
+        try {
+          const deletedKind = deleting.url ? "Link" : "Folder";
+          await onDelete(deleting);
+          notifications.success(`${deletedKind} deleted.`);
+          setDeleting(null);
+        } catch (failure) {
+          notifications.error(failure instanceof Error ? failure.message : "The bookmark could not be deleted. Try again.");
+          onClearError();
+          throw failure;
+        }
+      }} onClose={() => setDeleting(null)} />}
     </section>
   );
 }

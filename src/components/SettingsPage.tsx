@@ -8,6 +8,7 @@ import {
   restoreBackup,
 } from "../backup/backup-service";
 import { BackupValidationError } from "../backup/backup-format";
+import { useNotifications } from "../notifications/notification-context";
 
 // ---------------------------------------------------------------------------
 // SettingsPage
@@ -19,6 +20,7 @@ import { BackupValidationError } from "../backup/backup-format";
  * and StartSpace-owned extension storage.
  */
 export function SettingsPage() {
+  const notifications = useNotifications();
   const { config, loading, save } = useConfig();
   const { grant } = useWorkspace();
   const workspaceReady =
@@ -26,10 +28,7 @@ export function SettingsPage() {
   const [selectedTemplate, setSelectedTemplate] = useState(
     WEB_SEARCH_ENGINES[0]!.urlTemplate,
   );
-  const [message, setMessage] = useState<string | null>(null);
   const [backupBusy, setBackupBusy] = useState(false);
-  const [backupMessage, setBackupMessage] = useState<string | null>(null);
-  const [backupError, setBackupError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!config) return;
@@ -45,23 +44,21 @@ export function SettingsPage() {
       ...config,
       webSearchEngine: engine,
     });
-    setMessage("Web search engine saved.");
+    notifications.success("Web search engine saved.");
   };
 
   /** Exports settings, bookmark metadata, theme, and workspace files as JSON. */
   const exportBackup = async () => {
     if (!grant.handle || !config) return;
     setBackupBusy(true);
-    setBackupMessage(null);
-    setBackupError(null);
     try {
       const backup = await createBackup(grant.handle, config);
       downloadBackup(backup);
-      setBackupMessage(
+      notifications.success(
         `Backup exported with ${backup.workspace.files.length} workspace file${backup.workspace.files.length === 1 ? "" : "s"}.`,
       );
     } catch {
-      setBackupError(
+      notifications.error(
         "Backup could not be created. Reconnect the workspace and try again.",
       );
     } finally {
@@ -73,19 +70,17 @@ export function SettingsPage() {
   const importBackup = async (file: File | undefined) => {
     if (!file || !grant.handle || !config) return;
     setBackupBusy(true);
-    setBackupMessage(null);
-    setBackupError(null);
     try {
       const summary = await restoreBackup(
         await file.text(),
         grant.handle,
         config,
       );
-      setBackupMessage(
+      notifications.success(
         `Backup restored: ${summary.filesRestored} workspace file${summary.filesRestored === 1 ? "" : "s"} and ${summary.bookmarkMetadataEntries} bookmark metadata entr${summary.bookmarkMetadataEntries === 1 ? "y" : "ies"}.`,
       );
     } catch (error) {
-      setBackupError(
+      notifications.error(
         error instanceof BackupValidationError
           ? error.message
           : "Backup could not be restored. No unrelated workspace files were deleted.",
@@ -143,11 +138,6 @@ export function SettingsPage() {
             >
               Save web search
             </button>
-            {message && (
-              <span className="text-sm text-muted" role="status">
-                {message}
-              </span>
-            )}
           </div>
         </div>
       </div>
@@ -193,16 +183,6 @@ export function SettingsPage() {
             />
           </label>
         </div>
-        {backupMessage && (
-          <p className="mt-3 text-sm text-muted" role="status">
-            {backupMessage}
-          </p>
-        )}
-        {backupError && (
-          <p className="mt-3 text-sm text-red-500" role="alert">
-            {backupError}
-          </p>
-        )}
       </div>
     </section>
   );

@@ -34,6 +34,19 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 - Tailwind v4 CSS custom properties (``--color-page``, ``--color-surface``, ``--color-border``, ``--color-fg``, ``--color-muted``, ``--color-accent``, ``--color-accent-foreground``) swap values per theme via a ``[data-theme="dark"]`` selector.
 - Applied at the root (``<html>``) via ``data-theme``; the UI reads the attribute on mount and on toggle.
 
+### Notification Module
+
+- An app-level React provider owns an in-memory queue of up to four messages
+  and renders them in a fixed stack at the top-right of the viewport.
+- Notes, Tasks, Links, and Settings use the same typed success, information,
+  warning, and error API for transient operation outcomes.
+- Success and informational messages dismiss automatically; errors remain until
+  dismissed. Timers pause while a message is hovered or keyboard-focused.
+- Field validation and persistent blockers remain inline beside the relevant
+  control or page. Destructive actions continue to use confirmation dialogs.
+- Notifications use accessible live-region roles, do not take focus, respect
+  reduced-motion preferences, and are never persisted or sent outside the app.
+
 ### Search Bar (Central Entry Point)
 
 - Single search input on the homepage.
@@ -162,5 +175,7 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 |            | predefined web-engine catalog stored in extension config.              |
 | 2026-09-02 | Added a versioned, binary-safe JSON backup spanning workspace files and |
 |            | extension-owned settings/metadata, with non-destructive restore.        |
+| 2026-09-02 | Added shared, accessible top-right notifications for transient operation |
+|            | feedback while preserving inline validation and persistent blockers.    |
 | _Pending_  | Fill in manifest/permissions, storage model, and detailed data        |
 |            | formats once implementation begins.                                    |

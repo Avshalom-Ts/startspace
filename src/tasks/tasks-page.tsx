@@ -17,6 +17,7 @@ import {
 } from "./tasks-model";
 import { buildTaskBoardColumns } from "./task-board-columns";
 import { useTasks } from "./use-tasks";
+import { useNotifications } from "../notifications/notification-context";
 
 function flattenBookmarks(nodes: BookmarkNode[]): BookmarkNode[] {
   const result: BookmarkNode[] = [];
@@ -31,6 +32,7 @@ function flattenBookmarks(nodes: BookmarkNode[]): BookmarkNode[] {
 
 /** Renders the workspace-backed Kanban board and its note/bookmark linking panel. */
 export function TasksPage() {
+  const notifications = useNotifications();
   const { grant, chooseWorkspace } = useWorkspace();
   const board = useTasks();
   const notes = useNotes();
@@ -44,7 +46,7 @@ export function TasksPage() {
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
   const [draftStatus, setDraftStatus] = useState<TaskStatus>("todo");
-  const [message, setMessage] = useState<string | null>(null);
+  const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [columnPendingDelete, setColumnPendingDelete] =
     useState<TaskColumn | null>(null);
 
@@ -131,14 +133,15 @@ export function TasksPage() {
     if (task) {
       setNewTitle("");
       selectTask(task);
-      setMessage("Task created.");
+      setValidationMessage(null);
+      notifications.success("Task created.");
     }
   };
 
   const saveDetails = async () => {
     if (!selectedTask) return;
     if (!draftTitle.trim()) {
-      setMessage("Enter a task title.");
+      setValidationMessage("Enter a task title.");
       return;
     }
     if (
@@ -148,17 +151,17 @@ export function TasksPage() {
         status: draftStatus,
       })
     )
-      setMessage("Task saved.");
+      notifications.success("Task saved.");
   };
 
   const moveTask = async (task: Task, status: TaskStatus) => {
-    if (await board.moveTask(task.id, status)) setMessage("Task moved.");
+    if (await board.moveTask(task.id, status)) notifications.success("Task moved.");
   };
 
   const addColumn = async () => {
     if (await board.addColumn(newColumnTitle)) {
       setNewColumnTitle("");
-      setMessage("Column added.");
+      notifications.success("Column added.");
     }
   };
 
@@ -173,13 +176,13 @@ export function TasksPage() {
     setEditingColumnId(null);
     setEditingColumnTitle("");
     if (title && (await board.renameColumn(column.id, title)))
-      setMessage("Column renamed.");
+      notifications.success("Column renamed.");
   };
 
   const confirmDeleteColumn = async () => {
     if (!columnPendingDelete) return;
     if (await board.deleteColumn(columnPendingDelete.id))
-      setMessage("Column deleted.");
+      notifications.success("Column deleted.");
     setColumnPendingDelete(null);
   };
 
@@ -241,7 +244,11 @@ export function TasksPage() {
       {(board.loading || notes.loading) && (
         <span className="text-xs text-muted">Loading…</span>
       )}
-      {message && <span className="text-xs text-muted">{message}</span>}
+      {validationMessage && (
+        <span className="text-xs text-red-500" role="alert">
+          {validationMessage}
+        </span>
+      )}
       {board.error && (
         <span className="text-xs text-red-500">{board.error}</span>
       )}
