@@ -13,6 +13,7 @@ import type { BookmarkMetadata } from "./hooks/useBookmarks";
 import { useSearchData } from "./search/use-search-data";
 import { orchestrateSearch } from "./search/search";
 import { SearchResults } from "./search/SearchResults";
+import { collectBookmarkNodeIds } from "./bookmarks/bookmark-tree";
 
 // ---------------------------------------------------------------------------
 // useFavoritesWrite — toggle the favorites flag in extension storage.
@@ -150,8 +151,10 @@ export function AppShell() {
       );
     });
   };
-  const { tree, loading: treeLoading } = useBookmarkTree();
-  const { metadata, loading: metaLoading } = useBookmarkMetadata();
+  const bookmarkTree = useBookmarkTree();
+  const { tree, loading: treeLoading } = bookmarkTree;
+  const bookmarkMetadata = useBookmarkMetadata();
+  const { metadata, loading: metaLoading } = bookmarkMetadata;
   const { toggle: toggleFavorite, loading: toggleLoading } =
     useFavoritesWrite();
 
@@ -164,27 +167,30 @@ export function AppShell() {
     <div className="min-h-screen flex flex-col bg-page">
       <Header nav={nav} />
 
-      <main className="flex-1 flex flex-col items-center justify-center px-6 py-12 max-w-6xl mx-auto w-full">
+      <main className="flex-1 flex flex-col px-6 py-12 max-w-6xl mx-auto w-full">
         {page === "home" && (
-          <div className="relative w-full max-w-3xl py-3">
-            <SearchBar
-              value={searchQuery}
-              onChange={(query) => {
-                setSearchQuery(query);
-                setActiveSearchResult(-1);
-              }}
-              onSubmit={submitSearch}
-              onNavigate={navigateSearchResults}
-            />
-            {searchQuery.trim() && (
-              <div className="absolute inset-x-0 top-full z-20 mt-2">
-                <SearchResults
-                  results={searchResults}
-                  query={searchQuery}
-                  activeResultIndex={activeSearchResult}
-                />
-              </div>
-            )}
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <div className="relative w-full max-w-3xl py-3">
+              <SearchBar
+                value={searchQuery}
+                onChange={(query) => {
+                  setSearchQuery(query);
+                  setActiveSearchResult(-1);
+                }}
+                onSubmit={submitSearch}
+                onNavigate={navigateSearchResults}
+              />
+              {searchQuery.trim() && (
+                <div className="absolute inset-x-0 top-full z-20 mt-2">
+                  <SearchResults
+                    results={searchResults}
+                    query={searchQuery}
+                    activeResultIndex={activeSearchResult}
+                  />
+                </div>
+              )}
+            </div>
+            <PageContent />
           </div>
         )}
 
@@ -196,14 +202,25 @@ export function AppShell() {
           <LinksPage
             tree={tree}
             metadata={metadata}
-            onToggleFavorite={toggleFavorite}
+            onToggleFavorite={(id, current) => {
+              void toggleFavorite(id, current).then(bookmarkMetadata.reload);
+            }}
+            onCreate={bookmarkTree.create}
+            onUpdate={bookmarkTree.update}
+            onMove={bookmarkTree.move}
+            onDelete={async (node) => {
+              const ids = collectBookmarkNodeIds(node);
+              await bookmarkTree.remove(node.id, !node.url);
+              await bookmarkMetadata.removeIds(ids);
+            }}
             loading={showLoading}
+            mutating={bookmarkTree.mutating}
+            error={bookmarkTree.error}
+            onClearError={bookmarkTree.clearError}
           />
         ) : isSettings ? (
           <SettingsPage />
-        ) : searchQuery.trim() ? null : (
-          <PageContent />
-        )}
+        ) : null}
       </main>
 
       <PageFooter />

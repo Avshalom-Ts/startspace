@@ -42,7 +42,8 @@ The product outcome: a browser homepage that feels like the user's own workspace
   - Use the browser's Bookmark API.
   - Browser remains source of truth for: URL, Name, Folder structure, Bookmark ID.
   - StartSpace metadata linked by Bookmark ID: Favorites, Tags, Date added to StartSpace, Related notes/tasks.
-  - Bookmarks manageable from the Links page.
+  - Browser-backed links and folders manageable from the Links page: create,
+    rename/edit, move, and delete while preserving the folder-chip navigation.
 - **Notes:**
   - Normal Markdown (`.md`) files stored in the user's workspace.
   - Persistent two-pane workspace: recursive folder explorer beside the active editor or Markdown preview.

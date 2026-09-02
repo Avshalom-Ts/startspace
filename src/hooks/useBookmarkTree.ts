@@ -1,116 +1,106 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { BookmarkNode, BookmarkMetadata } from './useBookmarks';
+// useBookmarkTree.ts
+//
+// Owns the live bookmark tree and StartSpace bookmark metadata used by Links.
+// It reads and mutates Chrome's Bookmark API and stores metadata separately in
+// chrome.storage.local under the browser-assigned Bookmark ID.
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+import { useCallback, useEffect, useState } from "react";
+import { createBookmark, moveBookmark, removeBookmark, removeBookmarkTree, updateBookmark, type CreateBookmarkInput, type UpdateBookmarkInput } from "../bookmarks/bookmark-service";
+import type { BookmarkMetadata, BookmarkNode } from "./useBookmarks";
 
-// Reuse the chrome global access pattern from useBookmarks.
-const chromeBookmarks: typeof globalThis.chrome | undefined = (
-  globalThis as { chrome?: typeof globalThis.chrome }
-).chrome;
+const META_KEY = "startspace.bookmarkMetadata";
 
-function readBookmarkTree(): Promise<BookmarkNode[] | null> {
-  if (!chromeBookmarks?.bookmarks) {
-    return Promise.resolve(null);
+/** Reads the full browser bookmark tree, returning null outside an extension. */
+async function readBookmarkTree(): Promise<BookmarkNode[] | null> {
+  const api = (globalThis as { chrome?: typeof chrome }).chrome?.bookmarks;
+  if (!api) return null;
+  try { return await api.getTree() as BookmarkNode[]; }
+  catch (error) {
+    console.warn("[StartSpace] bookmark tree read failed", error);
+    return null;
   }
-  return chromeBookmarks.bookmarks.getTree()
-    .then((result) => (result as unknown as BookmarkNode[]) ?? [])
-    .catch((err) => {
-      console.warn('[StartSpace] chrome.bookmarks.getTree failed:', err);
-      return null;
-    });
 }
 
-// ---------------------------------------------------------------------------
-// useBookmarkTree
-// ---------------------------------------------------------------------------
-
-/**
- * Reads the full bookmark tree (with folder structure preserved) from the
- * Chrome Bookmarks API. Unlike useBookmarks (which flattens to leaf nodes),
- * this returns the tree as-is so the Links page can render folders with their
- * children.
- *
- * Returns the root-level nodes (top-level bookmark bars, other toolbars, etc.).
- * StartSpace renders each top-level node as a folder.
- */
+/** Exposes a synchronized bookmark tree and all supported CRUD operations. */
 export function useBookmarkTree() {
   const [tree, setTree] = useState<BookmarkNode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mutating, setMutating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
+  const reload = useCallback(async () => {
     const result = await readBookmarkTree();
-
-    if (result === null) {
-      setTree([]);
-      setLoading(false);
-      return;
-    }
-
-    setTree(result);
+    setTree(result ?? []);
     setLoading(false);
+    setError(result === null ? "Bookmarks are unavailable in this browser context." : null);
   }, []);
 
+  useEffect(() => void reload(), [reload]);
+
   useEffect(() => {
-    load();
-  }, [load]);
+    const api = (globalThis as { chrome?: typeof chrome }).chrome?.bookmarks;
+    if (!api) return;
+    const refresh = () => void reload();
+    api.onCreated.addListener(refresh);
+    api.onChanged.addListener(refresh);
+    api.onMoved.addListener(refresh);
+    api.onRemoved.addListener(refresh);
+    return () => {
+      api.onCreated.removeListener(refresh);
+      api.onChanged.removeListener(refresh);
+      api.onMoved.removeListener(refresh);
+      api.onRemoved.removeListener(refresh);
+    };
+  }, [reload]);
 
-  return { tree, loading, error, reload: load };
+  const runMutation = useCallback(async <Result,>(operation: () => Promise<Result>): Promise<Result> => {
+    setMutating(true);
+    setError(null);
+    try {
+      const result = await operation();
+      await reload();
+      return result;
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "The bookmark operation failed. Try again.");
+      throw failure;
+    } finally { setMutating(false); }
+  }, [reload]);
+
+  return {
+    tree, loading, mutating, error, clearError: () => setError(null), reload,
+    create: (input: CreateBookmarkInput) => runMutation(() => createBookmark(input)),
+    update: (id: string, changes: UpdateBookmarkInput) => runMutation(() => updateBookmark(id, changes)),
+    move: (id: string, parentId: string) => runMutation(() => moveBookmark(id, parentId)),
+    remove: (id: string, recursive: boolean) => runMutation(() => recursive ? removeBookmarkTree(id) : removeBookmark(id)),
+  };
 }
 
-// ---------------------------------------------------------------------------
-// useBookmarkMetadata — extension storage reads for StartSpace metadata.
-// ---------------------------------------------------------------------------
-
-const META_KEY = 'startspace.bookmarkMetadata';
-
-function readBookmarkMetadata(): Promise<Record<string, BookmarkMetadata>> {
-  return new Promise((resolve) => {
-    const chromeExt = (globalThis as {
-      chrome?: {
-        storage?: {
-          local: {
-            get: (
-              keys: string[],
-              callback: (result: Record<string, unknown>) => void
-            ) => void;
-          };
-        };
-      };
-    }).chrome;
-
-    if (!chromeExt?.storage?.local) {
-      resolve({});
-      return;
-    }
-
-    chromeExt.storage.local.get([META_KEY], (result: Record<string, unknown>) => {
-      const raw = result[META_KEY];
-      resolve(
-        raw && typeof raw === 'object'
-          ? (raw as Record<string, BookmarkMetadata>)
-          : {}
-      );
-    });
-  });
-}
-
+/** Reads and updates StartSpace metadata linked to browser Bookmark IDs. */
 export function useBookmarkMetadata() {
   const [metadata, setMetadata] = useState<Record<string, BookmarkMetadata>>({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    setLoading(true);
-    readBookmarkMetadata().then((meta) => {
-      setMetadata(meta);
-      setLoading(false);
-    });
+  const reload = useCallback(async () => {
+    const storage = (globalThis as { chrome?: typeof chrome }).chrome?.storage?.local;
+    if (!storage) { setMetadata({}); setLoading(false); return; }
+    const result = await storage.get([META_KEY]);
+    const raw = result[META_KEY];
+    setMetadata(raw && typeof raw === "object" ? raw as Record<string, BookmarkMetadata> : {});
+    setLoading(false);
   }, []);
 
-  return { metadata, loading };
+  useEffect(() => void reload(), [reload]);
+
+  const removeIds = useCallback(async (ids: string[]) => {
+    const storage = (globalThis as { chrome?: typeof chrome }).chrome?.storage?.local;
+    if (!storage) return;
+    const result = await storage.get([META_KEY]);
+    const raw = result[META_KEY];
+    const next = raw && typeof raw === "object" ? { ...raw as Record<string, BookmarkMetadata> } : {};
+    for (const id of ids) delete next[id];
+    await storage.set({ [META_KEY]: next });
+    setMetadata(next);
+  }, []);
+
+  return { metadata, loading, reload, removeIds };
 }

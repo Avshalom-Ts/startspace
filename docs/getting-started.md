@@ -111,7 +111,8 @@ On first launch, StartSpace asks you to choose a workspace folder using the File
 Once installed and your workspace is chosen:
 
 1. **Home** — your homepage with favorites (from bookmarks) and the central search bar.
-2. **Links** — manage your browser bookmarks from StartSpace; mark favorites, add tags, link notes/tasks.
+2. **Links** — keep the folder-chip navigation while creating, editing, moving,
+   and deleting browser-backed links and folders; mark links as favorites.
 3. **Notes** — browse the persistent folder explorer, then create, edit, preview, organize, rename, move, and import Markdown notes in your workspace.
 4. **Tasks** — a local Kanban board for tasks; link tasks to notes and bookmarks.
 5. **Settings** — choose your workspace and select Google, Bing, DuckDuckGo, or Brave Search as the web fallback. Import/export is planned, not yet available.

@@ -14,6 +14,10 @@ export interface BookmarkNode {
   url?: string;
   /** Child nodes — present on folders; may be empty. */
   children?: BookmarkNode[];
+  /** Parent folder assigned by the browser; absent only on the absolute root. */
+  parentId?: string;
+  /** Zero-based position within the parent folder. */
+  index?: number;
 }
 
 /** StartSpace metadata stored in extension storage, keyed by browser Bookmark ID. */
