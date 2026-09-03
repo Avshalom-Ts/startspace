@@ -1,0 +1,130 @@
+name: Release to Chrome Web Store
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to rebuild and publish (for example v0.1.1)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chrome-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build release package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Resolve release tag
+        id: release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_TAG: ${{ github.ref_name }}
+          MANUAL_TAG: ${{ inputs.tag }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            TAG="$MANUAL_TAG"
+          else
+            TAG="$PUSH_TAG"
+          fi
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Release tag must use vMAJOR.MINOR.PATCH." >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release.outputs.tag }}
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify release version
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: bun run verify:release-version
+
+      - name: Run unit tests
+        run: bun run test
+
+      - name: Build and verify extension
+        run: bun run build
+
+      - name: Create Chrome upload package
+        run: cd dist && zip -qr "../startspace-${{ steps.release.outputs.version }}.zip" .
+
+      - name: Upload release package
+        uses: actions/upload-artifact@v4
+        with:
+          name: startspace-chrome-${{ steps.release.outputs.version }}
+          path: startspace-${{ steps.release.outputs.version }}.zip
+          if-no-files-found: error
+          retention-days: 90
+
+  publish:
+    name: Upload and submit for Chrome review
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: chrome-production
+    permissions:
+      contents: write
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build.outputs.tag }}
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - name: Download release package
+        uses: actions/download-artifact@v4
+        with:
+          name: startspace-chrome-${{ needs.build.outputs.version }}
+
+      - name: Authenticate as Chrome publisher service account
+        id: google-auth
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.CHROME_SERVICE_ACCOUNT_JSON }}
+          service_account: ${{ vars.CHROME_SERVICE_ACCOUNT_EMAIL }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+
+      - name: Upload and publish after review
+        env:
+          CHROME_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
+          CHROME_PUBLISHER_ID: ${{ vars.CHROME_PUBLISHER_ID }}
+          CHROME_EXTENSION_ID: ${{ vars.CHROME_EXTENSION_ID }}
+          CHROME_ZIP_PATH: startspace-${{ needs.build.outputs.version }}.zip
+        run: bun scripts/publish-chrome.ts
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: gh release create "$RELEASE_TAG" "startspace-$RELEASE_VERSION.zip" --generate-notes --verify-tag

@@ -108,6 +108,9 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 - **Normal users:** Chrome Web Store / Firefox Add-ons → Install.
 - **Developers:** GitHub → Clone/download → Build → Load Unpacked.
 - The browser manages the extension's installation location; the user chooses the workspace location.
+- GitHub Actions validates pull requests and `main` pushes. Semantic version
+  tags build one ZIP, enter a protected production environment, upload through
+  Chrome Web Store API v2, and publish automatically after store review.
 
 ## Data and Request Flow
 
@@ -177,5 +180,5 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 |            | extension-owned settings/metadata, with non-destructive restore.        |
 | 2026-09-02 | Added shared, accessible top-right notifications for transient operation |
 |            | feedback while preserving inline validation and persistent blockers.    |
-| _Pending_  | Fill in manifest/permissions, storage model, and detailed data        |
-|            | formats once implementation begins.                                    |
+| 2026-09-03 | Added GitHub Actions CI and protected, tag-driven Chrome Web Store API    |
+|            | v2 delivery with matching GitHub release artifacts.                      |

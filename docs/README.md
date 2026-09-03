@@ -5,8 +5,12 @@ Use this folder for documentation intended primarily for people working on or us
 ## In this folder
 
 - `getting-started.md` — setup and local development instructions.
+- `ci-cd.md` — GitHub Actions validation and tagged Chrome release workflow.
+- `publishing-to-chrome.md` — first-time Chrome Web Store publishing runbook.
+- `privacy-policy.md` — public-facing description of StartSpace data handling.
 - `decisions/` — architecture decision records (ADRs).
 	- `0004-homepage-search-and-engine-selection.md` — homepage search dropdown, keyboard navigation, exact-result routing, and predefined web engines.
+	- `0007-github-actions-chrome-delivery.md` — CI and protected tag-driven Chrome delivery.
 
 ## Source of truth
 
