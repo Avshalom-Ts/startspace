@@ -87,22 +87,13 @@ export function WorkspaceSetupPrompt() {
 // ---------------------------------------------------------------------------
 
 export function PageContent() {
-  const { config, loading: configLoading } = useConfig();
+  const { loading: configLoading } = useConfig();
   const { favorites, loading: favoritesLoading } = useFavorites();
-  const workspaceReady = config?.currentWorkspace != null;
 
   if (configLoading) {
     return (
       <div className="w-full flex items-center justify-center py-12">
         <div className="w-4 h-4 border-2 border-border border-t-fg rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!workspaceReady) {
-    return (
-      <div className="w-full mt-6">
-        <WorkspaceSetupPrompt />
       </div>
     );
   }
@@ -136,7 +127,7 @@ export function FavoritesList({
   loading: boolean;
 }) {
   return (
-    <section className="w-full">
+    <section className="w-full flex flex-col items-center">
       <h2 className="text-sm text-center font-medium uppercase tracking-wide text-muted mb-3">
         Favorites
       </h2>

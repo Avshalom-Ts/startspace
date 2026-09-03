@@ -62,6 +62,9 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 - Browser is source of truth for: URL, Name, Folder structure, Bookmark ID.
 - StartSpace metadata is linked by Bookmark ID: Favorites, Tags, Date added to StartSpace, Related notes/tasks.
 - Provides the Links page for managing bookmarks from within StartSpace.
+- Filters the in-memory bookmark tree by link name or URL and bookmark-linked
+  favorite metadata for page-wide Links filtering; no search index or duplicate
+  bookmark store is created.
 - Favorites are displayed on the homepage, backed by bookmark IDs.
 - Creates, updates, moves, and deletes links and folders through a dedicated
   Bookmark API service; the Links UI never becomes a second bookmark store.

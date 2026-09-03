@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { collectBookmarkFolders, collectBookmarkLinks, collectBookmarkNodeIds, findBookmarkNode, unwrapBookmarkRoots } from "../bookmarks/bookmark-tree";
+import { filterFavoriteLinks, filterLinks } from "../bookmarks/links-search";
 import type { CreateBookmarkInput, UpdateBookmarkInput } from "../bookmarks/bookmark-service";
 import type { BookmarkMetadata, BookmarkNode } from "../hooks/useBookmarks";
 import { useNotifications } from "../notifications/notification-context";
@@ -31,6 +32,8 @@ export function LinksPage({ tree, metadata, onToggleFavorite, onCreate, onUpdate
   const [pathIds, setPathIds] = useState<string[]>([]);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [deleting, setDeleting] = useState<BookmarkNode | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const autoEnteredRef = useRef(false);
   const roots = useMemo(() => unwrapBookmarkRoots(tree), [tree]);
   const rootIds = useMemo(() => new Set(roots.map((root) => root.id)), [roots]);
@@ -55,12 +58,39 @@ export function LinksPage({ tree, metadata, onToggleFavorite, onCreate, onUpdate
   if (roots.length === 0) return <p className="text-sm text-muted">No bookmarks found in the browser.</p>;
 
   const rowFolders = (currentFolder ? currentFolder.children ?? [] : nonEmptyRoots).filter((child) => !child.url);
-  const cards = currentFolder && pathIds.length > 1
+  const folderCards = currentFolder && pathIds.length > 1
     ? (currentFolder.children ?? []).filter((child) => child.url).map((node) => ({ node, folderTitle: currentFolder.title }))
     : collectBookmarkLinks(roots);
+  const searching = Boolean(searchQuery.trim());
+  const allVisibleCards = searching || favoritesOnly ? collectBookmarkLinks(roots) : folderCards;
+  const searchedCards = filterLinks(allVisibleCards, searchQuery);
+  const cards = favoritesOnly ? filterFavoriteLinks(searchedCards, metadata) : searchedCards;
 
   return (
     <section className="w-full">
+      <div className="mb-4 flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted">⌕</span>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search links by name or URL…"
+            aria-label="Search links"
+            className="w-full rounded-lg border border-border bg-surface py-2.5 pl-9 pr-3 text-sm text-fg placeholder:text-muted focus-visible:outline-2 focus-visible:outline-fg"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setFavoritesOnly((selected) => !selected)}
+          aria-label={favoritesOnly ? "Show all links" : "Show favorite links only"}
+          aria-pressed={favoritesOnly}
+          title={favoritesOnly ? "Show all links" : "Show favorite links only"}
+          className={`inline-flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-lg border text-lg transition-colors focus-visible:outline-2 focus-visible:outline-fg ${favoritesOnly ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface text-muted hover:border-fg/40 hover:text-fg"}`}
+        >
+          {favoritesOnly ? "★" : "☆"}
+        </button>
+      </div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           {currentFolder && <button onClick={() => setPathIds((path) => path.slice(0, -1))} className="inline-flex items-center rounded-full border border-border px-2 py-1 text-sm text-muted transition-colors hover:border-fg/40 hover:text-fg focus-visible:outline-2 focus-visible:outline-fg" title="Back to previous folder" aria-label="Back to previous folder">←</button>}
@@ -79,7 +109,7 @@ export function LinksPage({ tree, metadata, onToggleFavorite, onCreate, onUpdate
 
       {error && <div role="alert" className="mb-4 flex items-center justify-between gap-3 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-500"><span>{error}</span><button onClick={onClearError} aria-label="Dismiss error">×</button></div>}
 
-      {cards.length ? <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">{cards.map(({ node, folderTitle }) => <LinkCard key={node.id} node={node} meta={metadata[node.id]} folderTitle={folderTitle} onToggleFavorite={onToggleFavorite} onEdit={() => setEditor({ mode: "edit", node })} />)}</ul> : <p className="text-sm text-muted">No links in this folder.</p>}
+      {cards.length ? <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">{cards.map(({ node, folderTitle }) => <LinkCard key={node.id} node={node} meta={metadata[node.id]} folderTitle={folderTitle} onToggleFavorite={onToggleFavorite} onEdit={() => setEditor({ mode: "edit", node })} />)}</ul> : <p className="text-sm text-muted">{searching ? `No links match “${searchQuery.trim()}”${favoritesOnly ? " among your favorites" : ""}.` : favoritesOnly ? "No favorite links yet." : "No links in this folder."}</p>}
 
       {editor && <BookmarkEditor editor={editor} currentFolder={currentFolder} folderTree={roots} folders={folders} busy={mutating} onSave={async (values) => {
         try {

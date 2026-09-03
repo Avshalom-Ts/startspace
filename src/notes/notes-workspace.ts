@@ -107,6 +107,7 @@ async function scanDirectory(
   const folders: FolderEntry[] = [];
   let directCount = 0;
   for await (const entry of directory.values()) {
+    if (entry.name.startsWith(".")) continue;
     const id = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.kind === "file" && entry.name.endsWith(".md")) {
       notes.push(await readFileEntry(root, id));
