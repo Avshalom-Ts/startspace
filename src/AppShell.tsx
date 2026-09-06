@@ -9,75 +9,11 @@ import { NotesPage } from "./notes/notes-page";
 import { SettingsPage } from "./settings/SettingsPage";
 import { TasksPage } from "./tasks/tasks-page";
 import { useBookmarkTree, useBookmarkMetadata } from "./hooks/useBookmarkTree";
-import type { BookmarkMetadata } from "./hooks/useBookmarks";
 import { useSearchData } from "./search/use-search-data";
 import { orchestrateSearch } from "./search/search";
 import { SearchResults } from "./search/SearchResults";
 import { collectBookmarkNodeIds } from "./bookmarks/bookmark-tree";
-
-// ---------------------------------------------------------------------------
-// useFavoritesWrite — toggle the favorites flag in extension storage.
-// ---------------------------------------------------------------------------
-
-function useFavoritesWrite() {
-  const [loading, setLoading] = useState(false);
-
-  const toggle = async (id: string, current: boolean): Promise<void> => {
-    setLoading(true);
-    try {
-      const chromeExt = (
-        globalThis as {
-          chrome?: {
-            storage?: {
-              local: {
-                get: (
-                  keys: string[],
-                  cb: (result: Record<string, unknown>) => void,
-                ) => void;
-                set: (items: Record<string, unknown>, cb?: () => void) => void;
-              };
-            };
-          };
-        }
-      ).chrome;
-
-      if (!chromeExt?.storage?.local) {
-        setLoading(false);
-        return;
-      }
-
-      const local = chromeExt.storage.local;
-      const META_KEY = "startspace.bookmarkMetadata";
-      local.get([META_KEY], (result: Record<string, unknown>) => {
-        const raw = result[META_KEY];
-        const meta =
-          raw && typeof raw === "object"
-            ? (raw as Record<string, BookmarkMetadata>)
-            : {};
-
-        const entry: BookmarkMetadata = meta[id] ?? {
-          favorites: false,
-          tags: [],
-          dateAdded: new Date().toISOString(),
-          relatedNotes: [],
-          relatedTasks: [],
-        };
-
-        entry.favorites = !current;
-        meta[id] = entry;
-
-        local.set({ [META_KEY]: meta }, () => {
-          setLoading(false);
-        });
-      });
-    } catch (err) {
-      console.warn("[StartSpace] failed to toggle favorite:", err);
-      setLoading(false);
-    }
-  };
-
-  return { toggle, loading };
-}
+import { useFavoritesWrite } from "./links/favorites-list";
 
 // ---------------------------------------------------------------------------
 // AppShell — hash-based page routing
