@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useState } from "react";
 
 export const SearchBar = forwardRef<
   HTMLInputElement,
@@ -7,8 +7,11 @@ export const SearchBar = forwardRef<
     onChange: (value: string) => void;
     onSubmit?: () => void;
     onNavigate?: (direction: "previous" | "next") => void;
+    onFocus?: () => void;
+    onBlur?: () => void;
   }
->(({ value, onChange, onSubmit, onNavigate }, ref) => {
+>(({ value, onChange, onSubmit, onNavigate, onFocus, onBlur }, ref) => {
+  const [isFocused, setIsFocused] = useState(false);
   return (
     <div className="w-full">
       <div className="relative">
@@ -28,8 +31,17 @@ export const SearchBar = forwardRef<
         <input
           ref={ref}
           type="search"
+          autoFocus
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onFocus={() => {
+            setIsFocused(true);
+            onFocus?.();
+          }}
+          onBlur={() => {
+            setIsFocused(false);
+            onBlur?.();
+          }}
           onKeyDown={(event) => {
             if (!value.trim()) return;
             if (event.key === "ArrowDown") {
@@ -49,6 +61,13 @@ export const SearchBar = forwardRef<
       </div>
       <p className="mt-2 text-xs text-muted">
         Search order: Bookmarks → Notes → Tasks → Web
+        {!isFocused && (
+          // Chrome can steal focus back to the omnibox on a fresh new tab; Esc returns it here.
+          <span className="ml-2 text-muted/70">
+            · Press <kbd className="rounded border border-border px-1">Esc</kbd>{" "}
+            to search
+          </span>
+        )}
       </p>
     </div>
   );

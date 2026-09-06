@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Header } from "./Header";
 import { SearchBar, PageFooter } from "./components";
 import { NAV } from "./data/nav";
@@ -99,6 +99,30 @@ export function AppShell() {
   const isSettings = page === "settings";
   const showLoading = treeLoading || metaLoading || toggleLoading;
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  // Chrome's own "focus the omnibox on new tab" behavior can re-steal focus
+  // asynchronously after our page loads, so keep re-asserting focus on the
+  // search input for a short window until Chrome stops fighting us for it.
+  useEffect(() => {
+    if (page !== "home") return;
+    let active = true;
+    let rafId: number;
+    const stopAt = Date.now() + 1500;
+    const claimFocus = () => {
+      if (!active) return;
+      const input = searchInputRef.current;
+      if (input && document.activeElement !== input) input.focus();
+      if (Date.now() < stopAt) rafId = requestAnimationFrame(claimFocus);
+    };
+    claimFocus();
+    window.addEventListener("focus", claimFocus);
+    return () => {
+      active = false;
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("focus", claimFocus);
+    };
+  }, [page]);
+
   return (
     <div className="min-h-screen flex flex-col bg-page">
       <Header nav={nav} />
@@ -108,6 +132,7 @@ export function AppShell() {
           <div className="flex-1 flex flex-col items-center justify-center">
             <div className="relative w-full max-w-3xl py-3">
               <SearchBar
+                ref={searchInputRef}
                 value={searchQuery}
                 onChange={(query) => {
                   setSearchQuery(query);
