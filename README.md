@@ -73,6 +73,9 @@ Private, local-first, Markdown-first, user-owned, transparent, and open source. 
 ## Documentation
 
 - `docs/getting-started.md` — setup and local development.
+- `docs/ci-cd.md` — CI checks and tagged Chrome release operations.
+- `docs/publishing-to-chrome.md` — first-time Chrome Web Store walkthrough.
+- `docs/privacy-policy.md` — StartSpace's local data-handling disclosure.
 - `docs/decisions/` — architecture decision records.
 - `.doc/product-definition.md` — product definition (source of truth).
 - `.doc/architecture.md` — architecture (source of truth).
@@ -152,4 +155,4 @@ Add application code, tooling, and project-specific documentation as the project
 
 ## License
 
-To be determined — open source by design. (Add the chosen license file when ready.)
+StartSpace is open-source software licensed under the [MIT License](LICENSE).

@@ -46,7 +46,6 @@ export function TasksPage() {
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
   const [draftStatus, setDraftStatus] = useState<TaskStatus>("todo");
-  const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [columnPendingDelete, setColumnPendingDelete] =
     useState<TaskColumn | null>(null);
 
@@ -80,6 +79,10 @@ export function TasksPage() {
     window.addEventListener("hashchange", selectLinkedTask);
     return () => window.removeEventListener("hashchange", selectLinkedTask);
   }, [board.tasks]);
+
+  useEffect(() => {
+    if (board.error) notifications.error(board.error);
+  }, [board.error, notifications]);
 
   /** Updates which board-navigation arrows can move the horizontal viewport. */
   const updateScrollControls = useCallback(() => {
@@ -133,7 +136,6 @@ export function TasksPage() {
     if (task) {
       setNewTitle("");
       selectTask(task);
-      setValidationMessage(null);
       notifications.success("Task created.");
     }
   };
@@ -141,7 +143,7 @@ export function TasksPage() {
   const saveDetails = async () => {
     if (!selectedTask) return;
     if (!draftTitle.trim()) {
-      setValidationMessage("Enter a task title.");
+      notifications.error("Enter a task title.");
       return;
     }
     if (
@@ -244,15 +246,6 @@ export function TasksPage() {
       {(board.loading || notes.loading) && (
         <span className="text-xs text-muted">Loading…</span>
       )}
-      {validationMessage && (
-        <span className="text-xs text-red-500" role="alert">
-          {validationMessage}
-        </span>
-      )}
-      {board.error && (
-        <span className="text-xs text-red-500">{board.error}</span>
-      )}
-
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="mb-2 flex flex-wrap gap-2">
           {board.columns

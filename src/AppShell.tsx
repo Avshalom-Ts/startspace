@@ -1,83 +1,19 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Header } from "./Header";
 import { SearchBar, PageFooter } from "./components";
 import { NAV } from "./data/nav";
 import { useTheme } from "./hooks/useTheme";
-import { PageContent } from "./components/WorkspaceSetup";
-import { LinksPage } from "./components/LinksPage";
+import { PageContent } from "./components/page-content";
+import { LinksPage } from "./links/LinksPage";
 import { NotesPage } from "./notes/notes-page";
-import { SettingsPage } from "./components/SettingsPage";
+import { SettingsPage } from "./settings/SettingsPage";
 import { TasksPage } from "./tasks/tasks-page";
 import { useBookmarkTree, useBookmarkMetadata } from "./hooks/useBookmarkTree";
-import type { BookmarkMetadata } from "./hooks/useBookmarks";
 import { useSearchData } from "./search/use-search-data";
 import { orchestrateSearch } from "./search/search";
 import { SearchResults } from "./search/SearchResults";
 import { collectBookmarkNodeIds } from "./bookmarks/bookmark-tree";
-
-// ---------------------------------------------------------------------------
-// useFavoritesWrite — toggle the favorites flag in extension storage.
-// ---------------------------------------------------------------------------
-
-function useFavoritesWrite() {
-  const [loading, setLoading] = useState(false);
-
-  const toggle = async (id: string, current: boolean): Promise<void> => {
-    setLoading(true);
-    try {
-      const chromeExt = (
-        globalThis as {
-          chrome?: {
-            storage?: {
-              local: {
-                get: (
-                  keys: string[],
-                  cb: (result: Record<string, unknown>) => void,
-                ) => void;
-                set: (items: Record<string, unknown>, cb?: () => void) => void;
-              };
-            };
-          };
-        }
-      ).chrome;
-
-      if (!chromeExt?.storage?.local) {
-        setLoading(false);
-        return;
-      }
-
-      const local = chromeExt.storage.local;
-      const META_KEY = "startspace.bookmarkMetadata";
-      local.get([META_KEY], (result: Record<string, unknown>) => {
-        const raw = result[META_KEY];
-        const meta =
-          raw && typeof raw === "object"
-            ? (raw as Record<string, BookmarkMetadata>)
-            : {};
-
-        const entry: BookmarkMetadata = meta[id] ?? {
-          favorites: false,
-          tags: [],
-          dateAdded: new Date().toISOString(),
-          relatedNotes: [],
-          relatedTasks: [],
-        };
-
-        entry.favorites = !current;
-        meta[id] = entry;
-
-        local.set({ [META_KEY]: meta }, () => {
-          setLoading(false);
-        });
-      });
-    } catch (err) {
-      console.warn("[StartSpace] failed to toggle favorite:", err);
-      setLoading(false);
-    }
-  };
-
-  return { toggle, loading };
-}
+import { useFavoritesWrite } from "./links/favorites-list";
 
 // ---------------------------------------------------------------------------
 // AppShell — hash-based page routing
@@ -163,6 +99,30 @@ export function AppShell() {
   const isSettings = page === "settings";
   const showLoading = treeLoading || metaLoading || toggleLoading;
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  // Chrome's own "focus the omnibox on new tab" behavior can re-steal focus
+  // asynchronously after our page loads, so keep re-asserting focus on the
+  // search input for a short window until Chrome stops fighting us for it.
+  useEffect(() => {
+    if (page !== "home") return;
+    let active = true;
+    let rafId: number;
+    const stopAt = Date.now() + 1500;
+    const claimFocus = () => {
+      if (!active) return;
+      const input = searchInputRef.current;
+      if (input && document.activeElement !== input) input.focus();
+      if (Date.now() < stopAt) rafId = requestAnimationFrame(claimFocus);
+    };
+    claimFocus();
+    window.addEventListener("focus", claimFocus);
+    return () => {
+      active = false;
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("focus", claimFocus);
+    };
+  }, [page]);
+
   return (
     <div className="min-h-screen flex flex-col bg-page">
       <Header nav={nav} />
@@ -172,6 +132,7 @@ export function AppShell() {
           <div className="flex-1 flex flex-col items-center justify-center">
             <div className="relative w-full max-w-3xl py-3">
               <SearchBar
+                ref={searchInputRef}
                 value={searchQuery}
                 onChange={(query) => {
                   setSearchQuery(query);
