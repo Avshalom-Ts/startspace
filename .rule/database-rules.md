@@ -5,7 +5,7 @@ StartSpace has no traditional database in scope initially. "Persistent data" mea
 1. **Browser bookmarks** — stored by the browser, read via the Bookmark API. The browser is the source of truth for URL, name, folder structure, and bookmark ID.
 2. **Notes** — real Markdown (`.md`) files in the user's workspace folder, read/written via the File System Access API.
 3. **Tasks** — workspace-stored data for the local Kanban board, linked to notes and bookmarks where relevant.
-4. **StartSpace metadata and config** — StartSpace-specific data linked to bookmarks by Bookmark ID (favorites, tags, date added, related notes/tasks), plus extension configuration (e.g., chosen web search engine). Stored in extension storage or workspace files as decided during implementation.
+4. **StartSpace metadata and config** — StartSpace-specific data linked to bookmarks by Bookmark ID (favorites, tags, date added, related notes/tasks), plus extension configuration (e.g., workspace reference). Stored in extension storage or workspace files as decided during implementation.
 
 ## Rules
 

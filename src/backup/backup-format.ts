@@ -59,13 +59,8 @@ function parseConfig(value: unknown): Config {
   if (!isRecord(value) || value.version !== 1) {
     throw new BackupValidationError("The backup contains invalid settings.");
   }
-  const engine = value.webSearchEngine;
   const workspace = value.currentWorkspace;
   if (
-    !isRecord(engine) ||
-    typeof engine.name !== "string" ||
-    typeof engine.urlTemplate !== "string" ||
-    !engine.urlTemplate.includes("{query}") ||
     (workspace !== null &&
       (!isRecord(workspace) ||
         typeof workspace.id !== "string" ||
@@ -73,7 +68,7 @@ function parseConfig(value: unknown): Config {
   ) {
     throw new BackupValidationError("The backup contains invalid settings.");
   }
-  return value as unknown as Config;
+  return { version: 1, currentWorkspace: workspace as Config["currentWorkspace"] };
 }
 
 /** Validates bookmark-linked metadata without requiring referenced items to exist. */

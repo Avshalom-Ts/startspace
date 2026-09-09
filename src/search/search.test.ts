@@ -1,12 +1,11 @@
 // search.test.ts
 //
 // Unit tests for the pure search orchestration module (search.ts): bookmark
-// flattening and ranking, web fallback URL building, and the grouped
+// flattening and ranking, web fallback queries, and the grouped
 // Bookmarks → Notes → Tasks → Web orchestration.
 
 import { describe, expect, it } from 'vitest';
 import {
-  buildWebSearchUrl,
   flattenBookmarks,
   orchestrateSearch,
   searchBookmarks,
@@ -14,10 +13,6 @@ import {
 import type { BookmarkNode } from '../hooks/useBookmarks';
 import type { NoteEntry } from '../types/notes';
 import type { Task } from '../tasks/tasks-model';
-import type { WebSearchEngine } from '../hooks/useConfig';
-
-const ENGINE: WebSearchEngine = { name: 'Google', urlTemplate: 'https://www.google.com/search?q={query}' };
-
 function bookmark(id: string, title: string, url?: string, children?: BookmarkNode[]): BookmarkNode {
   return { id, title, url, children };
 }
@@ -79,38 +74,24 @@ describe('searchBookmarks', () => {
   });
 });
 
-describe('buildWebSearchUrl', () => {
-  it('substitutes the URL-encoded query into the template', () => {
-    expect(buildWebSearchUrl(ENGINE, 'hello world?')).toBe(
-      'https://www.google.com/search?q=hello%20world%3F',
-    );
-  });
-
-  it('returns null for an empty query', () => {
-    expect(buildWebSearchUrl(ENGINE, '  ')).toBeNull();
-  });
-});
-
 describe('orchestrateSearch', () => {
   const input = {
     bookmarkTree: [bookmark('f1', 'Folder', undefined, [bookmark('b1', 'React Docs', 'https://react.dev')])],
     notes: [note('react.md', 'React notes', 'hooks and components'), note('other.md', 'Other', 'react is mentioned here')],
     tasks: [task('t1', 'Learn React'), task('t2', 'Buy milk')],
-    engine: ENGINE,
   };
 
-  it('returns grouped results in Bookmarks → Notes → Tasks order plus the web URL', () => {
+  it('returns grouped results in Bookmarks → Notes → Tasks order plus the web query', () => {
     const results = orchestrateSearch(input, 'react');
     expect(results.bookmarks.map((r) => r.bookmark.id)).toEqual(['b1']);
     expect(results.notes.map((r) => r.note.id)).toEqual(['react.md', 'other.md']);
     expect(results.tasks.map((t) => t.id)).toEqual(['t1']);
-    expect(results.webUrl).toBe('https://www.google.com/search?q=react');
-    expect(results.engine).toBe(ENGINE);
+    expect(results.webQuery).toBe('react');
   });
 
-  it('returns empty groups and a null webUrl for an empty query', () => {
+  it('returns empty groups and a null webQuery for an empty query', () => {
     const results = orchestrateSearch(input, '  ');
-    expect(results).toEqual({ bookmarks: [], notes: [], tasks: [], webUrl: null, engine: ENGINE });
+    expect(results).toEqual({ bookmarks: [], notes: [], tasks: [], webQuery: null });
   });
 
   it('still provides the web fallback when nothing matches locally', () => {
@@ -118,7 +99,7 @@ describe('orchestrateSearch', () => {
     expect(results.bookmarks).toEqual([]);
     expect(results.notes).toEqual([]);
     expect(results.tasks).toEqual([]);
-    expect(results.webUrl).toBe('https://www.google.com/search?q=nonexistent');
+    expect(results.webQuery).toBe('nonexistent');
   });
 
   it('caps each group at the given limit', () => {

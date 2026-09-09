@@ -126,7 +126,7 @@ export async function createBackup(
     createdAt: new Date().toISOString(),
     appVersion: __APP_VERSION__,
     extension: {
-      config,
+      config: { version: 1, currentWorkspace: config.currentWorkspace },
       bookmarkMetadata,
       theme: theme === "light" || theme === "dark" ? theme : null,
     },

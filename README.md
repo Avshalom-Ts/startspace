@@ -8,7 +8,7 @@ Your browser. Your workspace. Your data.
 
 - **Browser extension** that replaces the New Tab / Home page. Built as a WebExtensions extension with Manifest V3, using TypeScript, React, Tailwind CSS, and Vite.
 - **Central search bar** with search order: Bookmarks → Notes → Tasks → Web.
-- **Web search fallback** selected from Google, Bing, DuckDuckGo, or Brave Search.
+- **Web search fallback** using your browser’s default search provider.
 - **Favorites** displayed on the homepage, backed by browser bookmarks (by Bookmark ID).
 - **Navigation:** Home · Links · Notes · Tasks · Settings · GitHub.
 - **Markdown rendering** in the UI via `marked` where note content is shown.

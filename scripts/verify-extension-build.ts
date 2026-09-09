@@ -25,11 +25,15 @@ async function verifyBuild(): Promise<void> {
 
   const manifest = (await Bun.file("dist/manifest.json").json()) as {
     manifest_version?: number;
+    permissions?: string[];
+    chrome_settings_overrides?: { search_provider?: unknown };
     chrome_url_overrides?: { newtab?: string };
     background?: { service_worker?: string };
   };
   if (
     manifest.manifest_version !== 3 ||
+    !manifest.permissions?.includes("search") ||
+    manifest.chrome_settings_overrides?.search_provider !== undefined ||
     manifest.chrome_url_overrides?.newtab !== "index.html" ||
     manifest.background?.service_worker !== "background.js"
   ) {
