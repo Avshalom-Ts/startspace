@@ -13,7 +13,6 @@ import { searchNotes, type NoteSearchResult } from '../notes/notes-search';
 import { filterTasks, type Task } from '../tasks/tasks-model';
 import type { BookmarkNode } from '../hooks/useBookmarks';
 import type { NoteEntry } from '../types/notes';
-import type { WebSearchEngine } from '../hooks/useConfig';
 
 /** Default maximum number of results shown per group. */
 export const DEFAULT_GROUP_LIMIT = 5;
@@ -31,11 +30,8 @@ export interface SearchResults {
   bookmarks: BookmarkSearchResult[];
   notes: NoteSearchResult[];
   tasks: Task[];
-  /** Fully-built web search URL for the fallback step, or null when the
-   *  query is empty. */
-  webUrl: string | null;
-  /** The engine used for the web fallback (for labeling the UI). */
-  engine: WebSearchEngine;
+  /** Query passed to the browser search API only after user activation. */
+  webQuery: string | null;
 }
 
 /**
@@ -81,52 +77,36 @@ export function searchBookmarks(bookmarks: BookmarkNode[], query: string): Bookm
 }
 
 /**
- * Builds the web search URL for the fallback step by substituting the
- * URL-encoded query into the engine's `urlTemplate` at the `{query}` marker.
- *
- * @param engine - The configured web search engine.
- * @param query - The raw search query.
- * @returns The absolute search URL, or null when the query is empty.
- */
-export function buildWebSearchUrl(engine: WebSearchEngine, query: string): string | null {
-  const trimmed = query.trim();
-  if (!trimmed) return null;
-  return engine.urlTemplate.replace('{query}', encodeURIComponent(trimmed));
-}
-
-/**
  * Runs one orchestrated search across all local sources, in product order:
  * Bookmarks → Notes → Tasks → Web. Local groups are independent (the order is
- * a display order, not a short-circuit); the web fallback URL is always
+ * a display order, not a short-circuit); the web fallback query is always
  * provided so the UI can offer it regardless of local matches.
  *
  * @param input - The data to search: the bookmark tree, all notes, all tasks,
- *   and the configured web search engine.
+ *   with no provider configuration.
  * @param query - The search query. Empty queries produce empty groups and a
- *   null webUrl.
+ *   null webQuery.
  * @param limit - Maximum results per group (default DEFAULT_GROUP_LIMIT).
- * @returns Grouped, ranked results plus the web fallback URL.
+ * @returns Grouped, ranked results plus the web fallback query.
  */
 export function orchestrateSearch(
   input: {
     bookmarkTree: BookmarkNode[];
     notes: NoteEntry[];
     tasks: Task[];
-    engine: WebSearchEngine;
   },
   query: string,
   limit: number = DEFAULT_GROUP_LIMIT,
 ): SearchResults {
   const normalized = query.trim();
   if (!normalized) {
-    return { bookmarks: [], notes: [], tasks: [], webUrl: null, engine: input.engine };
+    return { bookmarks: [], notes: [], tasks: [], webQuery: null };
   }
 
   return {
     bookmarks: searchBookmarks(flattenBookmarks(input.bookmarkTree), normalized).slice(0, limit),
     notes: searchNotes(input.notes, normalized).slice(0, limit),
     tasks: filterTasks(input.tasks, normalized).slice(0, limit),
-    webUrl: buildWebSearchUrl(input.engine, normalized),
-    engine: input.engine,
+    webQuery: normalized,
   };
 }

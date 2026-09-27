@@ -1,28 +1,10 @@
+// Owns local workspace configuration; legacy search engine preferences are ignored.
 import { useState, useEffect, useCallback } from "react";
 
 // ---------------------------------------------------------------------------
 // Types — match the JSON shape decided in .plan/001-define-data-formats.md,
 // section 6.
 // ---------------------------------------------------------------------------
-
-export interface WebSearchEngine {
-  name: string;
-  urlTemplate: string;
-}
-
-/** The allowlisted web search engines available in StartSpace Settings. */
-export const WEB_SEARCH_ENGINES: readonly WebSearchEngine[] = [
-  { name: "Google", urlTemplate: "https://www.google.com/search?q={query}" },
-  { name: "Bing", urlTemplate: "https://www.bing.com/search?q={query}" },
-  { name: "DuckDuckGo", urlTemplate: "https://duckduckgo.com/?q={query}" },
-  {
-    name: "Brave Search",
-    urlTemplate: "https://search.brave.com/search?q={query}",
-  },
-];
-
-/** The engine used for first-run config and invalid legacy config values. */
-export const DEFAULT_WEB_SEARCH_ENGINE = WEB_SEARCH_ENGINES[0]!;
 
 export interface WorkspaceRef {
   /** StartSpace-generated stable identity for the granted workspace handle.
@@ -35,7 +17,6 @@ export interface WorkspaceRef {
 
 export interface Config {
   version: number;
-  webSearchEngine: WebSearchEngine;
   currentWorkspace: WorkspaceRef | null;
 }
 
@@ -110,26 +91,13 @@ function notifyConfigChanged(): void {
   window.dispatchEvent(new Event("startspace:config-changed"));
 }
 
-/** Returns a configured engine only when it belongs to the supported catalog. */
-function knownSearchEngine(
-  engine: WebSearchEngine | undefined,
-): WebSearchEngine {
-  return (
-    WEB_SEARCH_ENGINES.find(
-      (candidate) =>
-        candidate.name === engine?.name &&
-        candidate.urlTemplate === engine.urlTemplate,
-    ) ?? DEFAULT_WEB_SEARCH_ENGINE
-  );
-}
-
 // ---------------------------------------------------------------------------
 // useConfig
 // ---------------------------------------------------------------------------
 
 /**
  * Reads the extension config from chrome.storage.local and exposes it.
- * Config includes: webSearchEngine, currentWorkspace (or null on first launch),
+ * Config includes: currentWorkspace (or null on first launch),
  * and a schema version.
  *
  * On first launch, currentWorkspace is null and the setup UI should prompt the
@@ -147,7 +115,6 @@ export function useConfig() {
         // read a sensible config shape even before the user has chosen a workspace.
         const defaultCfg: Config = {
           version: 1,
-          webSearchEngine: knownSearchEngine(cfg?.webSearchEngine),
           currentWorkspace: cfg?.currentWorkspace ?? null,
         };
         setConfig(defaultCfg);

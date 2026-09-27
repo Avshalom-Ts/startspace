@@ -1,3 +1,5 @@
+> Engine-selection decision superseded by [ADR 0008](0008-browser-default-search.md).
+
 # ADR 0004: Homepage Search Interaction and Predefined Web Engines
 
 **Status:** Accepted

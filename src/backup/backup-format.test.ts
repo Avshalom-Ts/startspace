@@ -21,10 +21,6 @@ function backupFixture(): StartSpaceBackup {
     extension: {
       config: {
         version: 1,
-        webSearchEngine: {
-          name: "Google",
-          urlTemplate: "https://www.google.com/search?q={query}",
-        },
         currentWorkspace: { id: "ws-fixture", name: "Fixture" },
       },
       bookmarkMetadata: {},
@@ -71,4 +67,12 @@ describe("backup parsing", () => {
       "invalid bookmark metadata",
     );
   });
+});
+
+it("discards legacy engine preferences when restoring a backup", () => {
+  const backup = backupFixture();
+  const legacy = { ...backup, extension: { ...backup.extension, config: {
+    ...backup.extension.config, webSearchEngine: { name: "Old provider", urlTemplate: "https://example.com/{query}" },
+  } } };
+  expect(parseBackupJson(JSON.stringify(legacy)).extension.config).toEqual(backup.extension.config);
 });

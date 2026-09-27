@@ -25,8 +25,7 @@ user-selected local workspace. Settings and bookmark-linked metadata are stored
 in local extension storage. StartSpace does not transmit these contents to its
 developer or to a StartSpace server.
 
-When the user chooses a web search result, StartSpace navigates the browser to
-the configured search provider with the search text in the provider URL. That
+When the user chooses a web search result, StartSpace passes the submitted search text to the browser Search API, which uses the browser’s default provider. That
 provider receives the query and handles it under its own privacy policy.
 
 StartSpace does not sell user data, use it for advertising, or permit humans to
@@ -60,3 +59,5 @@ changes will be reflected in the extension and Chrome Web Store disclosures.
 Questions and privacy requests can be submitted through the StartSpace GitHub
 repository's issue tracker or the support contact shown on its Chrome Web Store
 listing.
+
+- The `search` permission sends only user-submitted web searches through the browser’s default search provider. StartSpace does not set or store the browser’s provider.

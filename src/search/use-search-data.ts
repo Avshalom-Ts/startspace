@@ -2,8 +2,7 @@
 //
 // React bridge that gathers every data source the central search bar needs:
 // the browser bookmark tree (Bookmark API), workspace notes and tasks
-// (File System Access API), and the configured web search engine (extension
-// config). The orchestration itself is pure and lives in search.ts; rendering
+// (File System Access API). The orchestration itself is pure and lives in search.ts; rendering
 // lives in SearchResults.tsx.
 //
 // Workspace data is loaded once per granted handle and cached for the session;
@@ -11,11 +10,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useBookmarkTree } from "../hooks/useBookmarkTree";
-import {
-  DEFAULT_WEB_SEARCH_ENGINE,
-  useConfig,
-  type WebSearchEngine,
-} from "../hooks/useConfig";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { scanWorkspace } from "../notes/notes-workspace";
 import { readTasks } from "../tasks/task-workspace";
@@ -28,7 +22,6 @@ export interface SearchData {
   bookmarkTree: BookmarkNode[];
   notes: NoteEntry[];
   tasks: Task[];
-  engine: WebSearchEngine;
   /** True while any source is still loading. */
   loading: boolean;
   /** Re-reads workspace sources (notes, tasks); the bookmark tree reloads via its own hook. */
@@ -37,7 +30,7 @@ export interface SearchData {
 
 /**
  * Gathers search data from the bookmark tree, the workspace (notes and
- * tasks), and the extension config (web search engine).
+ * tasks).
  *
  * Notes and tasks are empty until a workspace folder is granted and readable;
  * bookmarks are empty when the Bookmark API is unavailable (e.g. dev preview).
@@ -47,7 +40,6 @@ export interface SearchData {
 export function useSearchData(): SearchData {
   const { tree, loading: treeLoading } = useBookmarkTree();
   const { grant } = useWorkspace();
-  const { config, loading: configLoading } = useConfig();
 
   const [notes, setNotes] = useState<NoteEntry[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -101,18 +93,15 @@ export function useSearchData(): SearchData {
       bookmarkTree: tree,
       notes,
       tasks,
-      engine: config?.webSearchEngine ?? DEFAULT_WEB_SEARCH_ENGINE,
-      loading: treeLoading || workspaceLoading || configLoading,
+      loading: treeLoading || workspaceLoading,
       reload: () => void loadWorkspace(),
     }),
     [
       tree,
       notes,
       tasks,
-      config,
       treeLoading,
       workspaceLoading,
-      configLoading,
       loadWorkspace,
     ],
   );

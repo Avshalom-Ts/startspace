@@ -6,7 +6,7 @@ Document the system once a technical approach is selected.
 
 StartSpace is an open-source, local-first browser extension that replaces the browser's New Tab / Home page. It has no backend, no cloud service, no account, and no server dependency.
 
-**Problem it solves:** gives the user a single browser homepage surface that searches and links their own data — browser bookmarks, local Markdown notes, and local Kanban tasks — with a configurable web search fallback, while keeping the browser and the user's filesystem as the source of truth.
+**Problem it solves:** gives the user a single browser homepage surface that searches and links their own data — browser bookmarks, local Markdown notes, and local Kanban tasks — with a browser-default web search fallback, while keeping the browser and the user's filesystem as the source of truth.
 
 **Constraints that shape the solution:**
 
@@ -53,7 +53,7 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 - Search order and display groups: Bookmarks → Notes → Tasks → Web.
 - Results render in a bounded, scrollable dropdown below the centered input. Arrow Up/Down cycles through results; Enter opens the active result or runs the web fallback when no result is active.
 - Note and task results carry their relative note path or task ID in the hash route and open the exact selected item.
-- Web fallback is selected from the allowlisted Google, Bing, DuckDuckGo, and Brave Search catalog stored in extension config.
+- Web fallback uses chrome.search.query or browser.search.search with no provider override. The manifest declares the search permission.
 - Searches note titles and content (not just titles).
 
 ### Bookmarks Module (Links)
@@ -128,7 +128,7 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 3. **Search flow**
    - User types in the central search bar.
    - Matching local groups appear in Bookmarks → Notes → Tasks order, followed by a Web result.
-   - Arrow Up/Down selects a result in the dropdown; Enter opens that result. With no active selection, Enter opens the configured web search URL.
+   - Arrow Up/Down selects a result in the dropdown; Enter opens that result. With no active selection, Enter invokes the browser Search API with its default provider.
    - Notes search covers titles and content (Markdown files in the workspace).
    - Notes and Tasks changes publish an in-page workspace-change event, causing the search cache to reload.
 
@@ -162,7 +162,7 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 - **Browser Bookmarks API:** source of truth for bookmark data (URL, name, folder structure, bookmark ID).
 - **File System Access API:** workspace folder access for notes, tasks, and
   import/export/backup.
-- **Web search engine:** configurable external web search used as the final step of the search order (user-configurable).
+- **Web search engine:** browser-default web search used as the final step of the search order.
 - **Distribution platforms (future):** Chrome Web Store / Firefox Add-ons for end-user installation.
 - **Source control:** GitHub for source, builds, and developer load-unpacked flow.
 
@@ -185,3 +185,5 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 |            | feedback while preserving inline validation and persistent blockers.    |
 | 2026-09-03 | Added GitHub Actions CI and protected, tag-driven Chrome Web Store API    |
 |            | v2 delivery with matching GitHub release artifacts.                      |
+
+Browser-default search and the removal of stored engine preferences are defined in [ADR 0008](../docs/decisions/0008-browser-default-search.md). Settings displays engine metadata only where exposed and links to browser settings.

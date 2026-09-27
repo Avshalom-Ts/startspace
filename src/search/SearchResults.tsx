@@ -1,7 +1,7 @@
 // SearchResults.tsx
 //
 // Renders the grouped output of the central search bar in product order:
-// Bookmarks → Notes → Tasks → Web. Bookmark and web results open their URL;
+// Bookmarks → Notes → Tasks → Web. Web results invoke the browser search action;
 // note and task results navigate to their page via the hash router. Purely
 // presentational — matching and ranking live in search.ts, data gathering in
 // use-search-data.ts.
@@ -13,6 +13,7 @@ import { useEffect } from "react";
 export interface SearchResultsProps {
   /** The orchestrated results to render. */
   results: SearchResultsData;
+  onWebSearch: () => void;
   /** The raw query, used to label the web fallback. */
   query: string;
   /** Index of the keyboard-highlighted result, or -1 when none is active. */
@@ -48,6 +49,7 @@ function Group({
  */
 export function SearchResults({
   results,
+  onWebSearch,
   query,
   activeResultIndex,
 }: SearchResultsProps) {
@@ -139,15 +141,16 @@ export function SearchResults({
         </Group>
       )}
 
-      {results.webUrl && (
+      {results.webQuery && (
         <Group label="Web">
-          <a
+          <button
+            type="button"
             id={`search-result-${webOffset}`}
-            href={results.webUrl}
+            onClick={onWebSearch}
             className={itemClass(webOffset)}
           >
-            Search {results.engine.name} for “{query.trim()}”
-          </a>
+            Search the web for “{query.trim()}”
+          </button>
         </Group>
       )}
     </div>

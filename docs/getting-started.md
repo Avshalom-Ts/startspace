@@ -4,7 +4,7 @@ Use this page to set up StartSpace and start using it, whether you're an end use
 
 ## What StartSpace Is
 
-StartSpace is an open-source, local-first browser extension that replaces your browser's New Tab / Home page. It gives you a single homepage with a central search bar that searches across your bookmarks, Markdown notes, and local tasks, with a configurable web search fallback. There is no backend, account, cloud service, or vendor lock-in.
+StartSpace is an open-source, local-first browser extension that replaces your browser's New Tab / Home page. It gives you a single homepage with a central search bar that searches across your bookmarks, Markdown notes, and local tasks, with a browser-default web search fallback. There is no backend, account, cloud service, or vendor lock-in.
 
 Your browser bookmarks stay in the browser (the browser is the source of truth). Your notes are real Markdown files in a workspace folder you choose. Your tasks are local and linkable to notes and bookmarks.
 
@@ -113,11 +113,10 @@ Once installed and your workspace is chosen:
    creating, editing, moving, and deleting browser-backed links and folders.
 3. **Notes** — browse the persistent folder explorer, then create, edit, preview, organize, rename, move, and import Markdown notes in your workspace.
 4. **Tasks** — a local Kanban board for tasks; link tasks to notes and bookmarks.
-5. **Settings** — choose your workspace, select Google, Bing, DuckDuckGo, or
-   Brave Search as the web fallback, and export or restore a backup.
+5. **Settings** — choose your workspace, view browser search information, open browser search settings, and export or restore a backup.
 6. **GitHub** — link to the source repository.
 
-**Search:** type in the central search bar. It searches in order: Bookmarks → Notes → Tasks → Web. Results appear in a scrollable dropdown below the input. Use Arrow Up/Down to select a result and Enter to open it; press Enter without a selected result to search using the configured web engine.
+**Search:** type in the central search bar. It searches in order: Bookmarks → Notes → Tasks → Web. Results appear in a scrollable dropdown below the input. Use Arrow Up/Down to select a result and Enter to open it; press Enter without a selected result to search using the browser’s default search engine.
 
 ## Import, Export, Backup, and Migration
 
@@ -138,3 +137,5 @@ Once installed and your workspace is chosen:
 Your browser. Your workspace. Your data.
 
 StartSpace is private, local-first, Markdown-first, user-owned, transparent, and open source. No backend, cloud database, account, or vendor lock-in.
+
+Web search requires the installed extension and its `search` permission. In a web preview or unsupported browser, use the address bar. Settings displays the provider name where the browser exposes it (Firefox); Chrome displays “Browser default” because its API does not expose the name. Settings links to the browser’s search settings and provides a manual address if navigation is blocked. Firefox search API support does not imply full Firefox support for workspace files or the current Chromium build.

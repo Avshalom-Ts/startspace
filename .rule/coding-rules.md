@@ -101,7 +101,7 @@ function readNote(workspace, noteName) {
 - Use the browser's Bookmark API for bookmark data only. The browser is the source of truth; StartSpace metadata is derived/linked by Bookmark ID.
 - Use the File System Access API for workspace access (folder picker, reading/writing notes, tasks, config, metadata, folders). Never treat the workspace as something the extension owns — the user owns it and the browser mediates access.
 - Treat browser API availability and permissions as first-class concerns: check for API support, handle cases where a permission or API is unavailable, and never assume an API exists in every target browser.
-- Avoid any backend, network, or cloud dependency in the core flow. The only external network call in scope initially is the configurable web search engine fallback in the search bar.
+- Avoid any backend, network, or cloud dependency in the core flow. The only external network call in scope initially is the browser-default web search fallback in the search bar.
 
 ## Data and Storage
 
@@ -113,7 +113,7 @@ function readNote(workspace, noteName) {
 
 - Never commit or expose secrets, credentials, private keys, or production data.
 - Store local configuration in ignored environment files where needed and document required variables in an example file.
-- Do not send user data to any server. The web search fallback sends the query to the user-configured engine only when the user triggers it and only as the last step of the search order.
+- Do not send user data to any server. The web search fallback sends the query to the browser-selected engine only when the user triggers it and only as the last step of the search order.
 - Treat the workspace folder as user-owned data. Do not ship, log, or expose workspace contents.
 
 ## Handoff and Review

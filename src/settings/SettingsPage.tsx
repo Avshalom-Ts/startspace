@@ -1,7 +1,9 @@
+// Owns workspace, browser search information, and portable backup settings.
+import { BrowserSearchSettings } from "./browser-search-settings";
 import { WorkspaceSetupPrompt } from "./WorkspaceSetup";
-import { WEB_SEARCH_ENGINES, useConfig } from "../hooks/useConfig";
+import { useConfig } from "../hooks/useConfig";
 import { useWorkspace } from "../hooks/useWorkspace";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   createBackup,
   downloadBackup,
@@ -21,31 +23,11 @@ import { useNotifications } from "../notifications/notification-context";
  */
 export function SettingsPage() {
   const notifications = useNotifications();
-  const { config, loading, save } = useConfig();
+  const { config, loading } = useConfig();
   const { grant } = useWorkspace();
   const workspaceReady =
     !loading && !!grant.handle && grant.permission === "granted";
-  const [selectedTemplate, setSelectedTemplate] = useState(
-    WEB_SEARCH_ENGINES[0]!.urlTemplate,
-  );
   const [backupBusy, setBackupBusy] = useState(false);
-
-  useEffect(() => {
-    if (!config) return;
-    setSelectedTemplate(config.webSearchEngine.urlTemplate);
-  }, [config]);
-
-  const saveEngine = async () => {
-    const engine = WEB_SEARCH_ENGINES.find(
-      (candidate) => candidate.urlTemplate === selectedTemplate,
-    );
-    if (!config || !engine) return;
-    await save({
-      ...config,
-      webSearchEngine: engine,
-    });
-    notifications.success("Web search engine saved.");
-  };
 
   /** Exports settings, bookmark metadata, theme, and workspace files as JSON. */
   const exportBackup = async () => {
@@ -110,37 +92,7 @@ export function SettingsPage() {
         <WorkspaceSetupPrompt />
       </div>
 
-      <div className="mt-8 w-xl border-t border-border pt-6">
-        <h3 className="mb-1 text-base font-medium text-fg">Web search</h3>
-        <p className="mb-4 text-sm text-muted">
-          Used when the homepage search falls through to the web.
-        </p>
-        <div className="grid gap-3">
-          <label className="text-sm text-fg">
-            Search engine
-            <select
-              value={selectedTemplate}
-              onChange={(event) => setSelectedTemplate(event.target.value)}
-              className="mt-1 w-full border border-border bg-surface px-3 py-2 text-sm text-fg focus:outline-none"
-            >
-              {WEB_SEARCH_ENGINES.map((engine) => (
-                <option key={engine.urlTemplate} value={engine.urlTemplate}>
-                  {engine.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => void saveEngine()}
-              disabled={loading}
-              className="border border-border bg-page px-3 py-2 text-sm text-fg hover:border-fg/40 disabled:opacity-50"
-            >
-              Save web search
-            </button>
-          </div>
-        </div>
-      </div>
+      <BrowserSearchSettings />
 
       <div className="mt-8 w-full max-w-xl border-t border-border pt-6">
         <h3 className="mb-1 text-base font-medium text-fg">

@@ -1,3 +1,4 @@
+// Owns page routing and keyboard search activation; web searches use browser defaults.
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Header } from "./Header";
 import { SearchBar, PageFooter } from "./components";
@@ -10,6 +11,8 @@ import { SettingsPage } from "./settings/SettingsPage";
 import { TasksPage } from "./tasks/tasks-page";
 import { useBookmarkTree, useBookmarkMetadata } from "./hooks/useBookmarkTree";
 import { useSearchData } from "./search/use-search-data";
+import { searchWeb } from "./search/browser-search";
+import { useNotifications } from "./notifications/notification-context";
 import { orchestrateSearch } from "./search/search";
 import { SearchResults } from "./search/SearchResults";
 import { collectBookmarkNodeIds } from "./bookmarks/bookmark-tree";
@@ -23,6 +26,7 @@ const PAGE_NAMES = ["home", "links", "notes", "tasks", "settings"] as const;
 type PageName = (typeof PAGE_NAMES)[number];
 
 export function AppShell() {
+  const notifications = useNotifications();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearchResult, setActiveSearchResult] = useState(-1);
   const { mounted } = useTheme();
@@ -66,14 +70,23 @@ export function AppShell() {
       ...searchResults.tasks.map(
         (task) => `#tasks?task=${encodeURIComponent(task.id)}`,
       ),
-      ...(searchResults.webUrl ? [searchResults.webUrl] : []),
+      ...(searchResults.webQuery ? [null] : []),
     ],
     [searchResults],
   );
   useEffect(() => setActiveSearchResult(-1), [searchQuery]);
+  /** Sends only an explicitly submitted query to the browser's default provider. */
+  const submitWebSearch = async () => {
+    try {
+      await searchWeb(searchResults.webQuery ?? "");
+    } catch {
+      notifications.error("Web search is unavailable. Try again or use your browser’s address bar.");
+    }
+  };
   const submitSearch = () => {
-    const url = searchResultUrls[activeSearchResult] ?? searchResults.webUrl;
+    const url = searchResultUrls[activeSearchResult];
     if (url) window.location.assign(url);
+    else void submitWebSearch();
   };
   const navigateSearchResults = (direction: "previous" | "next") => {
     if (!searchResultUrls.length) return;
@@ -144,6 +157,7 @@ export function AppShell() {
               {searchQuery.trim() && (
                 <div className="absolute inset-x-0 top-full z-20 mt-2">
                   <SearchResults
+                    onWebSearch={() => void submitWebSearch()}
                     results={searchResults}
                     query={searchQuery}
                     activeResultIndex={activeSearchResult}
