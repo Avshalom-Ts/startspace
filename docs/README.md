@@ -34,3 +34,8 @@ This `docs/` folder is for reader-friendly guides, references, and operating doc
 - Prefer plain language and concrete steps over abstract descriptions.
 - Keep getting-started and user-guide material accurate against the actual implementation, not the product vision alone.
 - Update `.doc/` templates when the product or architecture changes; mirror readable summaries in `docs/` where helpful.
+
+## Page design specifications
+
+See [StartSpace page design decisions](design/README.md) for the approved-image-based Home, Links, Notes, Tasks, Settings and shared UI specifications. These describe the redesign target, including MVP boundaries, and distinguish it from the current implementation and existing ADRs.
+
