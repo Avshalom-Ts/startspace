@@ -1,4 +1,5 @@
 import { forwardRef, useState } from "react";
+import { Search } from "lucide-react";
 
 export const SearchBar = forwardRef<
   HTMLInputElement,
@@ -11,69 +12,71 @@ export const SearchBar = forwardRef<
     onFocus?: () => void;
     onBlur?: () => void;
   }
->(({ value, onChange, onSubmit, onNavigate, onFocus, onBlur, compact = false }, ref) => {
-  const [isFocused, setIsFocused] = useState(false);
-  return (
-    <div className="w-full">
-      <div className="relative">
-        <svg
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <circle cx="11" cy="11" r="7" />
-          <path d="m21 21-4.3-4.3" />
-        </svg>
-        <input
-          ref={ref}
-          type="search"
-          aria-label="Search StartSpace"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onFocus={() => {
-            setIsFocused(true);
-            onFocus?.();
-          }}
-          onBlur={() => {
-            setIsFocused(false);
-            onBlur?.();
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") { onChange(""); return; }
-            if (!value.trim()) return;
-            if (event.key === "ArrowDown") {
-              event.preventDefault();
-              onNavigate?.("next");
-            } else if (event.key === "ArrowUp") {
-              event.preventDefault();
-              onNavigate?.("previous");
-            } else if (event.key === "Enter") {
-              event.preventDefault();
-              onSubmit?.();
-            }
-          }}
-          placeholder="Search bookmarks, notes, tasks, or the web…"
-          className="w-full rounded-lg bg-surface border border-border pl-10 pr-4 py-3 text-fg placeholder-muted shadow-sm ring-offset-page focus-visible:outline-2 focus-visible:outline-fg focus-visible:ring-1 focus-visible:ring-fg/30 transition-colors"
-        />
-      </div>
-      {!compact && <p className="mt-2 text-xs text-muted">
-        Search order: Bookmarks → Notes → Tasks → Web
-        {!isFocused && (
-          // Chrome can steal focus back to the omnibox on a fresh new tab; Esc returns it here.
-          <span className="ml-2 text-muted/70">
-            · Press <kbd className="rounded border border-border px-1">Esc</kbd>{" "}
-            to search
-          </span>
+>(
+  (
+    { value, onChange, onSubmit, onNavigate, onFocus, onBlur, compact = false },
+    ref,
+  ) => {
+    const [isFocused, setIsFocused] = useState(false);
+    return (
+      <div className="w-full">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted"
+            aria-hidden="true"
+          />
+          <input
+            ref={ref}
+            type="search"
+            aria-label="Search StartSpace"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onFocus={() => {
+              setIsFocused(true);
+              onFocus?.();
+            }}
+            onBlur={() => {
+              setIsFocused(false);
+              onBlur?.();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                onChange("");
+                return;
+              }
+              if (!value.trim()) return;
+              if (event.key === "ArrowDown") {
+                event.preventDefault();
+                onNavigate?.("next");
+              } else if (event.key === "ArrowUp") {
+                event.preventDefault();
+                onNavigate?.("previous");
+              } else if (event.key === "Enter") {
+                event.preventDefault();
+                onSubmit?.();
+              }
+            }}
+            placeholder="Search bookmarks, notes, tasks, or the web…"
+            className="w-full rounded-lg bg-surface border border-border pl-10 pr-4 py-3 text-fg placeholder-muted shadow-sm ring-offset-page focus-visible:outline-2 focus-visible:outline-fg focus-visible:ring-1 focus-visible:ring-fg/30 transition-colors"
+          />
+        </div>
+        {!compact && (
+          <p className="mt-2 text-xs text-muted">
+            Search order: Bookmarks → Notes → Tasks → Web
+            {!isFocused && (
+              // Chrome can steal focus back to the omnibox on a fresh new tab; Esc returns it here.
+              <span className="ml-2 text-muted/70">
+                · Press{" "}
+                <kbd className="rounded border border-border px-1">Esc</kbd> to
+                search
+              </span>
+            )}
+          </p>
         )}
-      </p>}
-    </div>
-  );
-});
+      </div>
+    );
+  },
+);
 
 SearchBar.displayName = "SearchBar";
 

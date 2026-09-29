@@ -28,7 +28,7 @@ At 1440 px and wider, use a 56 px header, 16–20 px outer gutters and 16 px int
 | Radius | 6 px controls; 8–10 px panels/cards |
 | Targets | At least 40 px desktop controls, 44 px touch targets |
 
-Selected rows/cards combine amber wash, orange border/left rule and semantic selected state. Avoid heavy shadows and excessive saturated surfaces. Verify WCAG AA contrast in the rendered result. Use bundled icons/fonts and local or browser-provided favicons; never contact a remote favicon service. If an icon is unavailable, use an initial or generic globe. The brand mark and Home background need production assets: the screenshots are references, not a source for cropped UI sprites.
+Selected rows/cards combine amber wash, orange border/left rule and semantic selected state. Avoid heavy shadows and excessive saturated surfaces. Verify WCAG AA contrast in the rendered result. Use `lucide-react` for UI icons and local or browser-provided favicons; never contact a remote favicon service. If a favicon is unavailable, use an initial or generic Lucide globe. The StartSpace brand mark and Home background remain artwork: the screenshots are references, not a source for cropped UI sprites.
 
 Active navbar link has orange icon/text and underline plus aria-current. Brand links Home. + New opens New bookmark / New note / New task; route to the proper creation flow after unsaved-change guards. Bookmark creation works without workspace metadata; notes/tasks require connection. Ctrl/Cmd+K focuses search; hide the shortcut hint on touch. No forced autofocus that steals the browser address bar's focus.
 

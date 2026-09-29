@@ -96,6 +96,7 @@ StartSpace is an open-source, local-first browser extension that replaces the br
   `tasks.json`. Configuration and bookmark-linked metadata remain in extension
   storage.
 - Does not depend on a server; the extension references it by reference, not by owning it.
+- IndexedDB retains the current File System Access handle and a random, device-local registration ID per directory. Reselecting the same directory reuses its ID; directory names are not identities. A versioned relative path per registration remembers the last opened note, without storing document text.
 - Backup/restore spans workspace files and extension-owned state in one
   versioned local JSON export.
 

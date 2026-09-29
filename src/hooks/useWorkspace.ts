@@ -17,6 +17,8 @@ import { useCallback, useEffect, useState } from "react";
 export interface WorkspaceGrant {
   /** The ``FileSystemDirectoryHandle`` granted by the user this session. */
   handle: FileSystemDirectoryHandle | null;
+  /** Device-local registration identity, independent of the directory name. */
+  id: string | null;
   /** Human-readable name for the workspace (used in UI, settings). */
   name: string;
   /** Whether this handle currently has read/write permission. */
@@ -25,8 +27,9 @@ export interface WorkspaceGrant {
 
 const WORKSPACE_DB = "startspace.workspace";
 const WORKSPACE_STORE = "handles";
+type RegisteredHandle = { id: string; handle: FileSystemDirectoryHandle };
 
-function loadPersistedHandle(): Promise<FileSystemDirectoryHandle | null> {
+export function loadPersistedHandle(): Promise<RegisteredHandle | null> {
   return new Promise((resolve) => {
     if (typeof indexedDB === "undefined") {
       resolve(null);
@@ -37,21 +40,27 @@ function loadPersistedHandle(): Promise<FileSystemDirectoryHandle | null> {
       request.result.createObjectStore(WORKSPACE_STORE);
     request.onerror = () => resolve(null);
     request.onsuccess = () => {
-      const transaction = request.result.transaction(
-        WORKSPACE_STORE,
-        "readonly",
-      );
-      const get = transaction.objectStore(WORKSPACE_STORE).get("current");
-      get.onsuccess = () =>
-        resolve((get.result as FileSystemDirectoryHandle | undefined) ?? null);
+      const transaction = request.result.transaction(WORKSPACE_STORE, "readwrite");
+      const store = transaction.objectStore(WORKSPACE_STORE);
+      const get = store.get("current");
+      let result: RegisteredHandle | null = null;
+      get.onsuccess = () => {
+        const stored = get.result as RegisteredHandle | FileSystemDirectoryHandle | null;
+        if (!stored) return;
+        result = "handle" in stored ? stored : { id: crypto.randomUUID(), handle: stored };
+        if (!("handle" in stored)) {
+          store.put(result, "current");
+          store.put(result, `workspace:${result.id}`);
+        }
+      };
       get.onerror = () => resolve(null);
+      transaction.oncomplete = () => resolve(result);
+      transaction.onerror = () => resolve(null);
     };
   });
 }
 
-function persistHandle(
-  handle: FileSystemDirectoryHandle | null,
-): Promise<void> {
+export function persistHandle(registration: RegisteredHandle | null): Promise<void> {
   return new Promise((resolve) => {
     if (typeof indexedDB === "undefined") {
       resolve();
@@ -66,11 +75,34 @@ function persistHandle(
         WORKSPACE_STORE,
         "readwrite",
       );
-      transaction.objectStore(WORKSPACE_STORE).put(handle, "current");
+      const store = transaction.objectStore(WORKSPACE_STORE);
+      store.put(registration, "current");
+      if (registration) store.put(registration, `workspace:${registration.id}`);
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => resolve();
     };
   });
+}
+
+/** Reuses the registration of an already-known directory, even with duplicate names. */
+export async function registerHandle(handle: FileSystemDirectoryHandle): Promise<RegisteredHandle> {
+  const existing = await new Promise<RegisteredHandle[]>((resolve) => {
+    if (typeof indexedDB === "undefined") { resolve([]); return; }
+    const request = indexedDB.open(WORKSPACE_DB, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(WORKSPACE_STORE);
+    request.onerror = () => resolve([]);
+    request.onsuccess = () => {
+      const get = request.result.transaction(WORKSPACE_STORE, "readonly").objectStore(WORKSPACE_STORE).getAll();
+      get.onsuccess = () => resolve((get.result as unknown[]).filter((value): value is RegisteredHandle => !!value && typeof value === "object" && "handle" in value && "id" in value));
+      get.onerror = () => resolve([]);
+    };
+  });
+  for (const registration of existing) {
+    try {
+      if (await handle.isSameEntry(registration.handle)) return { ...registration, handle };
+    } catch { continue; }
+  }
+  return { id: crypto.randomUUID(), handle };
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +125,7 @@ function persistHandle(
 export function useWorkspace() {
   const [grant, setGrant] = useState<WorkspaceGrant>({
     handle: null,
+    id: null,
     name: "",
     permission: "denied",
   });
@@ -100,8 +133,9 @@ export function useWorkspace() {
 
   useEffect(() => {
     let active = true;
-    void loadPersistedHandle().then(async (handle) => {
-      if (!active || !handle) return;
+    void loadPersistedHandle().then(async (registration) => {
+      if (!active || !registration) return;
+      const { handle, id } = registration;
       try {
         const permission = await (
           handle as FileSystemDirectoryHandle & {
@@ -113,6 +147,7 @@ export function useWorkspace() {
         if (active)
           setGrant({
             handle,
+            id,
             name: handle.name,
             permission: permission ?? "prompt",
           });
@@ -127,8 +162,8 @@ export function useWorkspace() {
 
   useEffect(() => {
     const update = async () => {
-      const handle = await loadPersistedHandle();
-      if (handle) setGrant({ handle, name: handle.name, permission: "granted" });
+      const registration = await loadPersistedHandle();
+      if (registration) setGrant({ ...registration, name: registration.handle.name, permission: "granted" });
     };
     window.addEventListener("startspace:workspace-selected", update);
     return () => window.removeEventListener("startspace:workspace-selected", update);
@@ -155,8 +190,10 @@ export function useWorkspace() {
           const permission = requestPermission
             ? await requestPermission.call(grant.handle, { mode: "readwrite" })
             : "granted";
+          const registration = { id: grant.id ?? crypto.randomUUID(), handle: grant.handle };
           setGrant({
             handle: grant.handle,
+            id: registration.id,
             name: grant.handle.name,
             permission,
           });
@@ -164,7 +201,7 @@ export function useWorkspace() {
             setError("Workspace permission was not granted.");
             return null;
           }
-          await persistHandle(grant.handle);
+          await persistHandle(registration);
           window.dispatchEvent(new Event("startspace:workspace-selected"));
           return grant.handle;
         }
@@ -181,8 +218,9 @@ export function useWorkspace() {
           return null;
         }
         const picked = await picker({ mode: "readwrite" });
-        setGrant({ handle: picked, name: picked.name, permission: "granted" });
-        await persistHandle(picked);
+        const registration = await registerHandle(picked);
+        await persistHandle(registration);
+        setGrant({ ...registration, name: picked.name, permission: "granted" });
         window.dispatchEvent(new Event("startspace:workspace-selected"));
         return picked;
       } catch (err: unknown) {
@@ -200,10 +238,10 @@ export function useWorkspace() {
         setError(message);
         return null;
       }
-    }, [grant.handle, grant.permission]);
+    }, [grant.handle, grant.id, grant.permission]);
 
   const reset = useCallback(() => {
-    setGrant({ handle: null, name: "", permission: "denied" });
+    setGrant({ handle: null, id: null, name: "", permission: "denied" });
     setError(null);
     void persistHandle(null);
   }, []);

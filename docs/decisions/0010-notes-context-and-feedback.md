@@ -1,6 +1,6 @@
 # ADR 0010: Restore Notes context and reuse global feedback
 
-Status: Accepted; NOTES-13 and NOTES-14 implemented, NOTES-12 pending
+Status: Accepted; NOTES-12 through NOTES-14 implemented
 Date: 2026-09-29
 Related: [ADR 0009](0009-notes-layout-transition.md), [Notes design](../design/03-notes.md), [implementation tasks](../design/notes-layout-tasks.md)
 
@@ -37,11 +37,11 @@ Use the existing NotificationProvider, useNotifications and NotificationViewport
 
 | Feedback | Presentation |
 | --- | --- |
-| Successful create/delete/rename/move, explicit save, task-link change | One global success notification after confirmed persistence |
+| Successful create/delete/rename/move, task-link change | One global success notification after confirmed persistence |
+| Successful real-note save | One global success notification after confirmed persistence; no in-document status banner |
 | Operation failure | One global error notification with concise recovery guidance/action; retain editor/dialog input |
 | Missing remembered note | One global informational notification, then normal empty selection |
 | Filename collision, empty/invalid form field | Inline field validation in the open dialog |
-| Saved / Unsaved changes / Saving | Persistent editor state label, not a second notification |
 | Workspace unavailable, permission revoked, unresolved disk conflict | Persistent contextual recovery UI; use global error once for the failed operation, not on every render |
 | Demo mode / planned feature explanation | Persistent informational labeling; no false real-file success |
 

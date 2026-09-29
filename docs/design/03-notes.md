@@ -20,21 +20,23 @@ Counts in Info/Links/Tasks must agree; the generated screenshot's different Link
 
 ## Remembered selection, initial tree and feedback
 
-Accepted additions (2026-09-29): [ADR 0010](../decisions/0010-notes-context-and-feedback.md). NOTES-13 and NOTES-14 are implemented; last-note restoration (NOTES-12) remains pending in the [implementation backlog](notes-layout-tasks.md).
+Accepted additions (2026-09-29): [ADR 0010](../decisions/0010-notes-context-and-feedback.md). NOTES-12 through NOTES-14 are implemented; selection storage is documented in [ADR 0012](../decisions/0012-notes-selection-storage.md).
 
 Remember the last successfully opened real note per workspace in device-local UI preferences. Reopen it in Preview when Notes is revisited or the browser restarts, after workspace permission is available. Explicit note links/search/new-note actions take precedence. Update the preference after app-managed rename/move; clear a confirmed missing/deleted file, retain it on temporary access failure. Never mix same-named workspaces or demo selection. This is separate from unsaved-draft recovery.
 
 On every fresh Notes entry, collapse all folders except the ancestor chain needed to reveal the opened/restored note. During that visit, explicit note opens expand their chain while preserving other manual disclosure choices. Refresh/save must not reset the tree or reopen a branch the user just collapsed. Reset expansion on workspace switch.
 
-Use the existing global notification system for transient create/delete/save/rename/move and relationship-operation success/failure. No Notes-specific toast or transient message banner. Keep inline form validation, persistent Saved/Unsaved/Saving labels, workspace recovery and conflict controls. Notify only after the actual result, once per operation, using action-specific copy and preserving input on failures.
+Use the existing global notification system for create/delete/rename/move, relationship operations and save outcomes. Successful real-note saves show a global confirmation; do not place transient status messages in the document. Keep inline field validation and a labeled reload control for disk conflicts.
 
 ## Reading and editing
 
 The pictured body looks like rendered Markdown with visible heading markers; implement a safe Markdown preview, not a claim of a fully featured block editor. Existing files default to Preview; the eye/pen button in the document header switches mode. New notes start in Edit.
 
-Preview uses 16 px text, 1.6 line-height, heading hierarchy, amber links and dark code blocks. Reading width is capped at about 78 characters inside the pane. Markdown source editor uses monospace and soft wrapping. An eye/pen icon in the document header toggles between modes. No WYSIWYG conversion. Sanitise HTML; no scripts or active embeds. Remote images require explicit user loading, local images resolve only within the workspace. Never execute displayed code. Relative Markdown links open accessible workspace files; external links are clearly identified.
+Preview uses 16 px text, 1.6 line-height, heading hierarchy, amber links and dark code blocks. Each fenced code block has a keyboard-accessible Copy code button that copies only the code text through the browser Clipboard API; success and failure use global notifications. Reading width is capped at about 78 characters inside the pane. Markdown source editor uses monospace and soft wrapping. An eye/pen icon in the document header toggles between modes. No WYSIWYG conversion. Sanitise HTML; no scripts or active embeds. Remote images require explicit user loading, local images resolve only within the workspace. Never execute displayed code. Relative Markdown links open accessible workspace files; external links are clearly identified.
 
-Typing queues a guarded autosave after 300 ms of inactivity; Ctrl+S can save immediately. A global notification confirms persistence. Unsaved/Saving remains available to assistive technology; failed saves keep the draft and show a persistent recovery message rather than silently retrying the same failed content. Before changing file/route/workspace or discarding unsaved changes, offer Save / Discard / Cancel; Save failure prevents navigation. Switching Preview/Edit retains the buffer and does not imply a save. See [ADR 0011](../decisions/0011-notes-controls-and-autosave.md).
+Typing queues a guarded autosave after 1 second of inactivity; Ctrl+S can save immediately. Successful real-note saves notify globally, outside the document pane. Failed saves keep the draft and show a global error rather than silently retrying the same failed content. Before changing file/route/workspace or discarding unsaved changes, offer Save / Discard / Cancel; Save failure prevents navigation. Switching Preview/Edit retains the buffer and does not imply a save. See [ADR 0011](../decisions/0011-notes-controls-and-autosave.md).
+
+Text direction defaults to browser-native Auto. The control beside Edit offers Auto, LTR and RTL for the current note view, applying to the Markdown editor and safe preview blocks, not the surrounding Notes navigation. Code blocks stay LTR. A manual choice resets to Auto on the next note; it does not alter or persist note content.
 
 ## File and relationship actions
 

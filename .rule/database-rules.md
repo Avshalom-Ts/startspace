@@ -15,6 +15,7 @@ StartSpace has no traditional database in scope initially. "Persistent data" mea
 - Keep task storage in the workspace, aligned with the notes/workspace model, so the data stays local and portable.
 - For StartSpace metadata and config, prefer reversible, serializable storage and document the chosen shape (extension storage vs workspace files) once selected.
 - Treat migrations and schema changes to StartSpace metadata/config as the source of truth for those changes; prefer additive, reversible changes and test them against representative data.
+- The browser's `startspace.workspace` IndexedDB store retains registered directory handles and random IDs plus a versioned last-opened relative note path per registration. A legacy current handle is assigned an ID on first load. Do not key note selection by folder name or persist note contents in UI preferences.
 - Document local bootstrap and seed-data instructions when a storage mechanism is added (e.g., how the workspace is created, how config is initialized on first launch).
 - Never include production data, real bookmarks, real notes, or credentials in repository scripts, fixtures, or test data.
 - Do not introduce a server, cloud database, or remote store — by design.

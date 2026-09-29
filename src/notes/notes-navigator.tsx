@@ -1,7 +1,15 @@
 // Filesystem folder navigation for Notes. Disclosure buttons and selectable folder
 // buttons are separate, keyboard-native controls; no synthetic folder database.
 import { useEffect, useRef, useState } from "react";
-import { Icon } from "../components/icon";
+import {
+  ChevronRight,
+  Clock3,
+  Ellipsis,
+  FileText,
+  Folder,
+  Star,
+  X,
+} from "lucide-react";
 import type { NotesIndex } from "../types/notes";
 import type { NotesView } from "./notes-model";
 
@@ -53,9 +61,10 @@ export function NotesNavigator(props: Props) {
           <button
             className="notes-icon-button min-[1280px]:hidden"
             aria-label="Close folders"
+            title="Close folders"
             onClick={props.onClose}
           >
-            <Icon name="close" />
+            <X size={20} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -65,44 +74,51 @@ export function NotesNavigator(props: Props) {
             {
               id: "all",
               label: "All Notes",
-              icon: "note",
+              icon: FileText,
               count: props.index.notes.length,
             },
             {
               id: "favorites",
               label: "Favorites",
-              icon: "star",
+              icon: Star,
               count: props.favoritesCount,
             },
             {
               id: "recent",
               label: "Recent",
-              icon: "clock",
+              icon: Clock3,
               count: props.recentCount,
             },
           ] as const
-        ).map((item) => (
-          <button
-            key={item.id}
-            disabled={item.id === "favorites" && !props.demo}
-            title={
-              item.id === "favorites" && !props.demo
-                ? "Persistent note favorites are planned."
-                : undefined
-            }
-            className={
-              "notes-nav-row " +
-              (props.view === item.id ? "notes-selected" : "")
-            }
-            onClick={() => props.onView(item.id)}
-          >
-            <Icon name={item.icon} className="shrink-0 text-accent" />
-            <span className="flex-1 text-left">{item.label}</span>
-            <span className="rounded bg-fg/5 px-1.5 text-xs text-muted">
-              {item.id === "favorites" && !props.demo ? "Soon" : item.count}
-            </span>
-          </button>
-        ))}
+        ).map((item) => {
+          const ViewIcon = item.icon;
+          return (
+            <button
+              key={item.id}
+              disabled={item.id === "favorites" && !props.demo}
+              title={
+                item.id === "favorites" && !props.demo
+                  ? "Persistent note favorites are planned."
+                  : undefined
+              }
+              className={
+                "notes-nav-row " +
+                (props.view === item.id ? "notes-selected" : "")
+              }
+              onClick={() => props.onView(item.id)}
+            >
+              <ViewIcon
+                size={20}
+                className="shrink-0 text-accent"
+                aria-hidden="true"
+              />
+              <span className="flex-1 text-left">{item.label}</span>
+              <span className="rounded bg-fg/5 px-1.5 text-xs text-muted">
+                {item.id === "favorites" && !props.demo ? "Soon" : item.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
       <div className="app-scrollbar min-h-0 flex-1 overflow-auto border-t border-border px-4 py-4">
         <div className="flex items-center">
@@ -113,7 +129,7 @@ export function NotesNavigator(props: Props) {
             }
             onClick={() => props.onFolder("")}
           >
-            <Icon name="folder" className="text-accent" />
+            <Folder size={20} className="text-accent" aria-hidden="true" />
             <span className="truncate">{props.index.root.name}</span>
           </button>
           <FolderActions {...props} id="" name={props.index.root.name} />
@@ -139,7 +155,7 @@ function FolderActions(props: Props & { id: string; name: string }) {
         aria-label={`Actions for ${props.name}`}
         title={`Actions for ${props.name}`}
       >
-        <Icon name="more" />
+        <Ellipsis size={20} aria-hidden="true" />
       </summary>
       <div className="absolute right-0 z-30 mt-1 w-40 rounded border border-border bg-surface p-1 shadow-xl">
         {(["note", "folder"] as const).map((kind) => (
@@ -214,6 +230,7 @@ function FolderRow(props: TreeProps & { id: string; name: string }) {
           disabled={!hasChildren}
           className="notes-icon-button w-7! shrink-0"
           aria-label={(expanded ? "Collapse " : "Expand ") + props.name}
+          title={(expanded ? "Collapse " : "Expand ") + props.name}
           aria-expanded={hasChildren ? expanded : undefined}
           onClick={() =>
             props.setExpanded((current) => {
@@ -224,9 +241,9 @@ function FolderRow(props: TreeProps & { id: string; name: string }) {
             })
           }
         >
-          <Icon
-            name="chevron"
-            width="13"
+          <ChevronRight
+            size={13}
+            aria-hidden="true"
             className={
               hasChildren ? (expanded ? "rotate-90" : "") : "opacity-0"
             }
@@ -237,7 +254,11 @@ function FolderRow(props: TreeProps & { id: string; name: string }) {
           onClick={() => props.onFolder(props.id)}
           title={props.id}
         >
-          <Icon name="folder" className="shrink-0 text-accent" />
+          <Folder
+            size={20}
+            className="shrink-0 text-accent"
+            aria-hidden="true"
+          />
           <span className="min-w-0 flex-1 truncate">{props.name}</span>
           <span className="mr-2 rounded bg-fg/5 px-1 text-xs text-muted">
             {count}

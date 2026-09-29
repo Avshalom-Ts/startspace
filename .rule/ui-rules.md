@@ -3,6 +3,8 @@
 - Build the extension's pages with React. Use components as the unit of UI organization; keep components focused on one responsibility and composed from smaller pieces.
 - Style with Tailwind CSS. Use utility classes as the primary styling mechanism; keep styling co-located with the component it belongs to.
 - Follow the project's established component and accessibility patterns.
+- Use `lucide-react` for application icons in navigation, buttons, menus, status indicators, and inputs. Import only the icons a component uses; do not introduce custom inline SVGs, Unicode pictograms, or a second icon wrapper for UI controls. The original StartSpace brand mark and browser-extension assets are artwork, not UI icons, and may retain their own assets.
+- Icon-only controls need an accessible name and a tooltip (`title`); decorative icons alongside visible text should be hidden from assistive technology.
 - Build responsive interfaces for the supported screen sizes.
 - Keep feedback messages concise, specific, and actionable.
 
@@ -35,6 +37,6 @@
 
 ## Libraries and Stack
 
-- React for UI, Tailwind CSS for styling, `marked` for Markdown rendering. Use these consistently; avoid introducing additional UI or styling libraries unless there is a clear need.
+- React for UI, Tailwind CSS for styling, `lucide-react` for icons, and `marked` for Markdown rendering. Use these consistently; avoid introducing additional UI or styling libraries unless there is a clear need.
 - Markdown rendering (via `marked`) should be used for rendering note content where the UI displays rendered Markdown. Keep the rendering concern separated from the data/reading concern.
 - Document the chosen stack in this file now that it is selected: TypeScript, React, Tailwind CSS, Vite, WebExtensions / Manifest V3, `marked` for Markdown rendering, Vitest + Playwright for testing.

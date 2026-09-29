@@ -23,10 +23,10 @@ export function WorkspaceSetupPrompt() {
     if (
       grant.handle &&
       config &&
-      config.currentWorkspace?.name !== grant.handle.name
+      config.currentWorkspace?.id !== grant.id
     ) {
       const ref: WorkspaceRef = {
-        id: `ws-${grant.handle.name}`,
+        id: grant.id!,
         name: grant.handle.name,
       };
       void saveConfig({ ...config, currentWorkspace: ref });

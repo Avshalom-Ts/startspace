@@ -4,6 +4,7 @@
 // while hovered or keyboard-focused; errors remain until dismissed by default.
 
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import type { Notification, NotificationKind } from "./notification-context";
 
 const KIND_STYLES: Record<NotificationKind, string> = {
@@ -73,7 +74,8 @@ function NotificationItem({
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false);
+        if (!event.currentTarget.contains(event.relatedTarget))
+          setPaused(false);
       }}
     >
       <div className="flex items-start gap-3">
@@ -99,9 +101,10 @@ function NotificationItem({
           type="button"
           className="rounded px-1 text-lg leading-5 text-muted hover:bg-surface hover:text-fg focus-visible:outline-2 focus-visible:outline-fg"
           aria-label={`Dismiss ${notification.kind} notification`}
+          title={`Dismiss ${notification.kind} notification`}
           onClick={() => onDismiss(notification.id)}
         >
-          ×
+          <X size={20} aria-hidden="true" />
         </button>
       </div>
     </div>

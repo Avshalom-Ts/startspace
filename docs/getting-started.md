@@ -111,7 +111,9 @@ Once installed and your workspace is chosen:
 2. **Links** — search links by name or URL across bookmark folders, show only
    favorites with the star filter, and keep the folder-chip navigation while
    creating, editing, moving, and deleting browser-backed links and folders.
-3. **Notes** — browse the folder explorer (closed by default except the opened note's path). Use a folder's three-dot menu to create notes/folders or delete an empty folder. Toggle preview/edit from the note header; edits save after 300 ms of inactivity. Rename, move and import services remain available where exposed in the UI.
+3. **Notes** — browse the folder explorer (closed by default except the opened note's path). Use a folder's three-dot menu to create notes/folders or delete an empty folder. Toggle preview/edit from the note header; edits save after 1 second of inactivity. Rename, move and import services remain available where exposed in the UI.
+   In Preview, each Markdown code block has a Copy code button; clipboard access must be available in the browser.
+   The last successfully opened note reopens for the same workspace after permission is granted; demo notes are never remembered as real notes.
 4. **Tasks** — a local Kanban board for tasks; link tasks to notes and bookmarks.
 5. **Settings** — choose your workspace, view browser search information, open browser search settings, and export or restore a backup.
 6. **GitHub** — link to the source repository.

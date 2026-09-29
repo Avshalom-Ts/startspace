@@ -56,11 +56,17 @@ export function useNotes(workspace?: ReturnType<typeof useWorkspace>) {
   const fallbackWorkspace = useWorkspace();
   const { grant } = workspace ?? fallbackWorkspace;
   const selectionRef = useRef<string | null>(null);
+  const requestRef = useRef(0);
+  const handleRef = useRef(grant.handle);
+  handleRef.current = grant.handle;
   const [index, setIndex] = useState<NotesIndex | null>(null);
+  const [indexHandle, setIndexHandle] =
+    useState<FileSystemDirectoryHandle | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<NotesUiError | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [selectedNote, setSelectedNote] = useState<NoteEntry | null>(null);
+  const [missingNoteId, setMissingNoteId] = useState<string | null>(null);
   const [selectedFolderPath, setSelectedFolderPath] = useState("");
   selectionRef.current = selectedNoteId;
 
@@ -68,6 +74,7 @@ export function useNotes(workspace?: ReturnType<typeof useWorkspace>) {
     async (selectedId = selectionRef.current) => {
       if (!grant.handle || grant.permission !== "granted") {
         setIndex(null);
+        setIndexHandle(null);
         setSelectedNote(null);
         setSelectedNoteId(null);
         return;
@@ -76,12 +83,17 @@ export function useNotes(workspace?: ReturnType<typeof useWorkspace>) {
       setError(null);
       try {
         const nextIndex = await scanWorkspace(grant.handle);
+        if (handleRef.current !== grant.handle) return;
         setIndex(nextIndex);
-        if (selectedId) {
+        setIndexHandle(grant.handle);
+        if (selectedId && selectionRef.current === selectedId) {
           const refreshedSelectedNote =
             nextIndex.notes.find((note) => note.id === selectedId) ?? null;
           setSelectedNote(refreshedSelectedNote);
-          if (!refreshedSelectedNote) setSelectedNoteId(null);
+          if (!refreshedSelectedNote) {
+            setSelectedNoteId(null);
+            setMissingNoteId(selectedId);
+          }
         }
       } catch (cause) {
         setError(mapError(cause));
@@ -91,6 +103,16 @@ export function useNotes(workspace?: ReturnType<typeof useWorkspace>) {
     },
     [grant.handle, grant.permission],
   );
+
+  useEffect(() => {
+    requestRef.current++;
+    selectionRef.current = null;
+    setSelectedNoteId(null);
+    setSelectedNote(null);
+    setMissingNoteId(null);
+    setIndex(null);
+    setIndexHandle(null);
+  }, [grant.handle]);
 
   useEffect(() => {
     void refresh();
@@ -343,19 +365,32 @@ export function useNotes(workspace?: ReturnType<typeof useWorkspace>) {
   );
 
   const selectNote = useCallback(
-    async (noteId: string | null) => {
+    async (
+      noteId: string | null,
+      silentMissing = false,
+    ): Promise<NoteResult<NoteEntry> | null> => {
+      const requestId = ++requestRef.current;
       selectionRef.current = noteId;
+      setMissingNoteId(null);
       setSelectedNoteId(noteId);
       if (!noteId || !grant.handle) {
         setSelectedNote(null);
-        return;
+        return null;
       }
+      const handle = grant.handle;
       try {
-        const note = await readNote(grant.handle, noteId);
-        if (selectionRef.current === noteId) setSelectedNote(note);
+        const note = await readNote(handle, noteId);
+        if (requestRef.current === requestId && handleRef.current === handle)
+          setSelectedNote(note);
+        return { ok: true, value: note };
       } catch (cause) {
-        setSelectedNote(null);
-        setError(mapError(cause));
+        const error = mapError(cause);
+        if (requestRef.current === requestId && handleRef.current === handle) {
+          setSelectedNote(null);
+          if (error.kind === "not-found") setSelectedNoteId(null);
+          if (!silentMissing || error.kind !== "not-found") setError(error);
+        }
+        return { ok: false, error };
       }
     },
     [grant.handle],
@@ -374,10 +409,12 @@ export function useNotes(workspace?: ReturnType<typeof useWorkspace>) {
 
   return {
     index,
+    indexHandle,
     loading,
     error,
     selectedNoteId,
     selectedNote,
+    missingNoteId,
     selectedFolderPath,
     refresh,
     createNote,

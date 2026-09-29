@@ -8,7 +8,7 @@ Related: [ADR 0010](0010-notes-context-and-feedback.md), [Notes design](../desig
 
 The folder navigator starts closed except for the active note's ancestor chain. Each folder row, including the root, has a three-dot action menu for creating notes and subfolders in that folder. Non-root folders can be deleted only when empty, after confirmation; the filesystem service enforces this even for non-UI callers.
 
-The document header has a single eye/pen mode toggle instead of an edit toolbar. Real note edits save after 300 ms without further typing. Ctrl/Cmd+S remains an immediate save option. Writes check the on-disk baseline; in-flight edits remain dirty for a subsequent save. Failed saves preserve the draft, surface a persistent message and one global error notification, and do not retry identical content until it changes or the user explicitly saves. Successful saves notify through the existing global notification provider. Demo edits remain in memory.
+The document header has a single eye/pen mode toggle instead of an edit toolbar. Real note edits save after 1 second without further typing. Ctrl/Cmd+S remains an immediate save option. Writes check the on-disk baseline; in-flight edits remain dirty for a subsequent save. Failed saves preserve the draft, show a global error notification and do not retry identical content until it changes or the user explicitly saves. Successful real saves show a global confirmation; the document has no save-status banner or per-keystroke live announcement. A labeled reload action remains available for detected disk conflicts. Demo edits remain in memory.
 
 ## Consequences
 

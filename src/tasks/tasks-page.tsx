@@ -5,6 +5,15 @@
 // browser Bookmark IDs. No note or bookmark content is duplicated here.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useNotes } from "../notes/use-notes";
 import { useBookmarkTree } from "../hooks/useBookmarkTree";
@@ -157,7 +166,8 @@ export function TasksPage() {
   };
 
   const moveTask = async (task: Task, status: TaskStatus) => {
-    if (await board.moveTask(task.id, status)) notifications.success("Task moved.");
+    if (await board.moveTask(task.id, status))
+      notifications.success("Task moved.");
   };
 
   const addColumn = async () => {
@@ -239,7 +249,12 @@ export function TasksPage() {
             onClick={() => void addTask()}
             className="rounded border border-border bg-page px-3 py-2 text-sm font-medium text-fg hover:border-fg/40 hover:bg-surface"
           >
-            + Add task
+            <Plus
+              size={16}
+              aria-hidden="true"
+              className="inline-block align-middle"
+            />{" "}
+            Add task
           </button>
         </div>
       </div>
@@ -269,7 +284,7 @@ export function TasksPage() {
             title="Scroll columns left"
             className="my-auto shrink-0 rounded-full border border-border bg-surface p-2 text-lg leading-none text-fg shadow-sm hover:border-fg/40 hover:bg-page disabled:cursor-not-allowed disabled:opacity-35 cursor-pointer"
           >
-            ‹
+            <ChevronLeft size={20} aria-hidden="true" />
           </button>
           <div
             ref={columnsViewportRef}
@@ -299,7 +314,12 @@ export function TasksPage() {
                         onClick={() => void addColumn()}
                         className="mt-2 rounded border border-border bg-page px-3 py-2 text-sm font-medium text-fg hover:border-fg/40 hover:bg-surface"
                       >
-                        + Add column
+                        <Plus
+                          size={16}
+                          aria-hidden="true"
+                          className="inline-block align-middle"
+                        />{" "}
+                        Add column
                       </button>
                     </section>
                   );
@@ -330,7 +350,7 @@ export function TasksPage() {
                         aria-label={`Hide ${column.title}`}
                         className="shrink-0 text-base text-muted hover:text-fg"
                       >
-                        👁
+                        <Eye size={18} aria-hidden="true" />
                       </button>
                       {editingColumnId === column.id ? (
                         <input
@@ -369,7 +389,7 @@ export function TasksPage() {
                         aria-label={`Delete ${column.title}`}
                         className="text-xs text-muted hover:text-red-500"
                       >
-                        ✕
+                        <X size={18} aria-hidden="true" />
                       </button>
                     </div>
                     <div className="app-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -407,7 +427,7 @@ export function TasksPage() {
                                 aria-label={`Edit ${task.title}`}
                                 className="rounded p-1 text-base leading-none text-muted hover:bg-surface hover:text-fg"
                               >
-                                ✎
+                                <Pencil size={18} aria-hidden="true" />
                               </button>
                               <button
                                 onClick={() => void board.deleteTask(task.id)}
@@ -415,7 +435,7 @@ export function TasksPage() {
                                 aria-label={`Delete ${task.title}`}
                                 className="rounded p-1 text-base leading-none text-muted hover:bg-surface hover:text-red-500"
                               >
-                                🗑
+                                <Trash2 size={18} aria-hidden="true" />
                               </button>
                             </div>
                           </div>
@@ -440,7 +460,7 @@ export function TasksPage() {
             title="Scroll columns right"
             className="my-auto shrink-0 rounded-full border border-border bg-surface p-2 text-lg leading-none text-fg shadow-sm hover:border-fg/40 hover:bg-page disabled:cursor-not-allowed disabled:opacity-35 cursor-pointer"
           >
-            ›
+            <ChevronRight size={20} aria-hidden="true" />
           </button>
         </div>
         {visibleColumns.length === 0 && (
@@ -582,9 +602,10 @@ function TaskDetails({
           <button
             onClick={onClose}
             aria-label="Close task details"
+            title="Close task details"
             className="rounded border border-border px-2 py-1 text-sm text-muted hover:border-fg/40 hover:text-fg"
           >
-            ×
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
       </div>
