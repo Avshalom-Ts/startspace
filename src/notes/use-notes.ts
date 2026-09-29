@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import type { FolderEntry, NoteEntry, NotesIndex } from "../types/notes";
 import {
@@ -51,19 +51,25 @@ function mapError(error: unknown): NotesUiError {
   };
 }
 
-export function useNotes() {
-  const { grant } = useWorkspace();
+/** Reuses a supplied page grant to keep first-time workspace selection in sync. */
+export function useNotes(workspace?: ReturnType<typeof useWorkspace>) {
+  const fallbackWorkspace = useWorkspace();
+  const { grant } = workspace ?? fallbackWorkspace;
+  const selectionRef = useRef<string | null>(null);
   const [index, setIndex] = useState<NotesIndex | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<NotesUiError | null>(null);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [selectedNote, setSelectedNote] = useState<NoteEntry | null>(null);
   const [selectedFolderPath, setSelectedFolderPath] = useState("");
+  selectionRef.current = selectedNoteId;
 
   const refresh = useCallback(
-    async (selectedId = selectedNoteId) => {
-      if (!grant.handle) {
+    async (selectedId = selectionRef.current) => {
+      if (!grant.handle || grant.permission !== "granted") {
         setIndex(null);
+        setSelectedNote(null);
+        setSelectedNoteId(null);
         return;
       }
       setLoading(true);
@@ -83,7 +89,7 @@ export function useNotes() {
         setLoading(false);
       }
     },
-    [grant.handle, selectedNoteId],
+    [grant.handle, grant.permission],
   );
 
   useEffect(() => {
@@ -122,14 +128,23 @@ export function useNotes() {
   );
 
   const editNote = useCallback(
-    async (noteId: string, content: string): Promise<NoteResult<NoteEntry>> => {
+    async (
+      noteId: string,
+      content: string,
+      expectedContent?: string,
+    ): Promise<NoteResult<NoteEntry>> => {
       if (!grant.handle)
         return failure({
           kind: "workspace-missing",
           message: "Choose a workspace folder first.",
         });
       try {
-        const value = await writeNote(grant.handle, noteId, content);
+        const value = await writeNote(
+          grant.handle,
+          noteId,
+          content,
+          expectedContent,
+        );
         setSelectedNote(value);
         await refresh();
         return { ok: true, value };
@@ -329,13 +344,15 @@ export function useNotes() {
 
   const selectNote = useCallback(
     async (noteId: string | null) => {
+      selectionRef.current = noteId;
       setSelectedNoteId(noteId);
       if (!noteId || !grant.handle) {
         setSelectedNote(null);
         return;
       }
       try {
-        setSelectedNote(await readNote(grant.handle, noteId));
+        const note = await readNote(grant.handle, noteId);
+        if (selectionRef.current === noteId) setSelectedNote(note);
       } catch (cause) {
         setSelectedNote(null);
         setError(mapError(cause));

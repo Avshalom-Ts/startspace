@@ -4,7 +4,7 @@
 // Browser-API-free, so these are naturally unit-testable (see
 // .rule/testing-rules.md).
 
-import type { NoteEntry } from '../types/notes';
+import type { NoteEntry } from "../types/notes";
 
 /** A note search result with a match reason. */
 export interface NoteSearchResult {
@@ -12,7 +12,7 @@ export interface NoteSearchResult {
   note: NoteEntry;
   /** Why this note matched: 'title' (title contains the query) or 'content'
    *  (content contains the query). */
-  matchType: 'title' | 'content';
+  matchType: "title" | "content";
   /** A relevance hint: notes whose title matches are ranked above those whose
    *  content matches; ties are broken by modifiedAt (newest first). */
   relevance: number;
@@ -25,7 +25,10 @@ export interface NoteSearchResult {
  *  @returns Matched notes with match reasons and relevance, sorted by
  *    relevance (title matches first, then newest).
  */
-export function searchNotes(notes: NoteEntry[], query: string): NoteSearchResult[] {
+export function searchNotes(
+  notes: NoteEntry[],
+  query: string,
+): NoteSearchResult[] {
   if (!query || query.trim().length === 0) return [];
   const normalized = query.trim().toLowerCase();
   const results: NoteSearchResult[] = [];
@@ -33,16 +36,16 @@ export function searchNotes(notes: NoteEntry[], query: string): NoteSearchResult
   for (const note of notes) {
     const titleLower = note.title.toLowerCase();
     const contentLower = note.content.toLowerCase();
-    let matchType: 'title' | 'content' | null = null;
+    let matchType: "title" | "content" | null = null;
 
     if (titleLower.includes(normalized)) {
-      matchType = 'title';
+      matchType = "title";
     } else if (contentLower.includes(normalized)) {
-      matchType = 'content';
+      matchType = "content";
     }
 
     if (matchType) {
-      const relevance = matchType === 'title' ? 2 : 1;
+      const relevance = matchType === "title" ? 2 : 1;
       results.push({ note, matchType, relevance });
     }
   }

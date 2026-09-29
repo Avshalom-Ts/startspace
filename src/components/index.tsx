@@ -3,6 +3,7 @@ import { forwardRef, useState } from "react";
 export const SearchBar = forwardRef<
   HTMLInputElement,
   {
+    compact?: boolean;
     value: string;
     onChange: (value: string) => void;
     onSubmit?: () => void;
@@ -10,7 +11,7 @@ export const SearchBar = forwardRef<
     onFocus?: () => void;
     onBlur?: () => void;
   }
->(({ value, onChange, onSubmit, onNavigate, onFocus, onBlur }, ref) => {
+>(({ value, onChange, onSubmit, onNavigate, onFocus, onBlur, compact = false }, ref) => {
   const [isFocused, setIsFocused] = useState(false);
   return (
     <div className="w-full">
@@ -31,7 +32,7 @@ export const SearchBar = forwardRef<
         <input
           ref={ref}
           type="search"
-          autoFocus
+          aria-label="Search StartSpace"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => {
@@ -43,6 +44,7 @@ export const SearchBar = forwardRef<
             onBlur?.();
           }}
           onKeyDown={(event) => {
+            if (event.key === "Escape") { onChange(""); return; }
             if (!value.trim()) return;
             if (event.key === "ArrowDown") {
               event.preventDefault();
@@ -59,7 +61,7 @@ export const SearchBar = forwardRef<
           className="w-full rounded-lg bg-surface border border-border pl-10 pr-4 py-3 text-fg placeholder-muted shadow-sm ring-offset-page focus-visible:outline-2 focus-visible:outline-fg focus-visible:ring-1 focus-visible:ring-fg/30 transition-colors"
         />
       </div>
-      <p className="mt-2 text-xs text-muted">
+      {!compact && <p className="mt-2 text-xs text-muted">
         Search order: Bookmarks → Notes → Tasks → Web
         {!isFocused && (
           // Chrome can steal focus back to the omnibox on a fresh new tab; Esc returns it here.
@@ -68,7 +70,7 @@ export const SearchBar = forwardRef<
             to search
           </span>
         )}
-      </p>
+      </p>}
     </div>
   );
 });

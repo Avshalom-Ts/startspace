@@ -3,8 +3,8 @@
 // Covers workspace scanning behavior with a minimal in-memory implementation
 // of the File System Access API surface used by the Notes feature.
 
-import { describe, expect, it } from "vitest";
-import { scanWorkspace } from "./notes-workspace";
+import { describe, expect, it, vi } from "vitest";
+import { deleteFolder, scanWorkspace } from "./notes-workspace";
 
 interface TestFile {
   content: string;
@@ -42,7 +42,8 @@ function directoryHandle(directory: TestDirectory): FileSystemDirectoryHandle {
       })(),
     getDirectoryHandle: async (name: string) => {
       const entry = entries.find(
-        (candidate) => candidate.kind === "directory" && candidate.name === name,
+        (candidate) =>
+          candidate.kind === "directory" && candidate.name === name,
       );
       if (!entry) throw new DOMException("Missing directory", "NotFoundError");
       return entry as FileSystemDirectoryHandle;
@@ -54,6 +55,7 @@ function directoryHandle(directory: TestDirectory): FileSystemDirectoryHandle {
       if (!entry) throw new DOMException("Missing file", "NotFoundError");
       return entry as FileSystemFileHandle;
     },
+    removeEntry: vi.fn(),
   } as unknown as FileSystemDirectoryHandle;
 }
 
@@ -68,9 +70,7 @@ describe("workspace scanning", () => {
         {
           kind: "directory",
           name: ".obsidian",
-          children: [
-            { kind: "file", name: "plugin.md", content: "# Plugin" },
-          ],
+          children: [{ kind: "file", name: "plugin.md", content: "# Plugin" }],
         },
         {
           kind: "directory",
@@ -80,9 +80,7 @@ describe("workspace scanning", () => {
             {
               kind: "directory",
               name: ".archive",
-              children: [
-                { kind: "file", name: "old.md", content: "# Old" },
-              ],
+              children: [{ kind: "file", name: "old.md", content: "# Old" }],
             },
           ],
         },
@@ -96,5 +94,37 @@ describe("workspace scanning", () => {
       "visible.md",
     ]);
     expect(index.folders.map((folder) => folder.id)).toEqual(["projects"]);
+  });
+});
+
+describe("folder deletion", () => {
+  it("rejects non-empty directories without removing them", async () => {
+    const workspace = directoryHandle({
+      kind: "directory",
+      name: "Workspace",
+      children: [
+        {
+          kind: "directory",
+          name: "Projects",
+          children: [{ kind: "file", name: "keep.txt", content: "data" }],
+        },
+      ],
+    });
+    await expect(deleteFolder(workspace, "Projects")).rejects.toThrow(
+      "not empty",
+    );
+    expect(workspace.removeEntry).not.toHaveBeenCalled();
+  });
+
+  it("deletes an empty directory without recursion", async () => {
+    const workspace = directoryHandle({
+      kind: "directory",
+      name: "Workspace",
+      children: [{ kind: "directory", name: "Projects", children: [] }],
+    });
+    await deleteFolder(workspace, "Projects");
+    expect(workspace.removeEntry).toHaveBeenCalledWith("Projects", {
+      recursive: false,
+    });
   });
 });

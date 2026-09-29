@@ -19,7 +19,7 @@ import { collectBookmarkNodeIds } from "./bookmarks/bookmark-tree";
 import { useFavoritesWrite } from "./links/favorites-list";
 
 // ---------------------------------------------------------------------------
-// AppShell — hash-based page routing
+// AppShell â€” hash-based page routing
 // ---------------------------------------------------------------------------
 
 const PAGE_NAMES = ["home", "links", "notes", "tasks", "settings"] as const;
@@ -31,17 +31,41 @@ export function AppShell() {
   const [activeSearchResult, setActiveSearchResult] = useState(-1);
   const { mounted } = useTheme();
   const [page, setPage] = useState<PageName>("home");
+  const routeRef = useRef(window.location.hash || "#home");
 
   // Derive the active page from the URL hash on mount and on hashchange.
   useEffect(() => {
     function derive() {
       const raw =
         window.location.hash.replace(/^#/, "").split("?")[0] || "home";
-      setPage(
-        (PAGE_NAMES as readonly string[]).includes(raw)
-          ? (raw as PageName)
-          : "home",
-      );
+      const nextHash = window.location.hash || "#home";
+      const apply = () => {
+        if (nextHash !== routeRef.current) setSearchQuery("");
+        routeRef.current = nextHash;
+        if (window.location.hash !== nextHash)
+          history.replaceState(null, "", nextHash);
+        setPage(
+          (PAGE_NAMES as readonly string[]).includes(raw)
+            ? (raw as PageName)
+            : "home",
+        );
+      };
+      if (nextHash !== routeRef.current) {
+        const guard = new CustomEvent("startspace:before-navigate", {
+          cancelable: true,
+          detail: {
+            proceed: () => {
+              apply();
+              window.dispatchEvent(new HashChangeEvent("hashchange"));
+            },
+          },
+        });
+        if (!window.dispatchEvent(guard)) {
+          history.replaceState(null, "", routeRef.current);
+          return;
+        }
+      }
+      apply();
     }
     derive();
     window.addEventListener("hashchange", derive);
@@ -80,11 +104,15 @@ export function AppShell() {
     try {
       await searchWeb(searchResults.webQuery ?? "");
     } catch {
-      notifications.error("Web search is unavailable. Try again or use your browser’s address bar.");
+      notifications.error(
+        "Web search is unavailable. Try again or use your browserâ€™s address bar.",
+      );
     }
   };
   const submitSearch = () => {
-    const url = searchResultUrls[activeSearchResult];
+    if (searchData.loading || !searchQuery.trim()) return;
+    const url =
+      searchResultUrls[activeSearchResult < 0 ? 0 : activeSearchResult];
     if (url) window.location.assign(url);
     else void submitWebSearch();
   };
@@ -113,34 +141,56 @@ export function AppShell() {
   const showLoading = treeLoading || metaLoading || toggleLoading;
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-  // Chrome's own "focus the omnibox on new tab" behavior can re-steal focus
-  // asynchronously after our page loads, so keep re-asserting focus on the
-  // search input for a short window until Chrome stops fighting us for it.
   useEffect(() => {
-    if (page !== "home") return;
-    let active = true;
-    let rafId: number;
-    const stopAt = Date.now() + 1500;
-    const claimFocus = () => {
-      if (!active) return;
-      const input = searchInputRef.current;
-      if (input && document.activeElement !== input) input.focus();
-      if (Date.now() < stopAt) rafId = requestAnimationFrame(claimFocus);
+    const focusSearch = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
     };
-    claimFocus();
-    window.addEventListener("focus", claimFocus);
-    return () => {
-      active = false;
-      cancelAnimationFrame(rafId);
-      window.removeEventListener("focus", claimFocus);
-    };
-  }, [page]);
+    window.addEventListener("keydown", focusSearch);
+    return () => window.removeEventListener("keydown", focusSearch);
+  }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-page">
-      <Header nav={nav} />
+    <div
+      className={
+        isNotes
+          ? "flex h-dvh min-h-0 flex-col bg-page"
+          : "min-h-screen flex flex-col bg-page"
+      }
+    >
+      <Header nav={nav} page={page} />
 
-      <main className="flex-1 flex flex-col px-6 py-12 max-w-6xl mx-auto w-full">
+      <main
+        className={
+          isNotes
+            ? "flex min-h-0 flex-1 flex-col px-3 pb-3 min-[1280px]:px-4"
+            : "flex-1 flex flex-col px-6 py-12 max-w-6xl mx-auto w-full"
+        }
+      >
+        {isNotes && (
+          <div className="relative z-20 mx-auto w-full max-w-4xl py-3">
+            <SearchBar
+              ref={searchInputRef}
+              value={searchQuery}
+              onChange={setSearchQuery}
+              onSubmit={submitSearch}
+              onNavigate={navigateSearchResults}
+              compact
+            />
+            {searchQuery.trim() && (
+              <div className="absolute inset-x-0 top-full z-20">
+                <SearchResults
+                  onWebSearch={() => void submitWebSearch()}
+                  results={searchResults}
+                  query={searchQuery}
+                  activeResultIndex={activeSearchResult}
+                />
+              </div>
+            )}
+          </div>
+        )}
         {page === "home" && (
           <div className="flex-1 flex flex-col items-center justify-center">
             <div className="relative w-full max-w-3xl py-3">
@@ -198,7 +248,7 @@ export function AppShell() {
         ) : null}
       </main>
 
-      <PageFooter />
+      {!isNotes && <PageFooter />}
 
       {!mounted && (
         <div className="fixed inset-0 flex items-center justify-center bg-page z-50 pointer-events-none">

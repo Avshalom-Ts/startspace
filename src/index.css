@@ -76,3 +76,169 @@ body {
 .app-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: var(--color-muted);
 }
+
+/* Notes layout uses the project's Tailwind v4 semantic tokens. */
+@layer components {
+  .notes-button {
+    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm hover:bg-fg/5 disabled:cursor-not-allowed disabled:opacity-45;
+  }
+  .notes-primary {
+    @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-md bg-accent px-4 py-1.5 text-sm font-medium text-accent-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45;
+  }
+  .notes-icon-button {
+    @apply inline-flex p-2 items-center justify-center rounded-md text-muted hover:bg-fg/5 hover:text-fg disabled:opacity-40;
+  }
+  .notes-input {
+    @apply w-full rounded-md border border-border bg-page px-3 py-2 text-sm text-fg;
+  }
+  .notes-nav-row {
+    @apply flex min-h-10 w-full items-center gap-3 rounded-md border-l-2 border-transparent px-3 py-2 text-sm hover:bg-fg/5 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .notes-selected {
+    @apply !border-accent/70 bg-accent/15;
+  }
+  .notes-tag {
+    @apply rounded-full bg-accent/15 px-3 py-1 text-xs text-accent;
+  }
+}
+:where(button, a, input, textarea, select, summary):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.notes-frame {
+  display: grid;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  grid-template-columns: 17% 27% minmax(0, 1fr) 17%;
+}
+.notes-folders,
+.notes-list,
+.notes-document,
+.notes-info {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.notes-prose {
+  font-size: 16px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+.notes-prose > * {
+  max-width: 78ch;
+}
+.notes-prose h1 {
+  font-size: 1.6rem;
+}
+.notes-prose h2 {
+  font-size: 1.3rem;
+}
+.notes-prose h3 {
+  font-size: 1.1rem;
+}
+.notes-prose h1,
+.notes-prose h2,
+.notes-prose h3 {
+  font-weight: 650;
+  margin: 1.25rem 0 0.65rem;
+  line-height: 1.35;
+}
+.notes-prose > :first-child {
+  margin-top: 0;
+}
+.notes-prose p,
+.notes-prose ul,
+.notes-prose ol,
+.notes-prose pre {
+  margin-bottom: 1rem;
+}
+.notes-prose ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+.notes-prose ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+.notes-prose a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+.notes-prose blockquote {
+  border-left: 3px solid var(--color-accent);
+  padding-left: 1rem;
+  color: var(--color-muted);
+  margin: 1rem 0;
+}
+.notes-prose pre {
+  overflow-x: auto;
+  background: var(--color-page);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+  font-size: 13px;
+}
+.notes-prose table {
+  display: block;
+  overflow-x: auto;
+}
+.notes-prose th,
+.notes-prose td {
+  border: 1px solid var(--color-border);
+  padding: 0.5rem;
+}
+@media (max-width: 1599px) {
+  .notes-frame {
+    grid-template-columns: 240px 300px minmax(0, 1fr);
+  }
+  .notes-info {
+    display: none;
+  }
+  .notes-frame[data-panel="info"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .notes-frame[data-panel="info"] > :not(.notes-info) {
+    display: none;
+  }
+  .notes-frame[data-panel="info"] .notes-info {
+    display: block;
+    border-left: 0;
+  }
+}
+@media (max-width: 1279px) {
+  .notes-frame {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+  .notes-folders {
+    display: none;
+  }
+  .notes-frame[data-panel="folders"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .notes-frame[data-panel="folders"] > :not(.notes-folders) {
+    display: none;
+  }
+  .notes-frame[data-panel="folders"] .notes-folders {
+    display: block;
+  }
+}
+@media (max-width: 1023px) {
+  .notes-frame {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .notes-document {
+    display: none;
+  }
+  .notes-frame[data-panel="document"] > :not(.notes-document) {
+    display: none;
+  }
+  .notes-frame[data-panel="document"] .notes-document {
+    display: flex;
+  }
+  .notes-frame .notes-list {
+    border-right: 0;
+  }
+}

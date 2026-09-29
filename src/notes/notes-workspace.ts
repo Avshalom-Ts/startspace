@@ -207,13 +207,28 @@ export async function writeNote(
   workspace: FileSystemDirectoryHandle,
   noteId: string,
   content: string,
+  expectedContent?: string,
 ): Promise<NoteEntry> {
   validateNoteId(noteId);
   const parent = await directoryAt(workspace, noteFolder(noteId));
   const handle = await parent.getFileHandle(noteDisplayName(noteId) + ".md");
+  if (
+    expectedContent !== undefined &&
+    (await (await handle.getFile()).text()) !== expectedContent
+  ) {
+    throw new NoteWorkspaceError(
+      "io",
+      "This file changed on disk. Your draft has not been overwritten.",
+    );
+  }
   const writable = await handle.createWritable();
-  await writable.write(content);
-  await writable.close();
+  try {
+    await writable.write(content);
+    await writable.close();
+  } catch (error) {
+    await writable.abort().catch(() => undefined);
+    throw error;
+  }
   return readFileEntry(workspace, noteId);
 }
 
@@ -340,8 +355,18 @@ export async function deleteFolder(
     );
   const parent = await directoryAt(workspace, parentFolder(folderId));
   try {
+    const target = await parent.getDirectoryHandle(
+      folderId.split("/").pop() ?? "",
+    );
+    for await (const _entry of target.values()) {
+      throw new NoteWorkspaceError(
+        "io",
+        `Folder is not empty: "${folderId}".`,
+        folderId,
+      );
+    }
     await parent.removeEntry(folderId.split("/").pop() ?? "", {
-      recursive: true,
+      recursive: false,
     });
   } catch (error) {
     if (isNotFound(error))

@@ -111,7 +111,7 @@ Once installed and your workspace is chosen:
 2. **Links** — search links by name or URL across bookmark folders, show only
    favorites with the star filter, and keep the folder-chip navigation while
    creating, editing, moving, and deleting browser-backed links and folders.
-3. **Notes** — browse the persistent folder explorer, then create, edit, preview, organize, rename, move, and import Markdown notes in your workspace.
+3. **Notes** — browse the folder explorer (closed by default except the opened note's path). Use a folder's three-dot menu to create notes/folders or delete an empty folder. Toggle preview/edit from the note header; edits save after 300 ms of inactivity. Rename, move and import services remain available where exposed in the UI.
 4. **Tasks** — a local Kanban board for tasks; link tasks to notes and bookmarks.
 5. **Settings** — choose your workspace, view browser search information, open browser search settings, and export or restore a backup.
 6. **GitHub** — link to the source repository.
@@ -139,3 +139,8 @@ Your browser. Your workspace. Your data.
 StartSpace is private, local-first, Markdown-first, user-owned, transparent, and open source. No backend, cloud database, account, or vendor lock-in.
 
 Web search requires the installed extension and its `search` permission. In a web preview or unsupported browser, use the address bar. Settings displays the provider name where the browser exposes it (Firefox); Chrome displays “Browser default” because its API does not expose the name. Settings links to the browser’s search settings and provides a manual address if navigation is blocked. Firefox search API support does not imply full Firefox support for workspace files or the current Chromium build.
+
+
+## Preview the Notes redesign
+
+On feature/notes-layout, open Notes and choose a workspace for real Markdown editing, or select **Preview the layout** to inspect synthetic sample content. The optional hash route #notes?demo=1 also opens the labeled preview. Demo edits do not write files. Favorites/tags remain planned; Recent is session-only. See [remaining tasks](design/notes-layout-tasks.md).

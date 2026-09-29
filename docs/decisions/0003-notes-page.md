@@ -140,3 +140,8 @@ The Notes page is complete when:
 ## Recording
 
 This ADR records the Notes page storage, workspace access, folder-tree, and search decisions. Implementation details may evolve, but changes that alter the source of truth, permission model, folder semantics, or page search ownership should update this ADR or create a superseding decision.
+
+
+## Layout transition (2026-09-28)
+
+[ADR 0009](0009-notes-layout-transition.md) supersedes the two-pane layout, folder-selection presentation and Notes-only search restriction. Storage identity remains path-based pending a separate migration.

@@ -125,6 +125,15 @@ export function useWorkspace() {
     };
   }, []);
 
+  useEffect(() => {
+    const update = async () => {
+      const handle = await loadPersistedHandle();
+      if (handle) setGrant({ handle, name: handle.name, permission: "granted" });
+    };
+    window.addEventListener("startspace:workspace-selected", update);
+    return () => window.removeEventListener("startspace:workspace-selected", update);
+  }, []);
+
   const chooseWorkspace =
     useCallback(async (): Promise<FileSystemDirectoryHandle | null> => {
       setError(null);
@@ -156,6 +165,7 @@ export function useWorkspace() {
             return null;
           }
           await persistHandle(grant.handle);
+          window.dispatchEvent(new Event("startspace:workspace-selected"));
           return grant.handle;
         }
 
@@ -173,6 +183,7 @@ export function useWorkspace() {
         const picked = await picker({ mode: "readwrite" });
         setGrant({ handle: picked, name: picked.name, permission: "granted" });
         await persistHandle(picked);
+        window.dispatchEvent(new Event("startspace:workspace-selected"));
         return picked;
       } catch (err: unknown) {
         if (

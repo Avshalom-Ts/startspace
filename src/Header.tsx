@@ -1,42 +1,96 @@
-import { useState, useEffect } from "react";
-import { Link } from "./links/Link";
+// Shared full-width navigation; Notes exposes its own creation action.
+import { useEffect, useState } from "react";
 import { Logo } from "./components/Logo";
+import { Icon, type IconName } from "./components/icon";
 import { GITHUB_URL } from "./data/nav";
-
-export function Header({ nav }: { nav: { label: string; href: string }[] }) {
-  const [activeHref, setActiveHref] = useState("#home");
+/** Renders desktop navigation and an accessible compact menu on small screens. */
+export function Header({
+  nav,
+  page,
+}: {
+  nav: { label: string; href: string }[];
+  page: string;
+}) {
+  const route = "#" + page;
+  const [menu, setMenu] = useState(false);
 
   useEffect(() => {
-    const updateActiveRoute = () =>
-      setActiveHref(window.location.hash || "#home");
-    updateActiveRoute();
-    window.addEventListener("hashchange", updateActiveRoute);
-    return () => window.removeEventListener("hashchange", updateActiveRoute);
-  }, []);
-
+    setMenu(false);
+  }, [page]);
+  const icons: Record<string, IconName> = {
+    Home: "home",
+    Links: "link",
+    Notes: "note",
+    Tasks: "task",
+    Settings: "settings",
+  };
+  const items = [{ label: "Home", href: "#home" }, ...nav];
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-page/80 backdrop-blur supports-backdrop-filter:bg-page/60">
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center max-w-6xl mx-auto px-6 py-3">
-        <div className="flex items-center">
-          <Logo />
-        </div>
-
-        <nav className="hidden sm:flex items-center justify-center gap-4 text-sm font-medium">
-          {nav.map((item) => (
-            <Link
+    <header className="relative z-30 shrink-0 border-b border-border bg-page">
+      <div className="container mx-auto flex h-14 items-center justify-between gap-4 px-4">
+        <Logo />
+        <nav
+          aria-label="Main navigation"
+          className="hidden items-center gap-7 md:flex"
+        >
+          {items.map((item) => (
+            <a
               key={item.label}
-              label={item.label}
               href={item.href}
-              active={item.href === activeHref}
-            />
+              aria-current={route === item.href ? "page" : undefined}
+              className={
+                "flex h-14 items-center gap-2 border-b-2 text-sm font-medium " +
+                (route === item.href
+                  ? "border-accent text-accent"
+                  : "border-transparent hover:text-accent")
+              }
+            >
+              <Icon name={icons[item.label] ?? "note"} />
+              {item.label}
+            </a>
           ))}
         </nav>
-
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center gap-3">
           <ModeToggle />
           <GitHubLink />
+          {route === "#notes" && (
+            <button
+              className="notes-primary"
+              onClick={() =>
+                window.dispatchEvent(new Event("startspace:new-note"))
+              }
+            >
+              <Icon name="plus" />
+              New note
+            </button>
+          )}
+          <button
+            className="notes-icon-button md:hidden"
+            aria-label="Toggle navigation"
+            aria-expanded={menu}
+            onClick={() => setMenu(!menu)}
+          >
+            <Icon name="menu" />
+          </button>
         </div>
       </div>
+      {menu && (
+        <nav
+          aria-label="Mobile navigation"
+          className="grid grid-cols-3 gap-2 border-t border-border p-3 md:hidden"
+        >
+          {items.map((item) => (
+            <a
+              key={item.label}
+              className="rounded p-3 text-sm hover:bg-surface"
+              aria-current={route === item.href ? "page" : undefined}
+              href={item.href}
+            >
+              {item.label}
+            </a>
+          ))}
+        </nav>
+      )}
     </header>
   );
 }

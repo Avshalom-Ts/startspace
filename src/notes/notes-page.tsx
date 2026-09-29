@@ -1,591 +1,1006 @@
-// notes-page.tsx
-//
-// Renders the Notes feature's persistent two-pane workspace. The explorer
-// reflects the granted filesystem while useNotes owns filesystem operations.
-
-import { useEffect, useState, type ReactNode } from "react";
-import { marked } from "marked";
+// Four-pane Notes workspace. Reuses existing path-based filesystem and task
+// services; demo data is opt-in, session-only and cannot write to user files.
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Icon } from "../components/icon";
 import { useWorkspace } from "../hooks/useWorkspace";
-import { slugifyNoteName } from "../types/notes-path";
-import type { FolderEntry, NoteEntry } from "../types/notes";
-import { searchNotes, type NoteSearchResult } from "./notes-search";
-import { useNotes } from "./use-notes";
+import { useBookmarkTree, useBookmarkMetadata } from "../hooks/useBookmarkTree";
+import type { BookmarkNode } from "../hooks/useBookmarks";
 import { useNotifications } from "../notifications/notification-context";
+import { useTasks } from "../tasks/use-tasks";
+import type { NoteEntry, NotesIndex } from "../types/notes";
+import { useNotes } from "./use-notes";
+import { readNote } from "./notes-workspace";
+import { demoIndex } from "./notes-demo";
+import { fileTitle, visibleNotes, type NotesView } from "./notes-model";
+import { NotesNavigator } from "./notes-navigator";
+import { NotesInspector } from "./notes-inspector";
+import { NotesDialog } from "./notes-dialog";
+import { MarkdownPreview } from "./markdown-preview";
 
-function renderMarkdown(content: string): string {
-  return marked.parse(content, { async: false }) as string;
+const emptyIndex: NotesIndex = {
+  root: { id: "", name: "Workspace", noteCount: 0 },
+  notes: [],
+  folders: [],
+};
+/** Flattens current browser bookmarks for resolving existing note relations. */
+function bookmarkLeaves(tree: BookmarkNode[]): BookmarkNode[] {
+  return tree.flatMap((node) =>
+    node.url ? [node] : bookmarkLeaves(node.children ?? []),
+  );
 }
 
+/** Coordinates real file editing and progressive layout panels without data migration. */
 export function NotesPage() {
+  const workspace = useWorkspace();
+  const notes = useNotes(workspace);
+  const taskData = useTasks();
+  const bookmarks = useBookmarkTree();
+  const bookmarkMeta = useBookmarkMetadata();
   const notifications = useNotifications();
-  const notes = useNotes();
-  const { grant, chooseWorkspace } = useWorkspace();
-  const [activeFolderId, setActiveFolderId] = useState("");
-  const [newNoteName, setNewNoteName] = useState("");
-  const [newFolderName, setNewFolderName] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [validationMessage, setValidationMessage] = useState<string | null>(null);
+  const [demo, setDemo] = useState(
+    () => new URLSearchParams(location.hash.split("?")[1]).get("demo") === "1",
+  );
+  const [demoNotes, setDemoNotes] = useState(demoIndex);
+  const [demoId, setDemoId] = useState(demoIndex.notes[0]!.id);
+  const [folder, setFolder] = useState(demo ? "Work/Infrastructure/Lab" : "");
+  const [view, setView] = useState<NotesView>(demo ? "folder" : "all");
+  const [recent, setRecent] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState([demoIndex.notes[0]!.id]);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<"modified" | "name">("modified");
+  const [mode, setMode] = useState<"edit" | "preview">("preview");
+  const [panel, setPanel] = useState<"list" | "folders" | "document" | "info">(
+    "list",
+  );
+  const [draft, setDraft] = useState("");
+  const [baseline, setBaseline] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [action, setAction] = useState<
+    "note" | "folder" | "rename" | "move" | "delete" | "delete-folder" | null
+  >(null);
+  const [actionFolder, setActionFolder] = useState("");
+  const [name, setName] = useState("");
+  const [destination, setDestination] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [pending, setPending] = useState<(() => void) | null>(null);
+  const pendingRef = useRef<(() => void) | null>(null);
+  const failedSaveRef = useRef<string | null>(null);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const index = demo ? demoNotes : (notes.index ?? emptyIndex);
+  const selected = demo
+    ? (index.notes.find((note) => note.id === demoId) ?? null)
+    : notes.selectedNote;
+  const dirty = editingId !== null && draft !== baseline;
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
 
+  // Update clean buffers on disk refresh; retain dirty buffers, including deleted files.
   useEffect(() => {
-    const refreshOnFocus = () => void notes.refresh();
-    window.addEventListener("focus", refreshOnFocus);
-    return () => window.removeEventListener("focus", refreshOnFocus);
-  }, [notes.refresh]);
-
-  useEffect(() => {
-    const selectLinkedNote = () => {
-      const noteId = new URLSearchParams(
-        window.location.hash.split("?")[1] ?? "",
-      ).get("note");
-      if (noteId) void notes.selectNote(noteId);
-    };
-    selectLinkedNote();
-    window.addEventListener("hashchange", selectLinkedNote);
-    return () => window.removeEventListener("hashchange", selectLinkedNote);
-  }, [notes.selectNote]);
-
-  const createNote = async () => {
-    const name = newNoteName.trim();
-    if (!name) return setValidationMessage("Enter a note name.");
-    const result = await notes.createNote(
-      activeFolderId,
-      `${slugifyNoteName(name)}.md`,
-      `# ${name}\n\n`,
-    );
-    if (!result.ok) return notifications.error(result.error.message);
-    setNewNoteName("");
-    await notes.selectNote(result.value.id);
-    setValidationMessage(null);
-    notifications.success(`Created ${result.value.title}.`);
-  };
-
-  const createFolder = async () => {
-    const name = newFolderName.trim();
-    if (!name) return setValidationMessage("Enter a folder name.");
-    const result = await notes.createFolder(activeFolderId, name);
-    if (!result.ok) return notifications.error(result.error.message);
-    setNewFolderName("");
-    setValidationMessage(null);
-    notifications.success(`Created ${name}.`);
-  };
-
-  const renameFolder = async (folderId: string, name: string) => {
-    const result = await notes.renameFolder(folderId, name);
-    if (!result.ok) {
-      notifications.error(result.error.message);
-      return false;
+    if (selected && selected.id !== editingId) {
+      setEditingId(selected.id);
+      setDraft(selected.content);
+      setBaseline(selected.content);
+    } else if (selected && !dirtyRef.current) {
+      setDraft(selected.content);
+      setBaseline(selected.content);
     }
-    setActiveFolderId((current) =>
-      current.startsWith(folderId)
-        ? `${result.value.id}${current.slice(folderId.length)}`
-        : current,
-    );
-    notifications.success(`Renamed ${name}.`);
-    return true;
-  };
+  }, [selected, editingId]);
+  const activeNote: NoteEntry | null =
+    selected ??
+    (editingId && dirty
+      ? {
+          id: editingId,
+          title: editingId,
+          folder: editingId.split("/").slice(0, -1).join("/"),
+          content: baseline,
+          modifiedAt: new Date().toISOString(),
+        }
+      : null);
+  const externalConflict =
+    !!selected &&
+    selected.id === editingId &&
+    dirty &&
+    selected.content !== baseline;
 
-  if (!grant.handle || grant.permission !== "granted") {
+  /** Defers navigation until the dirty document has been resolved by the user. */
+  const guard = useCallback((next: () => void) => {
+    if (dirtyRef.current) {
+      pendingRef.current = next;
+      setPending(() => next);
+    } else next();
+  }, []);
+
+  useEffect(() => {
+    const protectClose = (event: BeforeUnloadEvent) => {
+      if (dirtyRef.current) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    const protectRoute = (event: Event) => {
+      if (!dirtyRef.current) return;
+      event.preventDefault();
+      guard((event as CustomEvent<{ proceed: () => void }>).detail.proceed);
+    };
+    window.addEventListener("beforeunload", protectClose);
+    window.addEventListener("startspace:before-navigate", protectRoute);
+    return () => {
+      window.removeEventListener("beforeunload", protectClose);
+      window.removeEventListener("startspace:before-navigate", protectRoute);
+    };
+  }, [guard]);
+
+  /** Opens a note after a dirty-buffer guard and records only a session recent list. */
+  const openNote = useCallback(
+    (id: string) =>
+      guard(() => {
+        if (demo) setDemoId(id);
+        else void notes.selectNote(id);
+        setFolder(id.split("/").slice(0, -1).join("/"));
+        setView("folder");
+        setQuery("");
+        setRecent((current) => [id, ...current.filter((item) => item !== id)]);
+        setMode("preview");
+        setPanel("document");
+        setMessage("");
+      }),
+    [demo, guard, notes.selectNote],
+  );
+
+  useEffect(() => {
+    const openHash = () => {
+      if (!location.hash.startsWith("#notes")) return;
+      const params = new URLSearchParams(location.hash.split("?")[1]);
+      const id = params.get("note");
+      if (id) openNote(id);
+    };
+    openHash();
+    window.addEventListener("hashchange", openHash);
+    const newNote = () =>
+      guard(() => {
+        setAction("note");
+        setName("");
+        setActionError("");
+      });
+    window.addEventListener("startspace:new-note", newNote);
+    return () => {
+      window.removeEventListener("hashchange", openHash);
+      window.removeEventListener("startspace:new-note", newNote);
+    };
+  }, [openNote, guard]);
+
+  useEffect(() => {
+    if (demo) return;
+    const refresh = () => {
+      void notes.refresh();
+      void taskData.refresh();
+    };
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, [demo, notes.refresh, taskData.refresh]);
+
+  /** Saves only if the on-disk base still matches, retaining input on any failure. */
+  const save = useCallback(async (): Promise<boolean> => {
+    if (!activeNote || busy) return false;
+    setBusy(true);
+    setMessage("");
+    const savedDraft = draft;
+    try {
+      if (demo) {
+        setDemoNotes((current) => ({
+          ...current,
+          notes: current.notes.map((note) =>
+            note.id === activeNote.id ? { ...note, content: draft } : note,
+          ),
+        }));
+      } else {
+        if (!workspace.grant.handle)
+          throw new Error("Reconnect the workspace before saving.");
+        const disk = await readNote(workspace.grant.handle, activeNote.id);
+        if (disk.content !== baseline)
+          throw new Error(
+            "This file changed on disk. Copy your draft or reload the disk version before saving.",
+          );
+        const result = await notes.editNote(activeNote.id, draft, baseline);
+        if (!result.ok) throw new Error(result.error.message);
+      }
+      setBaseline(savedDraft);
+      dirtyRef.current = draftRef.current !== savedDraft;
+      failedSaveRef.current = null;
+      if (!demo) notifications.success("Note saved.");
+      return true;
+    } catch (cause) {
+      const error =
+        cause instanceof Error
+          ? cause.message
+          : "Could not save. Your draft is still here.";
+      failedSaveRef.current = `${activeNote.id}\0${savedDraft}\0${baseline}`;
+      setMessage(error);
+      notifications.error(`Could not save note. ${error}`);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }, [
+    activeNote,
+    busy,
+    demo,
+    draft,
+    baseline,
+    workspace.grant.handle,
+    notes.editNote,
+    notifications,
+  ]);
+
+  useEffect(() => {
+    if (
+      !dirty ||
+      busy ||
+      !activeNote ||
+      editingId !== activeNote.id ||
+      externalConflict
+    )
+      return;
+    if (failedSaveRef.current === `${activeNote.id}\0${draft}\0${baseline}`)
+      return;
+    const timer = window.setTimeout(() => {
+      void save();
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [
+    activeNote?.id,
+    editingId,
+    dirty,
+    busy,
+    draft,
+    baseline,
+    externalConflict,
+    save,
+  ]);
+
+  useEffect(() => {
+    const keyboard = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        if (dirtyRef.current) void save();
+      }
+    };
+    window.addEventListener("keydown", keyboard);
+    return () => window.removeEventListener("keydown", keyboard);
+  }, [save]);
+
+  /** Opens a contextual file operation without discarding an unsaved buffer. */
+  const beginAction = (next: NonNullable<typeof action>, parent = folder) =>
+    guard(() => {
+      setAction(next);
+      setActionFolder(parent);
+      setName(next === "rename" && activeNote ? fileTitle(activeNote) : "");
+      setDestination(next === "move" ? (activeNote?.folder ?? "") : parent);
+      setActionError("");
+    });
+  /** Performs one real filesystem action; demo controls never reach filesystem services. */
+  const applyAction = async () => {
+    if (demo) {
+      setActionError(
+        "File operations are unavailable in demo. Connect a workspace to use them.",
+      );
+      return;
+    }
+    setBusy(true);
+    try {
+      const result =
+        action === "note"
+          ? await notes.createNote(destination, name.trim(), "")
+          : action === "folder"
+            ? await notes.createFolder(destination, name.trim())
+            : action === "rename" && activeNote
+              ? await notes.moveNote(
+                  activeNote.id,
+                  activeNote.folder,
+                  name.trim(),
+                )
+              : action === "move" && activeNote
+                ? await notes.moveNote(
+                    activeNote.id,
+                    destination,
+                    fileTitle(activeNote),
+                  )
+                : action === "delete" && activeNote
+                  ? await notes.deleteNote(activeNote.id)
+                  : action === "delete-folder"
+                    ? await notes.deleteFolder(actionFolder)
+                    : null;
+      if (!result?.ok) {
+        const error = result && !result.ok ? result.error : null;
+        const message = error?.message ?? "Select a note first.";
+        setActionError(message);
+        if (error?.kind !== "invalid-name" && error?.kind !== "already-exists")
+          notifications.error(message);
+        return;
+      }
+      if (action === "note" && result.value && "content" in result.value) {
+        await notes.selectNote(result.value.id);
+        setMode("edit");
+        setPanel("document");
+      }
+      if (action === "delete") {
+        setEditingId(null);
+        setDraft("");
+        setBaseline("");
+      }
+      if (action === "delete-folder" && folder === actionFolder) {
+        setFolder(actionFolder.split("/").slice(0, -1).join("/"));
+      }
+      setAction(null);
+      notifications.success(
+        action === "note"
+          ? "Note created."
+          : action === "folder"
+            ? "Folder created."
+            : action === "rename"
+              ? "Note renamed."
+              : action === "move"
+                ? "Note moved."
+                : action === "delete-folder"
+                  ? "Folder deleted."
+                  : "Note deleted.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  const filtered = visibleNotes(
+    index.notes,
+    view,
+    folder,
+    query,
+    recent,
+    demo ? favorites : [],
+    sort,
+  );
+  const linkedTasks =
+    demo && activeNote
+      ? [
+          {
+            id: "demo-task",
+            title: "Plan the lab workspace",
+            description: "",
+            status: "To do",
+            noteIds: [activeNote.id],
+            bookmarkIds: [],
+            createdAt: "",
+            updatedAt: "",
+          },
+        ]
+      : taskData.tasks.filter(
+          (task) => activeNote && task.noteIds.includes(activeNote.id),
+        );
+  const linkedBookmarks =
+    demo && activeNote
+      ? [
+          {
+            id: "demo-link",
+            title: "Markdown guide",
+            url: "https://www.markdownguide.org",
+          },
+        ]
+      : bookmarkLeaves(bookmarks.tree).filter(
+          (bookmark) =>
+            activeNote &&
+            bookmarkMeta.metadata[bookmark.id]?.relatedNotes.includes(
+              activeNote.id,
+            ),
+        );
+
+  if (
+    !demo &&
+    (!workspace.grant.handle || workspace.grant.permission !== "granted")
+  )
     return (
-      <section className="w-full max-w-xl border border-border bg-surface p-6 text-center">
-        <h2 className="mb-2 text-lg font-medium text-fg">
-          Notes workspace not selected
-        </h2>
-        <p className="mb-4 text-sm text-muted">
-          Choose a workspace folder before working with local Markdown notes.
+      <section className="mx-auto mt-10 max-w-xl rounded-xl border border-border bg-surface p-8 text-center">
+        <Icon
+          name="folder"
+          className="mx-auto mb-4 text-accent"
+          width="40"
+          height="40"
+        />
+        <h1 className="text-2xl font-semibold">Your notes, in your folder.</h1>
+        <p className="my-4 text-muted">
+          Connect a workspace to browse and edit your Markdown files. Everything
+          stays on this computer.
         </p>
-        <div className="flex justify-center gap-2">
-          <button
-            onClick={() => void chooseWorkspace()}
-            className="border border-border bg-page px-4 py-2 text-sm text-fg hover:border-fg/40"
-          >
-            Choose folder
-          </button>
-          <a
-            href="#settings"
-            className="border border-border px-4 py-2 text-sm text-fg hover:bg-page"
-          >
-            Open Settings
-          </a>
-        </div>
+        {workspace.error && (
+          <p role="alert" className="mb-4 text-red-400">
+            {workspace.error}
+          </p>
+        )}
+        <button
+          className="notes-primary"
+          onClick={() => void workspace.chooseWorkspace()}
+        >
+          {workspace.grant.handle ? "Reconnect workspace" : "Choose workspace"}
+        </button>
+        <button
+          className="notes-button ml-2"
+          onClick={() => {
+            setDemo(true);
+            setFolder("Work/Infrastructure/Lab");
+            setView("folder");
+          }}
+        >
+          Preview the layout
+        </button>
       </section>
     );
-  }
 
-  const searchResults =
-    searchQuery.trim() && notes.index
-      ? searchNotes(notes.index.notes, searchQuery)
-      : [];
   return (
-    <section className="w-full max-w-7xl">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-fg">Notes</h2>
-          <p className="text-sm text-muted">Local Markdown workspace</p>
+    <section
+      className="flex min-h-0 flex-1 flex-col"
+      aria-label="Notes workspace"
+    >
+      {demo && (
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded border border-accent/30 bg-accent/10 px-4 py-2 text-xs">
+          <span>
+            <strong>Design preview</strong> · Synthetic notes and relationships.
+            Nothing is saved to your workspace.
+          </span>
+          <button
+            className="underline"
+            onClick={() =>
+              guard(() => {
+                setDemo(false);
+                setEditingId(null);
+                setDraft("");
+                setBaseline("");
+                setFolder("");
+                setView("all");
+                setFavorites([]);
+              })
+            }
+          >
+            Exit preview
+          </button>
         </div>
-        <button
-          onClick={() => void notes.refresh()}
-          className="border border-border bg-surface px-3 py-2 text-sm text-fg hover:bg-page"
-        >
-          Refresh workspace
-        </button>
-      </div>
-      {validationMessage && (
-        <p
-          className="mb-4 border border-border bg-surface px-3 py-2 text-sm text-fg"
-          role="alert"
-        >
-          {validationMessage}
-        </p>
       )}
-      {notes.error && (
-        <p
-          className="mb-4 border border-red-500 bg-red-50 px-3 py-2 text-sm text-red-600"
+      {notes.error && !demo && (
+        <div
           role="alert"
+          className="mb-2 rounded border border-red-400 p-3 text-sm"
         >
           {notes.error.message}
-        </p>
-      )}
-      <div className="grid min-h-144 grid-cols-1 border border-border bg-surface lg:grid-cols-[17rem_minmax(0,1fr)]">
-        <aside className="border-b border-border lg:border-r lg:border-b-0">
-          <div className="border-b border-border p-3">
-            <input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              type="search"
-              placeholder="Search notes"
-              aria-label="Search notes"
-              className="w-full border border-border bg-page px-3 py-2 text-sm text-fg placeholder-muted focus:outline-none"
-            />
-          </div>
-          <div className="border-b border-border p-3">
-            <label
-              className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted"
-              htmlFor="new-note-name"
-            >
-              New note in {activeFolderId || "workspace root"}
-            </label>
-            <div className="flex gap-2">
-              <input
-                id="new-note-name"
-                value={newNoteName}
-                onChange={(event) => setNewNoteName(event.target.value)}
-                onKeyDown={(event) =>
-                  event.key === "Enter" && void createNote()
-                }
-                placeholder="Note name"
-                className="min-w-0 flex-1 border border-border bg-page px-2 py-1.5 text-sm text-fg"
-              />
-              <button
-                onClick={() => void createNote()}
-                className="border border-border px-2 py-1 text-sm text-fg hover:bg-page"
-              >
-                New
-              </button>
-            </div>
-            <label
-              className="mb-1 mt-3 block text-xs font-medium uppercase tracking-wide text-muted"
-              htmlFor="new-folder-name"
-            >
-              New folder
-            </label>
-            <div className="flex gap-2">
-              <input
-                id="new-folder-name"
-                value={newFolderName}
-                onChange={(event) => setNewFolderName(event.target.value)}
-                onKeyDown={(event) =>
-                  event.key === "Enter" && void createFolder()
-                }
-                placeholder="Folder name"
-                className="min-w-0 flex-1 border border-border bg-page px-2 py-1.5 text-sm text-fg"
-              />
-              <button
-                onClick={() => void createFolder()}
-                className="border border-border px-2 py-1 text-sm text-fg hover:bg-page"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-          <div className="app-scrollbar max-h-112 overflow-y-auto p-2 lg:max-h-[calc(100vh-16rem)]">
-            {notes.loading && !notes.index ? (
-              <p className="p-2 text-sm text-muted">Loading workspace...</p>
-            ) : (
-              <NoteExplorer
-                workspaceName={grant.name}
-                folders={notes.index?.folders ?? []}
-                notes={notes.index?.notes ?? []}
-                activeFolderId={activeFolderId}
-                selectedNoteId={notes.selectedNoteId}
-                onSelectFolder={setActiveFolderId}
-                onSelectNote={(id) => void notes.selectNote(id)}
-                onRenameFolder={renameFolder}
-                onDeleteFolder={async (id) => {
-                  const result = await notes.deleteFolder(id);
-                  result.ok
-                    ? notifications.success("Folder deleted.")
-                    : notifications.error(result.error.message);
-                  return result.ok;
-                }}
-              />
-            )}
-          </div>
-        </aside>
-        <main className="min-w-0">
-          {searchQuery.trim() ? (
-            <SearchResults
-              results={searchResults}
-              onSelect={(id) => {
-                void notes.selectNote(id);
-                setSearchQuery("");
-              }}
-            />
-          ) : notes.selectedNote ? (
-            <NoteEditor
-              note={notes.selectedNote}
-              folders={notes.index?.folders ?? []}
-              onSave={async (content) => {
-                const result = await notes.editNote(
-                  notes.selectedNote!.id,
-                  content,
-                );
-                result.ok
-                  ? notifications.success("Saved.")
-                  : notifications.error(result.error.message);
-                return result.ok;
-              }}
-              onRename={async (name) => {
-                const result = await notes.renameNote(
-                  notes.selectedNote!.id,
-                  `${slugifyNoteName(name)}.md`,
-                );
-                result.ok
-                  ? notifications.success("Note renamed.")
-                  : notifications.error(result.error.message);
-                return result.ok;
-              }}
-              onMove={async (folderId, name) => {
-                const result = await notes.moveNote(
-                  notes.selectedNote!.id,
-                  folderId,
-                  slugifyNoteName(name),
-                );
-                if (result.ok) await notes.selectNote(result.value.id);
-                result.ok
-                  ? notifications.success("Note moved.")
-                  : notifications.error(result.error.message);
-                return result.ok;
-              }}
-              onDelete={async () => {
-                const result = await notes.deleteNote(notes.selectedNote!.id);
-                if (result.ok) await notes.selectNote(null);
-                result.ok
-                  ? notifications.success("Note deleted.")
-                  : notifications.error(result.error.message);
-              }}
-            />
-          ) : (
-            <EmptyEditor hasNotes={(notes.index?.notes.length ?? 0) > 0} />
-          )}
-        </main>
-      </div>
-    </section>
-  );
-}
-
-function NoteExplorer({
-  workspaceName,
-  folders,
-  notes,
-  activeFolderId,
-  selectedNoteId,
-  onSelectFolder,
-  onSelectNote,
-  onRenameFolder,
-  onDeleteFolder,
-}: {
-  workspaceName: string;
-  folders: FolderEntry[];
-  notes: NoteEntry[];
-  activeFolderId: string;
-  selectedNoteId: string | null;
-  onSelectFolder: (id: string) => void;
-  onSelectNote: (id: string) => void;
-  onRenameFolder: (id: string, name: string) => Promise<boolean>;
-  onDeleteFolder: (id: string) => Promise<boolean>;
-}) {
-  const childrenOf = (parentId: string) =>
-    folders
-      .filter(
-        (folder) =>
-          folder.id !== parentId &&
-          folder.id.slice(0, Math.max(0, folder.id.lastIndexOf("/"))) ===
-            parentId,
-      )
-      .sort((left, right) => left.name.localeCompare(right.name));
-  const notesIn = (folderId: string) =>
-    notes
-      .filter((note) => note.folder === folderId)
-      .sort((left, right) => left.title.localeCompare(right.title));
-  const tree = (folderId: string) => (
-    <ul className={folderId ? "ml-3 border-l border-border pl-2" : ""}>
-      {notesIn(folderId).map((note) => (
-        <li key={note.id}>
           <button
-            onClick={() => onSelectNote(note.id)}
-            className={`w-full truncate px-2 py-1 text-left text-sm ${selectedNoteId === note.id ? "bg-accent text-accent-foreground" : "text-muted hover:bg-page hover:text-fg"}`}
+            className="ml-3 underline"
+            onClick={() => void notes.refresh()}
           >
-            {note.title}
+            Retry
           </button>
-        </li>
-      ))}
-      {childrenOf(folderId).map((folder) => (
-        <FolderNode
-          key={folder.id}
-          folder={folder}
-          active={activeFolderId === folder.id}
-          onSelect={() => onSelectFolder(folder.id)}
-          onRename={onRenameFolder}
-          onDelete={onDeleteFolder}
-        >
-          {tree(folder.id)}
-        </FolderNode>
-      ))}
-    </ul>
-  );
-  return (
-    <nav aria-label="Note explorer">
-      <button
-        onClick={() => onSelectFolder("")}
-        className={`mb-1 flex w-full px-2 py-1.5 text-left text-sm font-medium ${activeFolderId === "" ? "bg-page text-fg" : "text-fg hover:bg-page"}`}
-        title={workspaceName}
-      >
-        {workspaceName}
-      </button>
-      {tree("")}
-    </nav>
-  );
-}
-
-function FolderNode({
-  folder,
-  active,
-  onSelect,
-  onRename,
-  onDelete,
-  children,
-}: {
-  folder: FolderEntry;
-  active: boolean;
-  onSelect: () => void;
-  onRename: (id: string, name: string) => Promise<boolean>;
-  onDelete: (id: string) => Promise<boolean>;
-  children: ReactNode;
-}) {
-  const [expanded, setExpanded] = useState(true);
-  const [renaming, setRenaming] = useState(false);
-  const [name, setName] = useState(folder.name);
-  useEffect(() => setName(folder.name), [folder.name]);
-  const saveRename = async () => {
-    if (name.trim() && (await onRename(folder.id, name.trim())))
-      setRenaming(false);
-  };
-  return (
-    <li>
-      <div className={`flex items-center gap-1 ${active ? "bg-page" : ""}`}>
+        </div>
+      )}
+      <div className="mb-2 flex flex-wrap gap-2 min-[1600px]:hidden">
         <button
-          onClick={() => setExpanded(!expanded)}
-          aria-label={`${expanded ? "Collapse" : "Expand"} ${folder.name}`}
-          className="w-6 py-1 text-xs text-muted hover:text-fg"
+          className="notes-button min-[1280px]:hidden"
+          onClick={() => setPanel(panel === "folders" ? "list" : "folders")}
         >
-          {expanded ? "-" : "+"}
+          <Icon name="folder" />
+          Folders
         </button>
-        {renaming ? (
-          <input
-            autoFocus
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") void saveRename();
-              if (event.key === "Escape") setRenaming(false);
-            }}
-            onBlur={() => void saveRename()}
-            className="min-w-0 flex-1 border border-border bg-page px-1 py-0.5 text-sm text-fg"
-            aria-label="Folder name"
-          />
-        ) : (
+        <button
+          className="notes-button min-[1024px]:hidden"
+          onClick={() => setPanel("list")}
+        >
+          <Icon name="note" />
+          Notes
+        </button>
+        {activeNote && (
           <button
-            onClick={onSelect}
-            className="min-w-0 flex-1 truncate py-1 text-left text-sm text-fg hover:text-accent"
+            className="notes-button min-[1024px]:hidden"
+            onClick={() => setPanel("document")}
           >
-            {folder.name}
+            Document
           </button>
         )}
         <button
-          onClick={() => setRenaming(true)}
-          className="px-1 text-xs text-muted hover:text-fg"
-          aria-label={`Rename ${folder.name}`}
+          className="notes-button ml-auto"
+          onClick={() => setPanel(panel === "info" ? "document" : "info")}
         >
-          Rename
-        </button>
-        <button
-          onClick={() => void onDelete(folder.id)}
-          className="px-1 text-xs text-muted hover:text-red-600"
-          aria-label={`Delete ${folder.name}`}
-        >
-          Delete
+          <Icon name="info" />
+          Info
         </button>
       </div>
-      {expanded && children}
-    </li>
-  );
-}
-
-function SearchResults({
-  results,
-  onSelect,
-}: {
-  results: NoteSearchResult[];
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <div className="p-5">
-      <h3 className="mb-3 text-sm font-medium text-muted">Search results</h3>
-      {results.length ? (
-        <ul className="divide-y divide-border border border-border">
-          {results.map(({ note, matchType }) => (
-            <li key={note.id}>
-              <button
-                onClick={() => onSelect(note.id)}
-                className="w-full px-4 py-3 text-left hover:bg-page"
-              >
-                <p className="text-sm font-medium text-fg">{note.title}</p>
-                <p className="text-xs text-muted">
-                  {note.id} - matched {matchType}
-                </p>
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-muted">No notes match this search.</p>
-      )}
-    </div>
-  );
-}
-
-function EmptyEditor({ hasNotes }: { hasNotes: boolean }) {
-  return (
-    <div className="flex min-h-120 flex-col items-center justify-center p-8 text-center">
-      <h3 className="text-lg font-medium text-fg">
-        {hasNotes ? "Select a note" : "Start your workspace"}
-      </h3>
-      <p className="mt-2 max-w-sm text-sm text-muted">
-        {hasNotes
-          ? "Choose a Markdown file from the explorer to open it here."
-          : "Create your first local Markdown note from the explorer."}
-      </p>
-    </div>
-  );
-}
-
-function NoteEditor({
-  note,
-  folders,
-  onSave,
-  onRename,
-  onMove,
-  onDelete,
-}: {
-  note: NoteEntry;
-  folders: FolderEntry[];
-  onSave: (content: string) => Promise<boolean>;
-  onRename: (name: string) => Promise<boolean>;
-  onMove: (folderId: string, name: string) => Promise<boolean>;
-  onDelete: () => Promise<void>;
-}) {
-  const [content, setContent] = useState(note.content);
-  const [fileName, setFileName] = useState(
-    note.id.split("/").pop()?.replace(/\.md$/, "") ?? "",
-  );
-  const [mode, setMode] = useState<"edit" | "preview">("edit");
-  useEffect(() => {
-    setContent(note.content);
-    setFileName(note.id.split("/").pop()?.replace(/\.md$/, "") ?? "");
-  }, [note.id, note.content]);
-  return (
-    <div className="flex min-h-144 flex-col">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <input
-            value={fileName}
-            onChange={(event) => setFileName(event.target.value)}
-            aria-label="Note file name"
-            className="w-40 max-w-full border border-border bg-page px-2 py-1 text-sm text-fg"
+      <div className="notes-frame flex-1" data-panel={panel}>
+        <div className="notes-folders border-r border-border">
+          <NotesNavigator
+            index={index}
+            view={view}
+            folder={folder}
+            activeFolder={activeNote?.folder ?? ""}
+            workspace={demo ? null : workspace.grant.handle}
+            recentCount={
+              recent.filter((id) => index.notes.some((note) => note.id === id))
+                .length
+            }
+            favoritesCount={favorites.length}
+            demo={demo}
+            onClose={() => setPanel("list")}
+            onView={(next) => {
+              setView(next);
+              setPanel("list");
+            }}
+            onFolder={(id) => {
+              setFolder(id);
+              setView("folder");
+              setPanel("list");
+            }}
+            onCreate={beginAction}
+            onDeleteFolder={(id) => beginAction("delete-folder", id)}
           />
-          <span className="text-sm text-muted">.md</span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => void onRename(fileName)}
-            className="border border-border px-2 py-1 text-sm text-fg hover:bg-page"
-          >
-            Rename
-          </button>
-          <select
-            value={note.folder}
-            onChange={(event) => void onMove(event.target.value, fileName)}
-            aria-label="Move note to folder"
-            className="border border-border bg-page px-2 py-1 text-sm text-fg"
-          >
-            <option value="">Move to workspace root</option>
-            {folders.map((folder) => (
-              <option key={folder.id} value={folder.id}>
-                Move to {folder.id}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={() => void onSave(content)}
-            className="border border-border bg-page px-2 py-1 text-sm text-fg hover:border-fg/40"
-          >
-            Save
-          </button>
-          <button
-            onClick={() => void onDelete()}
-            className="border border-red-500 px-2 py-1 text-sm text-red-600 hover:bg-red-50"
-          >
-            Delete
-          </button>
+        <section
+          aria-label="Note list in folder"
+          className="notes-list flex min-h-0 flex-col border-r border-border"
+        >
+          <header className="border-b border-border px-5 py-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Icon name="folder" className="shrink-0 text-accent" />
+              <span className="min-w-0 flex-1 truncate text-sm" title={folder}>
+                {view === "folder"
+                  ? folder || index.root.name
+                  : view === "recent"
+                    ? "Recent · this session"
+                    : view === "favorites"
+                      ? "Favorites"
+                      : "All Notes"}
+              </span>
+              <button
+                title="Refresh workspace"
+                className="notes-icon-button"
+                aria-label="Refresh workspace"
+                disabled={demo || busy}
+                onClick={() => {
+                  void notes.refresh();
+                  void taskData.refresh();
+                }}
+              >
+                <Icon name="refresh" />
+              </button>
+            </div>
+            <input
+              type="search"
+              className="notes-input"
+              placeholder="Filter notes…"
+              aria-label="Filter notes"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <div className="mt-3 flex items-center justify-between text-xs text-muted">
+              <span>{filtered.length} notes</span>
+              <select
+                aria-label="Sort notes"
+                className="bg-surface p-1 text-muted"
+                value={sort}
+                onChange={(event) => setSort(event.target.value as typeof sort)}
+              >
+                <option value="modified">Last modified</option>
+                <option value="name">Name A–Z</option>
+              </select>
+            </div>
+          </header>
+          <div className="app-scrollbar min-h-0 flex-1 overflow-auto p-3">
+            {notes.loading && !notes.index && !demo ? (
+              <p role="status" className="p-3 text-muted">
+                Loading workspace…
+              </p>
+            ) : filtered.length ? (
+              <ul>
+                {filtered.map((note) => (
+                  <li
+                    key={note.id}
+                    className={
+                      "group mb-1 flex rounded-lg border border-transparent " +
+                      (activeNote?.id === note.id
+                        ? "notes-selected"
+                        : "hover:bg-fg/5")
+                    }
+                  >
+                    <button
+                      className="flex min-w-0 flex-1 items-center gap-3 px-3 py-4 text-left"
+                      aria-current={
+                        activeNote?.id === note.id ? "true" : undefined
+                      }
+                      onClick={() => openNote(note.id)}
+                    >
+                      <Icon
+                        name="note"
+                        className={
+                          "mt-1 shrink-0 " +
+                          (activeNote?.id === note.id
+                            ? "text-accent"
+                            : "text-muted")
+                        }
+                        width="24"
+                        height="24"
+                      />
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                          {fileTitle(note)}
+                        </span>
+                        <span className="ml-auto shrink-0 whitespace-nowrap text-xs text-muted">
+                          {new Date(note.modifiedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </button>
+                    {demo && (
+                      <button
+                        className="notes-icon-button mr-1 mt-3 shrink-0 text-accent"
+                        aria-label={"Favorite " + fileTitle(note)}
+                        aria-pressed={favorites.includes(note.id)}
+                        onClick={() =>
+                          setFavorites((current) =>
+                            current.includes(note.id)
+                              ? current.filter((id) => id !== note.id)
+                              : [...current, note.id],
+                          )
+                        }
+                      >
+                        <Icon
+                          name="star"
+                          fill={
+                            favorites.includes(note.id)
+                              ? "currentColor"
+                              : "none"
+                          }
+                        />
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="p-5 text-sm text-muted">
+                <p>
+                  {query ? "No matching notes." : "No notes in this view yet."}
+                </p>
+                <button
+                  className="mt-3 text-accent underline"
+                  onClick={() => (query ? setQuery("") : beginAction("note"))}
+                >
+                  {query ? "Clear filter" : "Create a note"}
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+        <section
+          aria-label="Note document"
+          className="notes-document flex min-h-0 min-w-0 flex-col"
+        >
+          {activeNote ? (
+            <>
+              <header className="px-6 pt-2">
+                <div className="flex flex-col">
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="flex items-center text-xs text-muted">
+                      <Icon name="note" width="16" />
+                      <span className="truncate pl-1" title={activeNote.id}>
+                        {activeNote.folder + "/" || index.root.name + "/"}
+                      </span>
+                    </p>
+                    <h1 className="min-w-0 wrap-break-word text-base font-semibold tracking-tight text-muted">
+                      {fileTitle(activeNote)}
+                    </h1>
+                    <button
+                      className="notes-icon-button ml-auto shrink-0"
+                      aria-label={
+                        mode === "edit" ? "Preview note" : "Edit note"
+                      }
+                      title={mode === "edit" ? "Preview note" : "Edit note"}
+                      onClick={() =>
+                        setMode(mode === "edit" ? "preview" : "edit")
+                      }
+                    >
+                      <Icon name={mode === "edit" ? "eye" : "pen"} />
+                    </button>
+                    <details className="relative shrink-0">
+                      <summary
+                        className="notes-icon-button cursor-pointer list-none"
+                        aria-label="Note actions"
+                      >
+                        <Icon name="more" />
+                      </summary>
+                      <div className="absolute right-0 z-20 mt-1 w-40 rounded-lg border border-border bg-surface p-1 shadow-xl">
+                        {(["rename", "move", "delete"] as const).map((item) => (
+                          <button
+                            key={item}
+                            className="block w-full rounded p-2 text-left text-sm capitalize hover:bg-fg/10"
+                            onClick={(event) => {
+                              event.currentTarget
+                                .closest("details")
+                                ?.removeAttribute("open");
+                              beginAction(item);
+                            }}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+                  <p className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                    <Icon name="clock" width="15" />
+                    Last modified:{" "}
+                    {new Date(activeNote.modifiedAt).toLocaleString()}
+                    {demo && (
+                      <>
+                        <span className="notes-tag">homelab</span>
+                        <span className="notes-tag">planning</span>
+                      </>
+                    )}
+                  </p>
+                </div>
+
+                <span className="sr-only" role="status">
+                  {busy
+                    ? "Saving note"
+                    : dirty
+                      ? "Unsaved changes"
+                      : demo
+                        ? "Demo note"
+                        : "Note saved"}
+                </span>
+              </header>
+              {(externalConflict || message) && (
+                <div
+                  role="status"
+                  className="mx-6 mt-3 rounded border border-border p-3 text-sm"
+                >
+                  {message ||
+                    "This note changed on disk. Your unsaved draft has been kept."}
+                  {externalConflict && (
+                    <button
+                      className="ml-2 underline"
+                      onClick={() =>
+                        guard(() => {
+                          if (selected) {
+                            setDraft(selected.content);
+                            setBaseline(selected.content);
+                            setMessage("");
+                          }
+                        })
+                      }
+                    >
+                      Reload disk version
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className="app-scrollbar min-h-0 flex-1 overflow-auto">
+                {mode === "edit" ? (
+                  <textarea
+                    className="min-h-full w-full resize-none bg-transparent p-6 font-mono text-sm leading-7 outline-none"
+                    aria-label="Markdown content"
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    spellCheck={false}
+                  />
+                ) : (
+                  <MarkdownPreview
+                    content={draft}
+                    folder={activeNote.folder}
+                    onOpenNote={openNote}
+                  />
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="flex h-full min-h-80 flex-col items-center justify-center p-8 text-center">
+              <Icon
+                name="note"
+                width="40"
+                height="40"
+                className="mb-4 text-accent"
+              />
+              <h1 className="text-2xl font-semibold">Select a note</h1>
+              <p className="mt-3 max-w-xs text-sm text-muted">
+                Choose a Markdown file from the list, or start something new.
+              </p>
+              <button
+                className="notes-primary mt-5"
+                onClick={() => beginAction("note")}
+              >
+                New note
+              </button>
+            </div>
+          )}
+        </section>
+        <div className="notes-info border-l border-border">
+          <NotesInspector
+            note={activeNote}
+            demo={demo}
+            links={linkedBookmarks}
+            tasks={linkedTasks}
+            availableTasks={taskData.tasks}
+            taskError={taskData.error}
+            bookmarkError={bookmarks.error}
+            busy={busy}
+            onClose={() => setPanel("document")}
+            onLinkTask={async (id) => {
+              if (!activeNote) return;
+              setBusy(true);
+              try {
+                const linked = linkedTasks.some((task) => task.id === id);
+                if (await taskData.linkTask(id, "note", activeNote.id))
+                  notifications.success(
+                    linked ? "Task unlinked." : "Task linked.",
+                  );
+                else notifications.error("Could not update the task link.");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
         </div>
-      </header>
-      <div className="flex border-b border-border">
-        <button
-          onClick={() => setMode("edit")}
-          className={`px-4 py-2 text-sm ${mode === "edit" ? "border-b-2 border-accent text-fg" : "text-muted"}`}
-        >
-          Edit
-        </button>
-        <button
-          onClick={() => setMode("preview")}
-          className={`px-4 py-2 text-sm ${mode === "preview" ? "border-b-2 border-accent text-fg" : "text-muted"}`}
-        >
-          Preview
-        </button>
       </div>
-      {mode === "edit" ? (
-        <textarea
-          value={content}
-          onChange={(event) => setContent(event.target.value)}
-          aria-label="Markdown content"
-          className="app-scrollbar min-h-116 flex-1 resize-y bg-page p-5 font-mono text-sm leading-6 text-fg focus:outline-none"
-        />
-      ) : (
-        <article
-          className="app-scrollbar min-h-116 max-w-none overflow-auto p-5 text-fg"
-          dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
-        />
+      {action && (
+        <NotesDialog
+          title={
+            action === "delete-folder"
+              ? "Delete this empty folder?"
+              : action === "delete"
+                ? "Delete this Markdown file?"
+                : action === "note"
+                  ? "New note"
+                  : action === "folder"
+                    ? "New folder"
+                    : action === "rename"
+                      ? "Rename note"
+                      : "Move note"
+          }
+          onCancel={() => {
+            if (!busy) setAction(null);
+          }}
+        >
+          {action === "delete-folder" ? (
+            <p className="mb-4 text-sm text-muted">
+              {actionFolder} will be removed only if it is empty. This cannot be
+              undone here.
+            </p>
+          ) : action === "delete" ? (
+            <p className="mb-4 text-sm text-muted">
+              {activeNote?.id} will be removed from your workspace. This cannot
+              be undone here.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {action !== "move" && (
+                <label className="block text-sm">
+                  Name
+                  <input
+                    autoFocus
+                    required
+                    className="notes-input mt-2"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && name.trim() && !busy)
+                        void applyAction();
+                    }}
+                  />
+                </label>
+              )}
+              {action !== "rename" && (
+                <label className="block text-sm">
+                  Folder
+                  <select
+                    className="notes-input mt-2"
+                    value={destination}
+                    onChange={(event) => setDestination(event.target.value)}
+                  >
+                    <option value="">Workspace root</option>
+                    {index.folders.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.id}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+          )}
+          {actionError && (
+            <p role="alert" className="mt-4 text-sm text-red-400">
+              {actionError}
+            </p>
+          )}
+          <div className="mt-6 flex justify-end gap-2">
+            <button
+              autoFocus={action === "delete" || action === "delete-folder"}
+              disabled={busy}
+              className="notes-button"
+              onClick={() => setAction(null)}
+            >
+              Cancel
+            </button>
+            <button
+              disabled={
+                busy ||
+                (action !== "delete" &&
+                  action !== "delete-folder" &&
+                  action !== "move" &&
+                  !name.trim())
+              }
+              className="notes-primary"
+              onClick={() => void applyAction()}
+            >
+              {busy
+                ? "Working…"
+                : action === "delete-folder"
+                  ? "Delete folder"
+                  : action === "delete"
+                    ? "Delete file"
+                    : "Confirm"}
+            </button>
+          </div>
+        </NotesDialog>
       )}
-    </div>
+      {pending && (
+        <NotesDialog
+          title="Save your changes?"
+          onCancel={() => {
+            pendingRef.current = null;
+            setPending(null);
+          }}
+        >
+          <p className="text-sm text-muted">
+            This note has unsaved changes. Save them before continuing, or
+            discard this draft.
+          </p>
+          <div className="mt-6 flex flex-wrap justify-end gap-2">
+            <button
+              autoFocus
+              className="notes-button"
+              disabled={busy}
+              onClick={() => {
+                pendingRef.current = null;
+                setPending(null);
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              className="notes-button"
+              disabled={busy}
+              onClick={() => {
+                dirtyRef.current = false;
+                setDraft(selected?.content ?? baseline);
+                setBaseline(selected?.content ?? baseline);
+                const next = pendingRef.current;
+                pendingRef.current = null;
+                setPending(null);
+                next?.();
+              }}
+            >
+              Discard
+            </button>
+            <button
+              className="notes-primary"
+              disabled={busy}
+              onClick={async () => {
+                if (await save()) {
+                  const next = pendingRef.current;
+                  pendingRef.current = null;
+                  setPending(null);
+                  next?.();
+                }
+              }}
+            >
+              Save & continue
+            </button>
+          </div>
+        </NotesDialog>
+      )}
+    </section>
   );
 }

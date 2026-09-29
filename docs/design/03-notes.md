@@ -8,7 +8,7 @@ A Markdown workspace with four joined panes: folder navigator, note list, docume
 
 At the 1816 px reference width, approximate pane widths are 310 / 490 / flexible 670 / 310 px, in one bordered rounded frame with vertical dividers and 16 px outer margins. Frame starts below the shared search near y=124. Use independent scrolling and pinned pane toolbars. Desktop four-pane layout is intended for at least 1600 px.
 
-Navigator: Notes heading with New note and Hide folders; All Notes, Favorites, Recent, later Trash; folder tree with counts; New Folder at bottom. Note list: selected folder breadcrumb/dropdown and view/sort actions; rows with note icon, title, first nonempty body-text excerpt, modified time and favorite star. Selected row has amber wash/left edge. Document: breadcrumb, title, star/More, modified time and tag pills, divider, readable Markdown. Inspector: Info / Links (count) / Tasks (count), tags/Add tag, dates/size, related content and Add link/Add task.
+Navigator: Notes heading with Hide folders; All Notes, Favorites, Recent, later Trash; collapsed folder tree with counts and three-dot actions per folder (New note, New folder, empty-only Delete on non-root folders). Note list: selected folder breadcrumb/dropdown and view/sort actions; rows with note icon, title, first nonempty body-text excerpt, modified time and favorite star. Selected row has amber wash/left edge. Document: breadcrumb, title, eye/pen mode toggle, More, modified time and tag pills, readable Markdown. Inspector: Info / Links (count) / Tasks (count), tags/Add tag, dates/size, related content and Add link/Add task.
 
 ## Selection, content and data
 
@@ -18,13 +18,23 @@ Filename without .md is the displayed document title; editing Markdown H1 does n
 
 Counts in Info/Links/Tasks must agree; the generated screenshot's different Links counts are illustrative errors. Canonical note-bookmark edges are held in bookmark metadata, task edges in task records. Info summarizes them; dedicated tabs show complete lists.
 
+## Remembered selection, initial tree and feedback
+
+Accepted additions (2026-09-29): [ADR 0010](../decisions/0010-notes-context-and-feedback.md). NOTES-13 and NOTES-14 are implemented; last-note restoration (NOTES-12) remains pending in the [implementation backlog](notes-layout-tasks.md).
+
+Remember the last successfully opened real note per workspace in device-local UI preferences. Reopen it in Preview when Notes is revisited or the browser restarts, after workspace permission is available. Explicit note links/search/new-note actions take precedence. Update the preference after app-managed rename/move; clear a confirmed missing/deleted file, retain it on temporary access failure. Never mix same-named workspaces or demo selection. This is separate from unsaved-draft recovery.
+
+On every fresh Notes entry, collapse all folders except the ancestor chain needed to reveal the opened/restored note. During that visit, explicit note opens expand their chain while preserving other manual disclosure choices. Refresh/save must not reset the tree or reopen a branch the user just collapsed. Reset expansion on workspace switch.
+
+Use the existing global notification system for transient create/delete/save/rename/move and relationship-operation success/failure. No Notes-specific toast or transient message banner. Keep inline form validation, persistent Saved/Unsaved/Saving labels, workspace recovery and conflict controls. Notify only after the actual result, once per operation, using action-specific copy and preserving input on failures.
+
 ## Reading and editing
 
-The pictured body looks like rendered Markdown with visible heading markers; implement a safe Markdown preview, not a claim of a fully featured block editor. MVP defaults to Preview on existing files. Add an explicit Edit/Preview segmented control and Save/status beside the document actions: an intentional functional addition because editing must be discoverable. New notes start in Edit.
+The pictured body looks like rendered Markdown with visible heading markers; implement a safe Markdown preview, not a claim of a fully featured block editor. Existing files default to Preview; the eye/pen button in the document header switches mode. New notes start in Edit.
 
-Preview uses 16 px text, 1.6 line-height, heading hierarchy, amber links, dark code blocks, optional syntax colors and Copy code. Reading width is capped at about 78 characters inside the pane. Markdown source editor uses 15 px monospace and soft wrapping. No WYSIWYG conversion. Sanitise HTML; no scripts or active embeds. Remote images require explicit user loading, local images resolve only within the workspace. Never execute displayed code. Relative Markdown links open accessible workspace files; external links are clearly identified.
+Preview uses 16 px text, 1.6 line-height, heading hierarchy, amber links and dark code blocks. Reading width is capped at about 78 characters inside the pane. Markdown source editor uses monospace and soft wrapping. An eye/pen icon in the document header toggles between modes. No WYSIWYG conversion. Sanitise HTML; no scripts or active embeds. Remote images require explicit user loading, local images resolve only within the workspace. Never execute displayed code. Relative Markdown links open accessible workspace files; external links are clearly identified.
 
-Typing shows Unsaved changes. Save/Ctrl+S writes the actual .md after permission/fingerprint checks and only then says Saved. Keep a local recovery draft until successful persistence. Before changing file/route/workspace or discarding changes, offer Save / Discard / Cancel; Save failure prevents navigation. Switching Preview/Edit retains the buffer and does not imply a save.
+Typing queues a guarded autosave after 300 ms of inactivity; Ctrl+S can save immediately. A global notification confirms persistence. Unsaved/Saving remains available to assistive technology; failed saves keep the draft and show a persistent recovery message rather than silently retrying the same failed content. Before changing file/route/workspace or discarding unsaved changes, offer Save / Discard / Cancel; Save failure prevents navigation. Switching Preview/Edit retains the buffer and does not imply a save. See [ADR 0011](../decisions/0011-notes-controls-and-autosave.md).
 
 ## File and relationship actions
 

@@ -187,3 +187,8 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 |            | v2 delivery with matching GitHub release artifacts.                      |
 
 Browser-default search and the removal of stored engine preferences are defined in [ADR 0008](../docs/decisions/0008-browser-default-search.md). Settings displays engine metadata only where exposed and links to browser settings.
+
+
+### Notes layout transition (feature/notes-layout)
+
+ADR 0009 introduces four Notes panes and reuses global search on Notes. Existing path IDs, Markdown files, tasks.json and bookmark metadata remain unchanged. Safe preview and dirty-buffer guards live in the Notes UI. Demo data is explicitly opt-in and in-memory. See docs/design/notes-layout-tasks.md for remaining work.
