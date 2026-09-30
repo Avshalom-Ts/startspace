@@ -116,6 +116,7 @@ Once installed and your workspace is chosen:
    PNG, JPEG, GIF, WebP and AVIF files in the selected folder show thumbnails and can be viewed in the document pane. Markdown can display workspace-relative images from nested asset folders; remote images remain blocked.
    Use the image viewer's three-dot menu to rename, move or delete an image. Rename and move may require updating links in your Markdown notes; deletion asks for confirmation and does not have an in-app undo.
    The last successfully opened note reopens for the same workspace after permission is granted; demo notes are never remembered as real notes.
+   If unsaved changes survived a reload or crash, choose **Recover draft** or **Discard draft** when the workspace reconnects. Recovered text stays local to this device and cannot overwrite a changed disk file without passing the normal save check. A missing note still leaves its recovered text available to copy.
 4. **Tasks** — a local Kanban board for tasks; link tasks to notes and bookmarks.
 5. **Settings** — choose your workspace, view browser search information, open browser search settings, and export or restore a backup.
 6. **GitHub** — link to the source repository.

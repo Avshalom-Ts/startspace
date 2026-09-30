@@ -1,6 +1,6 @@
 # StartSpace Privacy Policy
 
-**Last updated:** 2026-09-03
+**Last updated:** 2026-09-30
 
 StartSpace is a local-first browser extension. It has no StartSpace-operated
 backend, account system, analytics service, advertising service, or cloud
@@ -20,10 +20,14 @@ StartSpace handles the following data only to provide its user-facing features:
 
 ## Storage and sharing
 
-Bookmarks remain in the browser's bookmark store. Notes and tasks remain in the
-user-selected local workspace. Settings and bookmark-linked metadata are stored
-in local extension storage. StartSpace does not transmit these contents to its
-developer or to a StartSpace server.
+Bookmarks remain in the browser's bookmark store. Saved notes and tasks remain
+in the user-selected local workspace. While a note has unsaved edits, StartSpace
+also keeps a device-local recovery copy of its draft and previous disk content
+in extension IndexedDB, associated with that workspace. The recovery copy is
+removed after a successful save or explicit discard; it is not part of exported
+backups. Settings and bookmark-linked metadata are stored in local extension
+storage. StartSpace does not transmit these contents to its developer or to a
+StartSpace server.
 
 When the user chooses a web search result, StartSpace passes the submitted search text to the browser Search API, which uses the browser’s default provider. That
 provider receives the query and handles it under its own privacy policy.
@@ -48,6 +52,8 @@ delete workspace files directly, export or restore a local backup, choose a
 different workspace, and uninstall the extension. Uninstalling removes
 extension-managed local storage according to browser behavior; workspace files
 remain under the user's control.
+On returning to an unsaved draft, users can recover or discard its device-local
+copy. Deleting a workspace file directly does not discard an unsaved recovery copy.
 
 ## Changes
 

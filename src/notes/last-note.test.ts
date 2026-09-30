@@ -8,6 +8,8 @@ import {
   registerHandle,
 } from "../hooks/useWorkspace";
 import { readLastNote, writeLastNote } from "./last-note";
+import { readDraft, writeDraft } from "./draft-recovery";
+import { readNote } from "./notes-workspace";
 
 class TestDirectory {
   kind = "directory" as const;
@@ -55,5 +57,69 @@ describe("last opened note", () => {
   it("ignores malformed and unknown versions", async () => {
     await writeLastNote("workspace", "../outside.md");
     expect(await readLastNote("workspace")).toBeNull();
+  });
+});
+
+describe("unsaved note recovery", () => {
+  beforeEach(() => vi.stubGlobal("indexedDB", new IDBFactory()));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("isolates drafts by workspace and clears only the saved workspace", async () => {
+    const draft = {
+      version: 1 as const,
+      noteId: "notes/plan.md",
+      baseline: "before",
+      content: "after",
+    };
+    await writeDraft("first", draft);
+    expect(await readDraft("first")).toEqual(draft);
+    expect(await readDraft("second")).toBeNull();
+    await writeDraft("second", { ...draft, content: "other" });
+    await writeDraft("first", null);
+    expect(await readDraft("first")).toBeNull();
+    expect((await readDraft("second"))?.content).toBe("other");
+  });
+
+  it("serializes edits and cleanup, ignoring invalid or clean records", async () => {
+    const first = {
+      version: 1 as const,
+      noteId: "plan.md",
+      baseline: "disk",
+      content: "first",
+    };
+    const writes = [
+      writeDraft("workspace", first),
+      writeDraft("workspace", { ...first, content: "latest" }),
+    ];
+    await Promise.all(writes);
+    expect((await readDraft("workspace"))?.content).toBe("latest");
+    await Promise.all([
+      writeDraft("workspace", first),
+      writeDraft("workspace", null),
+    ]);
+    expect(await readDraft("workspace")).toBeNull();
+    await writeDraft("workspace", { ...first, noteId: "../outside.md" });
+    expect(await readDraft("workspace")).toBeNull();
+    await writeDraft("workspace", { ...first, content: "disk" });
+    expect(await readDraft("workspace")).toBeNull();
+  });
+
+  it("retains the recovery copy when a note is deleted or access is revoked", async () => {
+    const draft = {
+      version: 1 as const,
+      noteId: "plan.md",
+      baseline: "disk",
+      content: "unsaved",
+    };
+    await writeDraft("workspace", draft);
+    for (const errorName of ["NotFoundError", "NotAllowedError"]) {
+      const directory = {
+        getFileHandle: async () => {
+          throw new DOMException("Cannot access note", errorName);
+        },
+      } as unknown as FileSystemDirectoryHandle;
+      await expect(readNote(directory, draft.noteId)).rejects.toThrow();
+      expect(await readDraft("workspace")).toEqual(draft);
+    }
   });
 });

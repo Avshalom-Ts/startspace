@@ -12,4 +12,4 @@ Store the last successfully opened real note as `{ version: 1, noteId }` under t
 
 ## Consequences
 
-Returning to Notes resumes the document and reveals its folder without changing Markdown files or workspace backups. Selection preferences are device-local, not portable note metadata; draft recovery remains a separate task.
+Returning to Notes resumes the document and reveals its folder without changing Markdown files or workspace backups. Selection preferences are device-local, not portable note metadata; unsaved draft recovery is handled separately in [ADR 0014](0014-notes-draft-recovery.md).

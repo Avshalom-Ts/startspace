@@ -26,6 +26,7 @@ import type { NoteEntry, NotesIndex } from "../types/notes";
 import { useNotes } from "./use-notes";
 import { deleteImage, moveImage, readNote } from "./notes-workspace";
 import { readLastNote, writeLastNote } from "./last-note";
+import { readDraft, writeDraft, type SavedDraft } from "./draft-recovery";
 import { demoIndex } from "./notes-demo";
 import { fileTitle, visibleNotes, type NotesView } from "./notes-model";
 import { NotesNavigator } from "./notes-navigator";
@@ -74,6 +75,8 @@ export function NotesPage() {
   const [draft, setDraft] = useState("");
   const [baseline, setBaseline] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [recovery, setRecovery] = useState<SavedDraft | null>(null);
+  const [recoveryChecked, setRecoveryChecked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [action, setAction] = useState<
     | "note"
@@ -95,8 +98,11 @@ export function NotesPage() {
   const pendingRef = useRef<(() => void) | null>(null);
   const openAttemptRef = useRef(0);
   const restorationRef = useRef<string | null>(null);
+  const draftCheckRef = useRef<string | null>(null);
   const workspaceIdRef = useRef(workspace.grant.id);
   workspaceIdRef.current = workspace.grant.id;
+  const workspaceHandleRef = useRef(workspace.grant.handle);
+  workspaceHandleRef.current = workspace.grant.handle;
   const failedSaveRef = useRef<string | null>(null);
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -112,6 +118,108 @@ export function NotesPage() {
   const dirty = editingId !== null && draft !== baseline;
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
+
+  useEffect(() => {
+    const workspaceId = workspace.grant.id;
+    if (
+      demo ||
+      !workspaceId ||
+      recoveryChecked !== workspaceId ||
+      recovery ||
+      !editingId ||
+      !dirty ||
+      notes.indexHandle !== workspace.grant.handle ||
+      workspace.grant.permission !== "granted"
+    )
+      return;
+    void writeDraft(workspaceId, {
+      version: 1,
+      noteId: editingId,
+      content: draft,
+      baseline,
+    }).catch(() =>
+      notifications.error(
+        "Could not store your recovery draft on this device.",
+      ),
+    );
+  }, [
+    demo,
+    workspace.grant.id,
+    workspace.grant.handle,
+    workspace.grant.permission,
+    notes.indexHandle,
+    recoveryChecked,
+    recovery,
+    editingId,
+    dirty,
+    draft,
+    baseline,
+    notifications,
+  ]);
+
+  useEffect(() => {
+    draftCheckRef.current = null;
+    setRecovery(null);
+    setRecoveryChecked(null);
+  }, [workspace.grant.id, workspace.grant.handle]);
+
+  useEffect(() => {
+    const workspaceId = workspace.grant.id;
+    if (
+      demo ||
+      !workspaceId ||
+      workspace.grant.permission !== "granted" ||
+      !workspace.grant.handle ||
+      notes.indexHandle !== workspace.grant.handle ||
+      !notes.index ||
+      draftCheckRef.current === workspaceId
+    )
+      return;
+    draftCheckRef.current = workspaceId;
+    const handle = workspace.grant.handle;
+    void readDraft(workspaceId)
+      .then(async (saved) => {
+        if (
+          workspaceIdRef.current !== workspaceId ||
+          workspaceHandleRef.current !== handle
+        )
+          return;
+        const savedId = saved?.noteId;
+        const matchingNote = savedId
+          ? notes.index?.notes.find((note) => note.id === savedId)
+          : undefined;
+        if (saved && matchingNote?.content === saved.content) {
+          await writeDraft(workspaceId, null);
+          saved = null;
+        }
+        if (
+          workspaceIdRef.current !== workspaceId ||
+          workspaceHandleRef.current !== handle
+        )
+          return;
+        setRecovery(saved);
+        setRecoveryChecked(workspaceId);
+      })
+      .catch(() => {
+        if (
+          workspaceIdRef.current !== workspaceId ||
+          workspaceHandleRef.current !== handle
+        )
+          return;
+        notifications.error(
+          "Could not read saved note drafts. Your workspace files were not changed.",
+        );
+        setRecoveryChecked(workspaceId);
+      });
+  }, [
+    demo,
+    workspace.grant.id,
+    workspace.grant.handle,
+    workspace.grant.permission,
+    notes.index,
+    notes.indexHandle,
+    notifications,
+  ]);
 
   // Update clean buffers on disk refresh; retain dirty buffers, including deleted files.
   useEffect(() => {
@@ -197,6 +305,8 @@ export function NotesPage() {
     }
     if (
       demo ||
+      recoveryChecked !== workspaceId ||
+      recovery !== null ||
       notes.indexHandle !== workspace.grant.handle ||
       !notes.index ||
       restorationRef.current === workspaceId
@@ -232,6 +342,8 @@ export function NotesPage() {
     });
   }, [
     demo,
+    recovery,
+    recoveryChecked,
     workspace.grant.id,
     workspace.grant.handle,
     workspace.grant.permission,
@@ -342,8 +454,26 @@ export function NotesPage() {
       setBaseline(savedDraft);
       dirtyRef.current = draftRef.current !== savedDraft;
       failedSaveRef.current = null;
-      if (!demo) notifications.success("Note saved.");
-      return true;
+      if (!demo) {
+        if (workspace.grant.id)
+          void writeDraft(
+            workspace.grant.id,
+            dirtyRef.current
+              ? {
+                  version: 1,
+                  noteId: activeNote.id,
+                  content: draftRef.current,
+                  baseline: savedDraft,
+                }
+              : null,
+          ).catch(() =>
+            notifications.error(
+              "Note saved, but the recovery copy could not be updated.",
+            ),
+          );
+        notifications.success("Note saved.");
+      }
+      return !dirtyRef.current;
     } catch (cause) {
       const error =
         cause instanceof Error
@@ -362,6 +492,7 @@ export function NotesPage() {
     draft,
     baseline,
     workspace.grant.handle,
+    workspace.grant.id,
     notes.editNote,
     notifications,
   ]);
@@ -634,6 +765,18 @@ export function NotesPage() {
           Preview the layout
         </button>
       </section>
+    );
+
+  if (
+    !demo &&
+    workspace.grant.id &&
+    notes.indexHandle === workspace.grant.handle &&
+    recoveryChecked !== workspace.grant.id
+  )
+    return (
+      <p role="status" className="p-6 text-muted">
+        Checking for unsaved drafts…
+      </p>
     );
 
   return (
@@ -1330,6 +1473,12 @@ export function NotesPage() {
                 dirtyRef.current = false;
                 setDraft(selected?.content ?? baseline);
                 setBaseline(selected?.content ?? baseline);
+                if (!demo && workspace.grant.id)
+                  void writeDraft(workspace.grant.id, null).catch(() =>
+                    notifications.error(
+                      "Could not discard the saved recovery copy.",
+                    ),
+                  );
                 const next = pendingRef.current;
                 pendingRef.current = null;
                 setPending(null);
@@ -1351,6 +1500,84 @@ export function NotesPage() {
               }}
             >
               Save & continue
+            </button>
+          </div>
+        </NotesDialog>
+      )}
+      {recovery && !pending && (
+        <NotesDialog
+          title="Unsaved note draft found"
+          onCancel={() => undefined}
+        >
+          <p className="mb-3 break-all text-sm font-medium">
+            {recovery.noteId}
+          </p>
+          <p className="text-sm text-muted">
+            Recover your unsaved edits or discard this device-local copy.
+            Recovering does not overwrite the workspace file; a changed or
+            missing file keeps your draft in the editor.
+          </p>
+          <div className="mt-6 flex justify-end gap-2">
+            <button
+              className="notes-button"
+              disabled={busy}
+              onClick={async () => {
+                if (!workspace.grant.id) return;
+                try {
+                  await writeDraft(workspace.grant.id, null);
+                  setRecovery(null);
+                } catch {
+                  notifications.error(
+                    "Could not discard the saved recovery copy.",
+                  );
+                }
+              }}
+            >
+              Discard draft
+            </button>
+            <button
+              className="notes-primary"
+              disabled={busy}
+              onClick={async () => {
+                if (
+                  !workspace.grant.handle ||
+                  workspace.grant.permission !== "granted"
+                )
+                  return;
+                setBusy(true);
+                try {
+                  restorationRef.current = workspace.grant.id;
+                  openAttemptRef.current++;
+                  const result = await notes.selectNote(recovery.noteId, true);
+                  if (result && !result.ok)
+                    notifications.info(
+                      result.error.kind === "not-found"
+                        ? "The file is missing. Your recovered text is still available to copy."
+                        : "Could not read the file. Your recovered text is still available.",
+                    );
+                  else if (
+                    result?.ok &&
+                    result.value.content !== recovery.baseline
+                  )
+                    notifications.warning(
+                      "The note changed on disk. Your recovered draft will not overwrite it.",
+                    );
+                  dirtyRef.current = true;
+                  setEditingId(recovery.noteId);
+                  setBaseline(recovery.baseline);
+                  setDraft(recovery.content);
+                  setImageId(null);
+                  setFolder(recovery.noteId.split("/").slice(0, -1).join("/"));
+                  setView("folder");
+                  setMode("edit");
+                  setPanel("document");
+                  setRecovery(null);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Recover draft
             </button>
           </div>
         </NotesDialog>

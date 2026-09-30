@@ -39,6 +39,7 @@ Supported raster images (PNG, JPEG, GIF, WebP and AVIF) appear with thumbnails i
 The image viewer's three-dot menu offers Rename, Move and confirmed Delete. Rename and Move preserve the file's format and bytes but do not update Markdown references to its previous path.
 
 Typing queues a guarded autosave after 1 second of inactivity; Ctrl+S can save immediately. Successful real-note saves notify globally, outside the document pane. Failed saves keep the draft and show a global error rather than silently retrying the same failed content. Before changing file/route/workspace or discarding unsaved changes, offer Save / Discard / Cancel; Save failure prevents navigation. Switching Preview/Edit retains the buffer and does not imply a save. See [ADR 0011](../decisions/0011-notes-controls-and-autosave.md).
+Unsaved real-note text and its disk baseline are retained locally per workspace registration so a reload or crash offers Recover / Discard after permission and indexing. Recover opens the editor without bypassing disk conflict detection; inaccessible or deleted notes keep their draft text. Saved or discarded drafts are removed from device-local storage. See [ADR 0014](../decisions/0014-notes-draft-recovery.md).
 
 Text direction defaults to browser-native Auto. The control beside Edit offers Auto, LTR and RTL for the current note view, applying to the Markdown editor and safe preview blocks, not the surrounding Notes navigation. Code blocks stay LTR. A manual choice resets to Auto on the next note; it does not alter or persist note content.
 
