@@ -9,6 +9,7 @@ import {
   Eye,
   FileText,
   Folder,
+  Image as ImageIcon,
   Info,
   Languages,
   PenLine,
@@ -23,14 +24,14 @@ import { useNotifications } from "../notifications/notification-context";
 import { useTasks } from "../tasks/use-tasks";
 import type { NoteEntry, NotesIndex } from "../types/notes";
 import { useNotes } from "./use-notes";
-import { readNote } from "./notes-workspace";
+import { deleteImage, moveImage, readNote } from "./notes-workspace";
 import { readLastNote, writeLastNote } from "./last-note";
 import { demoIndex } from "./notes-demo";
 import { fileTitle, visibleNotes, type NotesView } from "./notes-model";
 import { NotesNavigator } from "./notes-navigator";
 import { NotesInspector } from "./notes-inspector";
 import { NotesDialog } from "./notes-dialog";
-import { MarkdownPreview } from "./markdown-preview";
+import { LocalImage, MarkdownPreview } from "./markdown-preview";
 import type { NoteDirection } from "./markdown-preview";
 
 const emptyIndex: NotesIndex = {
@@ -58,6 +59,7 @@ export function NotesPage() {
   );
   const [demoNotes, setDemoNotes] = useState(demoIndex);
   const [demoId, setDemoId] = useState(demoIndex.notes[0]!.id);
+  const [imageId, setImageId] = useState<string | null>(null);
   const [folder, setFolder] = useState(demo ? "Work/Infrastructure/Lab" : "");
   const [view, setView] = useState<NotesView>(demo ? "folder" : "all");
   const [recent, setRecent] = useState<string[]>([]);
@@ -74,7 +76,16 @@ export function NotesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [action, setAction] = useState<
-    "note" | "folder" | "rename" | "move" | "delete" | "delete-folder" | null
+    | "note"
+    | "folder"
+    | "rename"
+    | "move"
+    | "delete"
+    | "delete-folder"
+    | "rename-image"
+    | "move-image"
+    | "delete-image"
+    | null
   >(null);
   const [actionFolder, setActionFolder] = useState("");
   const [name, setName] = useState("");
@@ -90,6 +101,10 @@ export function NotesPage() {
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const index = demo ? demoNotes : (notes.index ?? emptyIndex);
+  const activeImage = (index.images ?? []).find(
+    (image) => image.id === imageId,
+  );
+  useEffect(() => setImageId(null), [workspace.grant.handle, demo]);
   const selected = demo
     ? (index.notes.find((note) => note.id === demoId) ?? null)
     : notes.selectedNote;
@@ -109,17 +124,18 @@ export function NotesPage() {
       setBaseline(selected.content);
     }
   }, [selected, editingId]);
-  const activeNote: NoteEntry | null =
-    selected ??
-    (editingId && dirty
-      ? {
-          id: editingId,
-          title: editingId,
-          folder: editingId.split("/").slice(0, -1).join("/"),
-          content: baseline,
-          modifiedAt: new Date().toISOString(),
-        }
-      : null);
+  const activeNote: NoteEntry | null = activeImage
+    ? null
+    : (selected ??
+      (editingId && dirty
+        ? {
+            id: editingId,
+            title: editingId,
+            folder: editingId.split("/").slice(0, -1).join("/"),
+            content: baseline,
+            modifiedAt: new Date().toISOString(),
+          }
+        : null));
   const externalConflict =
     !!selected &&
     selected.id === editingId &&
@@ -159,6 +175,7 @@ export function NotesPage() {
     (id: string) => {
       openAttemptRef.current++;
       guard(() => {
+        setImageId(null);
         if (demo) setDemoId(id);
         else void notes.selectNote(id);
         setFolder(id.split("/").slice(0, -1).join("/"));
@@ -392,8 +409,20 @@ export function NotesPage() {
     guard(() => {
       setAction(next);
       setActionFolder(parent);
-      setName(next === "rename" && activeNote ? fileTitle(activeNote) : "");
-      setDestination(next === "move" ? (activeNote?.folder ?? "") : parent);
+      setName(
+        next === "rename" && activeNote
+          ? fileTitle(activeNote)
+          : next === "rename-image" && activeImage
+            ? (activeImage.id.split("/").pop() ?? "")
+            : "",
+      );
+      setDestination(
+        next === "move"
+          ? (activeNote?.folder ?? "")
+          : next === "move-image"
+            ? (activeImage?.folder ?? "")
+            : parent,
+      );
       setActionError("");
     });
   };
@@ -407,6 +436,49 @@ export function NotesPage() {
     }
     setBusy(true);
     try {
+      if (
+        action === "rename-image" ||
+        action === "move-image" ||
+        action === "delete-image"
+      ) {
+        if (!activeImage || !workspace.grant.handle) {
+          setActionError("Reconnect the workspace and select an image first.");
+          return;
+        }
+        try {
+          if (action === "delete-image") {
+            await deleteImage(workspace.grant.handle, activeImage.id);
+            setImageId(null);
+          } else {
+            const nextId = await moveImage(
+              workspace.grant.handle,
+              activeImage.id,
+              action === "rename-image" ? activeImage.folder : destination,
+              action === "rename-image"
+                ? name.trim()
+                : activeImage.id.split("/").pop()!,
+            );
+            setImageId(nextId);
+            setFolder(nextId.split("/").slice(0, -1).join("/"));
+            setView("folder");
+          }
+          await notes.refresh();
+          setAction(null);
+          notifications.success(
+            action === "delete-image"
+              ? "Image deleted."
+              : action === "rename-image"
+                ? "Image renamed."
+                : "Image moved.",
+          );
+        } catch (cause) {
+          const message =
+            cause instanceof Error ? cause.message : "Could not update image.";
+          setActionError(message);
+          notifications.error(message);
+        }
+        return;
+      }
       const result =
         action === "note"
           ? await notes.createNote(destination, name.trim(), "")
@@ -479,6 +551,21 @@ export function NotesPage() {
     demo ? favorites : [],
     sort,
   );
+  const filteredImages =
+    !demo && view === "folder"
+      ? (index.images ?? [])
+          .filter(
+            (image) =>
+              image.folder === folder &&
+              image.id.toLowerCase().includes(query.trim().toLowerCase()),
+          )
+          .sort((first, second) =>
+            sort === "name"
+              ? first.id.localeCompare(second.id)
+              : second.modifiedAt.localeCompare(first.modifiedAt) ||
+                first.id.localeCompare(second.id),
+          )
+      : [];
   const linkedTasks =
     demo && activeNote
       ? [
@@ -607,7 +694,7 @@ export function NotesPage() {
           <FileText size={20} aria-hidden="true" />
           Notes
         </button>
-        {activeNote && (
+        {(activeNote || activeImage) && (
           <button
             className="notes-button min-[1024px]:hidden"
             onClick={() => setPanel("document")}
@@ -693,7 +780,12 @@ export function NotesPage() {
               onChange={(event) => setQuery(event.target.value)}
             />
             <div className="mt-3 flex items-center justify-between text-xs text-muted">
-              <span>{filtered.length} notes</span>
+              <span>
+                {filtered.length} notes
+                {filteredImages.length
+                  ? `, ${filteredImages.length} images`
+                  : ""}
+              </span>
               <select
                 aria-label="Sort notes"
                 className="bg-surface p-1 text-muted"
@@ -710,8 +802,47 @@ export function NotesPage() {
               <p role="status" className="p-3 text-muted">
                 Loading workspace…
               </p>
-            ) : filtered.length ? (
+            ) : filtered.length || filteredImages.length ? (
               <ul>
+                {filteredImages.map((image) => (
+                  <li
+                    key={image.id}
+                    className={
+                      "mb-1 rounded-lg " +
+                      (activeImage?.id === image.id
+                        ? "notes-selected"
+                        : "hover:bg-fg/5")
+                    }
+                  >
+                    <button
+                      className="flex w-full min-w-0 items-center gap-3 px-3 py-2 text-left"
+                      aria-current={
+                        activeImage?.id === image.id ? "true" : undefined
+                      }
+                      onClick={() =>
+                        guard(() => {
+                          setImageId(image.id);
+                          setPanel("document");
+                        })
+                      }
+                    >
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded border border-border bg-fg/5">
+                        <LocalImage
+                          workspace={workspace.grant.handle}
+                          path={image.id}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                        {image.id.split("/").pop()}
+                      </span>
+                      <span className="shrink-0 text-xs text-muted">
+                        {new Date(image.modifiedAt).toLocaleDateString()}
+                      </span>
+                    </button>
+                  </li>
+                ))}
                 {filtered.map((note) => (
                   <li
                     key={note.id}
@@ -795,7 +926,58 @@ export function NotesPage() {
           aria-label="Note document"
           className="notes-document flex min-h-0 min-w-0 flex-col"
         >
-          {activeNote ? (
+          {activeImage ? (
+            <div className="flex min-h-0 flex-1 flex-col">
+              <header className="flex items-center gap-2 border-b border-border px-6 py-4">
+                <ImageIcon
+                  size={20}
+                  className="shrink-0 text-accent"
+                  aria-hidden="true"
+                />
+                <h1
+                  className="min-w-0 flex-1 truncate text-base font-semibold"
+                  title={activeImage.id}
+                >
+                  {activeImage.id.split("/").pop()}
+                </h1>
+                <details className="relative shrink-0">
+                  <summary
+                    className="notes-icon-button cursor-pointer list-none"
+                    aria-label="Image actions"
+                    title="Image actions"
+                  >
+                    <Ellipsis size={20} aria-hidden="true" />
+                  </summary>
+                  <div className="absolute right-0 z-20 mt-1 w-40 rounded-lg border border-border bg-surface p-1 shadow-xl">
+                    {(
+                      ["rename-image", "move-image", "delete-image"] as const
+                    ).map((item) => (
+                      <button
+                        key={item}
+                        className="block w-full rounded p-2 text-left text-sm capitalize hover:bg-fg/10"
+                        onClick={(event) => {
+                          event.currentTarget
+                            .closest("details")
+                            ?.removeAttribute("open");
+                          beginAction(item);
+                        }}
+                      >
+                        {item.replace("-image", "")}
+                      </button>
+                    ))}
+                  </div>
+                </details>
+              </header>
+              <div className="app-scrollbar flex min-h-0 flex-1 items-center justify-center overflow-auto p-6">
+                <LocalImage
+                  workspace={workspace.grant.handle}
+                  path={activeImage.id}
+                  alt={activeImage.id.split("/").pop() ?? "Image"}
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+            </div>
+          ) : activeNote ? (
             <>
               <header className="px-6 pt-2">
                 <div className="flex flex-col">
@@ -932,6 +1114,7 @@ export function NotesPage() {
                     content={draft}
                     folder={activeNote.folder}
                     direction={direction}
+                    workspace={demo ? null : workspace.grant.handle}
                     onOpenNote={openNote}
                     onCopyResult={(success) =>
                       success
@@ -991,23 +1174,35 @@ export function NotesPage() {
       {action && (
         <NotesDialog
           title={
-            action === "delete-folder"
-              ? "Delete this empty folder?"
-              : action === "delete"
-                ? "Delete this Markdown file?"
-                : action === "note"
-                  ? "New note"
-                  : action === "folder"
-                    ? "New folder"
-                    : action === "rename"
-                      ? "Rename note"
-                      : "Move note"
+            action === "delete-image"
+              ? "Delete this image?"
+              : action === "rename-image"
+                ? "Rename image"
+                : action === "move-image"
+                  ? "Move image"
+                  : action === "delete-folder"
+                    ? "Delete this empty folder?"
+                    : action === "delete"
+                      ? "Delete this Markdown file?"
+                      : action === "note"
+                        ? "New note"
+                        : action === "folder"
+                          ? "New folder"
+                          : action === "rename"
+                            ? "Rename note"
+                            : "Move note"
           }
           onCancel={() => {
             if (!busy) setAction(null);
           }}
         >
-          {action === "delete-folder" ? (
+          {action === "delete-image" ? (
+            <p className="mb-4 text-sm text-muted">
+              {activeImage?.id} will be removed from your workspace. Notes
+              referencing it will show a missing image. This cannot be undone
+              here.
+            </p>
+          ) : action === "delete-folder" ? (
             <p className="mb-4 text-sm text-muted">
               {actionFolder} will be removed only if it is empty. This cannot be
               undone here.
@@ -1019,7 +1214,13 @@ export function NotesPage() {
             </p>
           ) : (
             <div className="space-y-4">
-              {action !== "move" && (
+              {(action === "rename-image" || action === "move-image") && (
+                <p className="text-sm text-muted">
+                  Notes referencing the old image path will need their Markdown
+                  links updated.
+                </p>
+              )}
+              {action !== "move" && action !== "move-image" && (
                 <label className="block text-sm">
                   Name
                   <input
@@ -1035,7 +1236,7 @@ export function NotesPage() {
                   />
                 </label>
               )}
-              {action !== "rename" && (
+              {action !== "rename" && action !== "rename-image" && (
                 <label className="block text-sm">
                   Folder
                   <select
@@ -1061,7 +1262,11 @@ export function NotesPage() {
           )}
           <div className="mt-6 flex justify-end gap-2">
             <button
-              autoFocus={action === "delete" || action === "delete-folder"}
+              autoFocus={
+                action === "delete" ||
+                action === "delete-folder" ||
+                action === "delete-image"
+              }
               disabled={busy}
               className="notes-button"
               onClick={() => setAction(null)}
@@ -1072,8 +1277,10 @@ export function NotesPage() {
               disabled={
                 busy ||
                 (action !== "delete" &&
+                  action !== "delete-image" &&
                   action !== "delete-folder" &&
                   action !== "move" &&
+                  action !== "move-image" &&
                   !name.trim())
               }
               className="notes-primary"
@@ -1081,11 +1288,13 @@ export function NotesPage() {
             >
               {busy
                 ? "Working…"
-                : action === "delete-folder"
-                  ? "Delete folder"
-                  : action === "delete"
-                    ? "Delete file"
-                    : "Confirm"}
+                : action === "delete-image"
+                  ? "Delete image"
+                  : action === "delete-folder"
+                    ? "Delete folder"
+                    : action === "delete"
+                      ? "Delete file"
+                      : "Confirm"}
             </button>
           </div>
         </NotesDialog>

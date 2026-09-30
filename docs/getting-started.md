@@ -113,6 +113,8 @@ Once installed and your workspace is chosen:
    creating, editing, moving, and deleting browser-backed links and folders.
 3. **Notes** — browse the folder explorer (closed by default except the opened note's path). Use a folder's three-dot menu to create notes/folders or delete an empty folder. Toggle preview/edit from the note header; edits save after 1 second of inactivity. Rename, move and import services remain available where exposed in the UI.
    In Preview, each Markdown code block has a Copy code button; clipboard access must be available in the browser.
+   PNG, JPEG, GIF, WebP and AVIF files in the selected folder show thumbnails and can be viewed in the document pane. Markdown can display workspace-relative images from nested asset folders; remote images remain blocked.
+   Use the image viewer's three-dot menu to rename, move or delete an image. Rename and move may require updating links in your Markdown notes; deletion asks for confirmation and does not have an in-app undo.
    The last successfully opened note reopens for the same workspace after permission is granted; demo notes are never remembered as real notes.
 4. **Tasks** — a local Kanban board for tasks; link tasks to notes and bookmarks.
 5. **Settings** — choose your workspace, view browser search information, open browser search settings, and export or restore a backup.

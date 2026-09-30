@@ -1,4 +1,9 @@
-import type { FolderEntry, NoteEntry, NotesIndex } from "../types/notes";
+import type {
+  FolderEntry,
+  ImageEntry,
+  NoteEntry,
+  NotesIndex,
+} from "../types/notes";
 import {
   extractTitleFromMarkdown,
   noteDisplayName,
@@ -33,6 +38,141 @@ const isNotFound = (error: unknown) =>
   error instanceof DOMException && error.name === "NotFoundError";
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
+
+const imageTypes: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  avif: "image/avif",
+};
+
+/** Resolves only workspace-relative raster images; never follows absolute or URL paths. */
+export function imageMimeType(path: string): string | null {
+  return imageTypes[path.split(".").pop()?.toLowerCase() ?? ""] ?? null;
+}
+
+/** Rejects image paths that escape the granted workspace or use unsafe formats. */
+function validateImagePath(path: string): string {
+  if (
+    !path ||
+    /[\\\0?#]/.test(path) ||
+    path.startsWith("/") ||
+    path
+      .split("/")
+      .some(
+        (part) =>
+          !part || part === "." || part === ".." || part.startsWith("."),
+      )
+  )
+    throw new NoteWorkspaceError("invalid-path", "Invalid image path.");
+  const mime = imageMimeType(path);
+  if (!mime)
+    throw new NoteWorkspaceError("invalid-path", "Unsupported image format.");
+  return mime;
+}
+
+/** Reads a supported image through the granted workspace handle, rejecting escaped paths. */
+export async function readWorkspaceImage(
+  workspace: FileSystemDirectoryHandle,
+  path: string,
+): Promise<Blob> {
+  const mime = validateImagePath(path);
+  try {
+    const parent = await directoryAt(workspace, noteFolder(path));
+    const file = await (
+      await parent.getFileHandle(path.split("/").pop()!)
+    ).getFile();
+    return new Blob([await file.arrayBuffer()], { type: mime });
+  } catch (error) {
+    if (isNotFound(error))
+      throw new NoteWorkspaceError("not-found", "Image not found.");
+    throw error;
+  }
+}
+
+/** Moves or renames a raster image without changing its format or losing the source on copy failure. */
+export async function moveImage(
+  workspace: FileSystemDirectoryHandle,
+  path: string,
+  targetFolder: string,
+  newName: string,
+): Promise<string> {
+  validateImagePath(path);
+  validateName(newName);
+  if (imageMimeType(newName) !== imageMimeType(path) || newName.startsWith("."))
+    throw new NoteWorkspaceError(
+      "invalid-path",
+      "Keep the image's original file extension.",
+    );
+  const destination = targetFolder ? `${targetFolder}/${newName}` : newName;
+  validateImagePath(destination);
+  if (destination === path)
+    throw new NoteWorkspaceError(
+      "invalid-path",
+      "Choose a different name or folder.",
+    );
+  const target = await directoryAt(workspace, targetFolder);
+  try {
+    await target.getFileHandle(newName);
+    throw new NoteWorkspaceError(
+      "already-exists",
+      `A file already exists: "${destination}".`,
+    );
+  } catch (error) {
+    if (!isNotFound(error)) throw error;
+  }
+  const source = await directoryAt(workspace, noteFolder(path));
+  const sourceName = path.split("/").pop()!;
+  const file = await (await source.getFileHandle(sourceName)).getFile();
+  const handle = await target.getFileHandle(newName, { create: true });
+  try {
+    const writable = await handle.createWritable();
+    try {
+      await writable.write(file);
+      await writable.close();
+    } catch (error) {
+      await writable.abort().catch(() => undefined);
+      throw error;
+    }
+    const copied = await (await handle.getFile()).arrayBuffer();
+    const original = await file.arrayBuffer();
+    const originalBytes = new Uint8Array(original);
+    if (
+      copied.byteLength !== original.byteLength ||
+      !new Uint8Array(copied).every(
+        (byte, index) => byte === originalBytes[index],
+      )
+    )
+      throw new Error("Image copy did not match the source.");
+  } catch (error) {
+    throw new NoteWorkspaceError(
+      "io",
+      `Could not verify "${destination}". "${path}" was kept. Check both files before retrying: ${errorMessage(error)}`,
+    );
+  }
+  try {
+    await source.removeEntry(sourceName);
+  } catch (error) {
+    throw new NoteWorkspaceError(
+      "io",
+      `Image copied to "${destination}" but could not remove "${path}". Both files may remain: ${errorMessage(error)}`,
+    );
+  }
+  return destination;
+}
+
+/** Removes an image file from the granted workspace after UI confirmation. */
+export async function deleteImage(
+  workspace: FileSystemDirectoryHandle,
+  path: string,
+): Promise<void> {
+  validateImagePath(path);
+  await (
+    await directoryAt(workspace, noteFolder(path))
+  ).removeEntry(path.split("/").pop()!);
+}
 
 function validateNoteId(noteId: string): void {
   if (
@@ -102,8 +242,13 @@ async function scanDirectory(
   root: FileSystemDirectoryHandle,
   directory: FileSystemDirectoryHandle,
   prefix: string,
-): Promise<{ notes: NoteEntry[]; folders: FolderEntry[] }> {
+): Promise<{
+  notes: NoteEntry[];
+  images: ImageEntry[];
+  folders: FolderEntry[];
+}> {
   const notes: NoteEntry[] = [];
+  const images: ImageEntry[] = [];
   const folders: FolderEntry[] = [];
   let directCount = 0;
   for await (const entry of directory.values()) {
@@ -112,9 +257,17 @@ async function scanDirectory(
     if (entry.kind === "file" && entry.name.endsWith(".md")) {
       notes.push(await readFileEntry(root, id));
       directCount++;
+    } else if (entry.kind === "file" && imageMimeType(entry.name)) {
+      const file = await entry.getFile();
+      images.push({
+        id,
+        folder: prefix,
+        modifiedAt: new Date(file.lastModified).toISOString(),
+      });
     } else if (entry.kind === "directory") {
       const child = await scanDirectory(root, entry, id);
       notes.push(...child.notes);
+      images.push(...child.images);
       folders.push(...child.folders);
     }
   }
@@ -124,7 +277,7 @@ async function scanDirectory(
       name: prefix.split("/").pop() ?? prefix,
       noteCount: directCount,
     });
-  return { notes, folders };
+  return { notes, images, folders };
 }
 
 export async function scanWorkspace(
@@ -133,13 +286,19 @@ export async function scanWorkspace(
   try {
     const result = await scanDirectory(workspace, workspace, "");
     result.notes.sort((a, b) => a.id.localeCompare(b.id));
+    result.images.sort((a, b) => a.id.localeCompare(b.id));
     result.folders.sort((a, b) => a.id.localeCompare(b.id));
     const root: FolderEntry = {
       id: "",
       name: workspace.name,
       noteCount: result.notes.filter((note) => note.folder === "").length,
     };
-    return { notes: result.notes, folders: result.folders, root };
+    return {
+      notes: result.notes,
+      images: result.images,
+      folders: result.folders,
+      root,
+    };
   } catch (error) {
     if (error instanceof NoteWorkspaceError) throw error;
     throw new NoteWorkspaceError(

@@ -1,8 +1,15 @@
 // Safe Markdown rendering for workspace notes. Raw HTML and remote embeds are
 // removed before a document is attached; no note code or remote images execute.
-import { createElement, useMemo, type ReactNode } from "react";
+import {
+  createElement,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { Copy } from "lucide-react";
 import { marked } from "marked";
+import { imageMimeType, readWorkspaceImage } from "./notes-workspace";
 
 const allowed = new Set([
   "P",
@@ -32,6 +39,77 @@ const allowed = new Set([
   "TD",
 ]);
 export type NoteDirection = "auto" | "ltr" | "rtl";
+
+/** Resolves an encoded Markdown image URL relative to its note, inside the workspace. */
+export function resolveImagePath(
+  folder: string,
+  source: string,
+): string | null {
+  if (/^(?:[a-z][a-z\d+.-]*:|\/|\\)/i.test(source) || source.includes("\\"))
+    return null;
+  try {
+    const path = decodeURIComponent(source.split(/[?#]/, 1)[0] ?? "");
+    if (!path || /[?#\0]/.test(path)) return null;
+    const resolved = resolveNoteLink(folder, path);
+    return resolved &&
+      imageMimeType(resolved) &&
+      !resolved.split("/").some((part) => part.startsWith("."))
+      ? resolved
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Loads an image only via the granted handle and revokes its object URL on replacement. */
+export function LocalImage({
+  workspace,
+  path,
+  alt,
+  className,
+}: {
+  workspace: FileSystemDirectoryHandle | null;
+  path: string;
+  alt: string;
+  className?: string;
+}) {
+  const [loaded, setLoaded] = useState<{
+    workspace: FileSystemDirectoryHandle;
+    path: string;
+    url: string;
+  } | null>(null);
+  useEffect(() => {
+    if (!workspace) return;
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    void readWorkspaceImage(workspace, path)
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setLoaded({ workspace, path, url: objectUrl });
+      })
+      .catch(() => {
+        if (!cancelled) setLoaded(null);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [workspace, path]);
+  const url =
+    loaded?.workspace === workspace && loaded.path === path ? loaded.url : null;
+  return url ? (
+    <img src={url} alt={alt} className={className} />
+  ) : (
+    <span
+      className="text-muted"
+      role="img"
+      aria-label={alt || "Image unavailable"}
+    >
+      [Image: {alt || "unavailable"}]
+    </span>
+  );
+}
 const directional = new Set([
   "P",
   "H1",
@@ -51,18 +129,28 @@ const directional = new Set([
 export function renderSafeMarkdown(
   content: string,
   direction?: NoteDirection,
+  folder?: string,
 ): string {
   const template = document.createElement("template");
   template.innerHTML = marked.parse(content, { async: false }) as string;
   for (const element of Array.from(template.content.querySelectorAll("*"))) {
     if (element.tagName === "IMG") {
-      element.replaceWith(
-        document.createTextNode(
-          "[Image: " +
-            (element.getAttribute("alt") || "loading not enabled") +
-            "]",
-        ),
-      );
+      const path =
+        folder === undefined
+          ? null
+          : resolveImagePath(folder, element.getAttribute("src") ?? "");
+      if (path) {
+        const alt = element.getAttribute("alt") ?? "";
+        for (const attr of Array.from(element.attributes))
+          element.removeAttribute(attr.name);
+        element.setAttribute("data-image-path", path);
+        element.setAttribute("alt", alt);
+      } else
+        element.replaceWith(
+          document.createTextNode(
+            "[Image: " + (element.getAttribute("alt") || "unavailable") + "]",
+          ),
+        );
       continue;
     }
     if (!allowed.has(element.tagName)) {
@@ -96,12 +184,22 @@ export function renderSafeMarkdown(
 function renderPreviewNodes(
   content: string,
   direction: NoteDirection,
+  folder: string,
+  workspace: FileSystemDirectoryHandle | null,
 ): ReactNode[] {
   const template = document.createElement("template");
-  template.innerHTML = renderSafeMarkdown(content, direction);
+  template.innerHTML = renderSafeMarkdown(content, direction, folder);
   const convert = (node: ChildNode, key: number): ReactNode => {
     if (node.nodeType === Node.TEXT_NODE) return node.textContent;
     if (!(node instanceof Element)) return null;
+    if (node.tagName === "IMG")
+      return createElement(LocalImage, {
+        key,
+        workspace,
+        path: node.getAttribute("data-image-path") ?? "",
+        alt: node.getAttribute("alt") ?? "",
+        className: "notes-inline-image",
+      });
     const props: Record<string, string | number> = { key };
     for (const attribute of Array.from(node.attributes))
       props[attribute.name] = attribute.value;
@@ -144,18 +242,20 @@ export function MarkdownPreview({
   content,
   folder,
   direction,
+  workspace,
   onOpenNote,
   onCopyResult,
 }: {
   content: string;
   folder: string;
   direction: NoteDirection;
+  workspace?: FileSystemDirectoryHandle | null;
   onOpenNote: (id: string) => void;
   onCopyResult?: (success: boolean) => void;
 }) {
   const nodes = useMemo(
-    () => renderPreviewNodes(content, direction),
-    [content, direction],
+    () => renderPreviewNodes(content, direction, folder, workspace ?? null),
+    [content, direction, folder, workspace],
   );
   return (
     <article

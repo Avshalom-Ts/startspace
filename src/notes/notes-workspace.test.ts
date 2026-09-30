@@ -4,13 +4,115 @@
 // of the File System Access API surface used by the Notes feature.
 
 import { describe, expect, it, vi } from "vitest";
-import { deleteFolder, scanWorkspace } from "./notes-workspace";
+import {
+  deleteImage,
+  deleteFolder,
+  moveImage,
+  readWorkspaceImage,
+  scanWorkspace,
+} from "./notes-workspace";
 
 interface TestFile {
   content: string;
   kind: "file";
   name: string;
 }
+
+/** Mutable directory fixture for testing binary copy and deletion. */
+function imageWorkspace(corruptWrites = false) {
+  const files = new Map<string, Uint8Array>([
+    ["photo.png", new Uint8Array([0, 255, 42])],
+  ]);
+  const moved = new Map<string, Uint8Array>();
+  const handle = (
+    entries: Map<string, Uint8Array>,
+    name: string,
+  ): FileSystemDirectoryHandle =>
+    ({
+      name,
+      getFileHandle: async (
+        fileName: string,
+        options?: { create?: boolean },
+      ) => {
+        if (!entries.has(fileName)) {
+          if (!options?.create)
+            throw new DOMException("Missing", "NotFoundError");
+          entries.set(fileName, new Uint8Array());
+        }
+        return {
+          getFile: async () => ({
+            arrayBuffer: async () =>
+              Uint8Array.from(entries.get(fileName)!).buffer,
+          }),
+          createWritable: async () => ({
+            write: async (file: {
+              arrayBuffer: () => Promise<ArrayBuffer>;
+            }) => {
+              const bytes = new Uint8Array(await file.arrayBuffer());
+              entries.set(fileName, corruptWrites ? bytes.slice(1) : bytes);
+            },
+            close: async () => undefined,
+            abort: async () => undefined,
+          }),
+        } as unknown as FileSystemFileHandle;
+      },
+      removeEntry: async (fileName: string) => {
+        if (!entries.delete(fileName))
+          throw new DOMException("Missing", "NotFoundError");
+      },
+    }) as unknown as FileSystemDirectoryHandle;
+  const assets = handle(moved, "assets");
+  const root = {
+    ...handle(files, "Workspace"),
+    getDirectoryHandle: async (name: string) => {
+      if (name !== "assets") throw new DOMException("Missing", "NotFoundError");
+      return assets;
+    },
+  } as FileSystemDirectoryHandle;
+  return { root, files, moved };
+}
+
+describe("image file actions", () => {
+  it("moves binary bytes intact, then renames and deletes the image", async () => {
+    const { root, files, moved } = imageWorkspace();
+    expect(await moveImage(root, "photo.png", "assets", "photo.png")).toBe(
+      "assets/photo.png",
+    );
+    expect(files.has("photo.png")).toBe(false);
+    expect(Array.from(moved.get("photo.png")!)).toEqual([0, 255, 42]);
+    expect(
+      await moveImage(root, "assets/photo.png", "assets", "renamed.png"),
+    ).toBe("assets/renamed.png");
+    expect(moved.has("photo.png")).toBe(false);
+    await deleteImage(root, "assets/renamed.png");
+    expect(moved.has("renamed.png")).toBe(false);
+  });
+
+  it("keeps the source on collision, unsupported rename or invalid destination", async () => {
+    const { root, files, moved } = imageWorkspace();
+    moved.set("photo.png", new Uint8Array([1]));
+    await expect(
+      moveImage(root, "photo.png", "assets", "photo.png"),
+    ).rejects.toMatchObject({ kind: "already-exists" });
+    await expect(
+      moveImage(root, "photo.png", "assets", "photo.svg"),
+    ).rejects.toMatchObject({ kind: "invalid-path" });
+    await expect(
+      moveImage(root, "photo.png", "../assets", "photo.png"),
+    ).rejects.toMatchObject({ kind: "invalid-path" });
+    expect(Array.from(files.get("photo.png")!)).toEqual([0, 255, 42]);
+    expect(Array.from(moved.get("photo.png")!)).toEqual([1]);
+  });
+
+  it("retains the source when the destination copy fails verification", async () => {
+    const { root, files, moved } = imageWorkspace(true);
+    await expect(
+      moveImage(root, "photo.png", "assets", "photo.png"),
+    ).rejects.toMatchObject({ kind: "io" });
+    expect(Array.from(files.get("photo.png")!)).toEqual([0, 255, 42]);
+    expect(Array.from(moved.get("photo.png")!)).toEqual([255, 42]);
+  });
+});
 
 interface TestDirectory {
   children: Array<TestDirectory | TestFile>;
@@ -29,6 +131,8 @@ function directoryHandle(directory: TestDirectory): FileSystemDirectoryHandle {
           getFile: async () => ({
             lastModified: 0,
             text: async () => child.content,
+            arrayBuffer: async () =>
+              new TextEncoder().encode(child.content).buffer,
           }),
         } as unknown as FileSystemFileHandle),
   );
@@ -60,6 +164,61 @@ function directoryHandle(directory: TestDirectory): FileSystemDirectoryHandle {
 }
 
 describe("workspace scanning", () => {
+  it("indexes supported nested images without treating them as notes", async () => {
+    const workspace = directoryHandle({
+      kind: "directory",
+      name: "Workspace",
+      children: [
+        {
+          kind: "directory",
+          name: "assets",
+          children: [
+            { kind: "file", name: "photo.PNG", content: "binary" },
+            { kind: "file", name: "unsafe.svg", content: "<svg/>" },
+          ],
+        },
+      ],
+    });
+    const index = await scanWorkspace(workspace);
+    expect(index.notes).toEqual([]);
+    expect(index.images?.map((image) => image.id)).toEqual([
+      "assets/photo.PNG",
+    ]);
+    expect(index.folders[0]?.noteCount).toBe(0);
+    const blob = await readWorkspaceImage(workspace, "assets/photo.PNG");
+    expect(blob.type).toBe("image/png");
+    expect(await blob.text()).toBe("binary");
+  });
+
+  it("rejects escapes and unsupported images, and reports missing or denied files", async () => {
+    const workspace = directoryHandle({
+      kind: "directory",
+      name: "Workspace",
+      children: [],
+    });
+    await expect(
+      readWorkspaceImage(workspace, "../secret.png"),
+    ).rejects.toMatchObject({ kind: "invalid-path" });
+    await expect(
+      readWorkspaceImage(workspace, "https://host/photo.png"),
+    ).rejects.toMatchObject({ kind: "invalid-path" });
+    await expect(
+      readWorkspaceImage(workspace, "unsafe.svg"),
+    ).rejects.toMatchObject({ kind: "invalid-path" });
+    await expect(
+      readWorkspaceImage(workspace, "missing.png"),
+    ).rejects.toMatchObject({ kind: "not-found" });
+    const denied = {
+      ...workspace,
+      getFileHandle: async () => {
+        throw new DOMException("Denied", "NotAllowedError");
+      },
+    } as FileSystemDirectoryHandle;
+    await expect(readWorkspaceImage(denied, "photo.png")).rejects.toMatchObject(
+      { name: "NotAllowedError" },
+    );
+  });
+
   it("hides dotfiles and dot-directories from the notes tree", async () => {
     const workspace = directoryHandle({
       kind: "directory",

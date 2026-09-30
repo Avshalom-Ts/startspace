@@ -8,6 +8,7 @@ import { visibleNotes, fileTitle } from "./notes-model";
 import {
   MarkdownPreview,
   renderSafeMarkdown,
+  resolveImagePath,
   resolveNoteLink,
 } from "./markdown-preview";
 import { demoIndex } from "./notes-demo";
@@ -44,6 +45,65 @@ describe("Notes layout data", () => {
   });
 });
 describe("safe Markdown preview", () => {
+  it("resolves nested encoded local image paths but blocks remote and escaping sources", () => {
+    expect(resolveImagePath("notes/daily", "../../assets/My%20Photo.png")).toBe(
+      "assets/My Photo.png",
+    );
+    expect(resolveImagePath("notes", "../../secret.png")).toBeNull();
+    expect(resolveImagePath("notes", "https://example.com/a.png")).toBeNull();
+    expect(resolveImagePath("notes", "data:image/png;base64,AAAA")).toBeNull();
+    expect(resolveImagePath("notes", "unsafe.svg")).toBeNull();
+    expect(resolveImagePath("notes", "%ZZ.png")).toBeNull();
+    const html = renderSafeMarkdown(
+      "![Local](../assets/pic.png) ![Remote](https://example.com/a.png)",
+      "auto",
+      "notes",
+    );
+    expect(html).toContain('data-image-path="assets/pic.png"');
+    expect(html).not.toContain("https://example.com");
+    expect(html).toContain("[Image: Remote]");
+  });
+
+  it("releases image object URLs when a preview changes or unmounts", async () => {
+    const createObjectURL = vi.fn().mockReturnValue("blob:local-image");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const workspace = {
+      getFileHandle: async () => ({
+        getFile: async () => ({ arrayBuffer: async () => new ArrayBuffer(1) }),
+      }),
+    } as unknown as FileSystemDirectoryHandle;
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(MarkdownPreview, {
+          content: "![Test](image.png)",
+          folder: "",
+          direction: "auto",
+          workspace,
+          onOpenNote: vi.fn(),
+        }),
+      );
+    });
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "blob:local-image",
+    );
+    await act(async () => {
+      root.render(
+        createElement(MarkdownPreview, {
+          content: "No image",
+          folder: "",
+          direction: "auto",
+          workspace,
+          onOpenNote: vi.fn(),
+        }),
+      );
+    });
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:local-image");
+    await act(async () => root.unmount());
+  });
+
   it("removes scripts, event handlers, executable links and remote images", () => {
     const html = renderSafeMarkdown(
       '<script>alert(1)</script>\n\n<a href="javascript:alert(1)" onclick="alert(1)">bad</a>\n\n![remote](https://example.com/a.png)\n\n<iframe src="https://example.com"></iframe>',

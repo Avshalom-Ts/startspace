@@ -27,6 +27,13 @@ export interface NoteEntry {
   modifiedAt: string;
 }
 
+/** A supported local image asset, indexed without loading its bytes. */
+export interface ImageEntry {
+  id: string;
+  folder: string;
+  modifiedAt: string;
+}
+
 /** A workspace folder as StartSpace sees it. */
 export interface FolderEntry {
   /** Relative path from the workspace root (empty string = root). */
@@ -42,6 +49,8 @@ export interface NotesIndex {
   /** Every note StartSpace knows about, in workspace order (top-level first,
    *  then folders in name order, notes within each folder in name order). */
   notes: NoteEntry[];
+  /** Supported image files available in the folder content list. */
+  images?: ImageEntry[];
   /** Every folder in the workspace, including empty folders, in name order. */
   folders: FolderEntry[];
   /** The root folder entry (empty id); always present when the index is
