@@ -1,7 +1,7 @@
 // tasks-page.tsx
 //
 // Owns the local Kanban board UI. Tasks are persisted as workspace data by
-// useTasks; notes are identified by relative Markdown paths and bookmarks by
+// useTasks; note relationships use workspace-stable IDs and bookmarks use
 // browser Bookmark IDs. No note or bookmark content is duplicated here.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useNotes } from "../notes/use-notes";
+import { matchesNoteReference } from "../notes/note-identity";
 import { useBookmarkTree } from "../hooks/useBookmarkTree";
 import type { BookmarkNode } from "../hooks/useBookmarks";
 import {
@@ -531,6 +532,7 @@ export function TasksPage() {
               title={draftTitle}
               description={draftDescription}
               notes={notes.index?.notes ?? []}
+              noteAliases={notes.index?.noteAliases ?? {}}
               bookmarks={bookmarkItems}
               columns={board.columns}
               status={draftStatus}
@@ -544,9 +546,25 @@ export function TasksPage() {
                 });
               }}
               onClose={() => setSelectedId(null)}
-              onToggleLink={(kind, value) =>
-                void board.linkTask(selectedTask.id, kind, value)
-              }
+              onToggleLink={(kind, value) => {
+                const note =
+                  kind === "note"
+                    ? notes.index?.notes.find(
+                        (item) => (item.stableId ?? item.id) === value,
+                      )
+                    : null;
+                const previous =
+                  note &&
+                  selectedTask.noteIds.find((reference) =>
+                    matchesNoteReference(
+                      reference,
+                      note.id,
+                      note.stableId,
+                      notes.index?.noteAliases,
+                    ),
+                  );
+                void board.linkTask(selectedTask.id, kind, previous ?? value);
+              }}
             />
           </div>
         </div>
@@ -560,6 +578,7 @@ function TaskDetails({
   title,
   description,
   notes,
+  noteAliases,
   bookmarks,
   columns,
   status,
@@ -574,7 +593,8 @@ function TaskDetails({
   task: Task;
   title: string;
   description: string;
-  notes: { id: string; title: string }[];
+  notes: { id: string; title: string; stableId?: string }[];
+  noteAliases: Record<string, string>;
   bookmarks: BookmarkNode[];
   columns: TaskColumn[];
   status: TaskStatus;
@@ -647,8 +667,21 @@ function TaskDetails({
         <div className="grid gap-4 sm:grid-cols-2">
           <LinkPicker
             title="Link notes"
-            items={notes.map((note) => ({ id: note.id, label: note.title }))}
-            selected={task.noteIds}
+            items={notes.map((note) => ({
+              id: note.stableId ?? note.id,
+              label: note.title,
+            }))}
+            selected={task.noteIds.map(
+              (reference) =>
+                notes.find((note) =>
+                  matchesNoteReference(
+                    reference,
+                    note.id,
+                    note.stableId,
+                    noteAliases,
+                  ),
+                )?.stableId ?? reference,
+            )}
             onToggle={(id) => onToggleLink("note", id)}
           />
           <LinkPicker

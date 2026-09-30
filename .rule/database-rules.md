@@ -12,10 +12,11 @@ StartSpace has no traditional database in scope initially. "Persistent data" mea
 - Select and document the storage approach for StartSpace metadata and config before introducing persistent data beyond the browser's bookmark store and the workspace filesystem.
 - Treat the browser's bookmark store as the source of truth for bookmark data; StartSpace metadata is derived and linked, not a replacement.
 - Keep notes as ordinary Markdown files. Do not introduce a proprietary note format.
+- Stable Note IDs and historical path aliases live in the versioned `.startspace/note-identities.json` workspace sidecar. Keep note bodies in Markdown, migrate legacy path-based task/bookmark edges without discarding missing targets, and preserve the sidecar in portable backups. Reject malformed or colliding identity metadata rather than overwriting it.
 - Keep task storage in the workspace, aligned with the notes/workspace model, so the data stays local and portable.
 - For StartSpace metadata and config, prefer reversible, serializable storage and document the chosen shape (extension storage vs workspace files) once selected.
 - Treat migrations and schema changes to StartSpace metadata/config as the source of truth for those changes; prefer additive, reversible changes and test them against representative data.
-- The browser's `startspace.workspace` IndexedDB store retains registered directory handles and random IDs plus a versioned last-opened relative note path per registration. A legacy current handle is assigned an ID on first load. Do not key note selection by folder name or persist note contents in UI preferences.
+- The browser's `startspace.workspace` IndexedDB store retains registered directory handles and random IDs plus a versioned last-opened relative note path per registration. A legacy current handle is assigned an ID on first load. Do not key note selection by folder name; unsaved note bodies are retained only in the separate device-local draft recovery record described in ADR 0014.
 - Document local bootstrap and seed-data instructions when a storage mechanism is added (e.g., how the workspace is created, how config is initialized on first launch).
 - Never include production data, real bookmarks, real notes, or credentials in repository scripts, fixtures, or test data.
 - Do not introduce a server, cloud database, or remote store — by design.

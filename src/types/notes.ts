@@ -4,7 +4,8 @@
 //
 // Notes are Markdown (.md) files stored in the user's workspace folder via the
 // File System Access API. A note's identity is its relative path from the
-// workspace root (e.g. "welcome.md" or "ideas/plans.md"). Titles are extracted
+// workspace root (e.g. "welcome.md" or "ideas/plans.md"). Relationships use
+// workspace-stable IDs stored separately from Markdown. Titles are extracted
 // from the first H1 in the Markdown content; the filename (without extension)
 // is the fallback when no H1 is present.
 //
@@ -16,6 +17,8 @@
 export interface NoteEntry {
   /** Relative path from the workspace root, including the .md extension. */
   id: string;
+  /** Portable identity for relationships; absent in demo or before migration. */
+  stableId?: string;
   /** Human-readable title; from the first H1 in the file, or the filename fallback. */
   title: string;
   /** Full Markdown text of the note. */
@@ -49,6 +52,8 @@ export interface NotesIndex {
   /** Every note StartSpace knows about, in workspace order (top-level first,
    *  then folders in name order, notes within each folder in name order). */
   notes: NoteEntry[];
+  /** Historical paths retained for relationships created before stable IDs. */
+  noteAliases?: Record<string, string>;
   /** Supported image files available in the folder content list. */
   images?: ImageEntry[];
   /** Every folder in the workspace, including empty folders, in name order. */

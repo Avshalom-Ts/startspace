@@ -27,6 +27,7 @@ import { useNotes } from "./use-notes";
 import { deleteImage, moveImage, readNote } from "./notes-workspace";
 import { readLastNote, writeLastNote } from "./last-note";
 import { readDraft, writeDraft, type SavedDraft } from "./draft-recovery";
+import { matchesNoteReference } from "./note-identity";
 import { demoIndex } from "./notes-demo";
 import { fileTitle, visibleNotes, type NotesView } from "./notes-model";
 import { NotesNavigator } from "./notes-navigator";
@@ -712,7 +713,16 @@ export function NotesPage() {
           },
         ]
       : taskData.tasks.filter(
-          (task) => activeNote && task.noteIds.includes(activeNote.id),
+          (task) =>
+            activeNote &&
+            task.noteIds.some((reference) =>
+              matchesNoteReference(
+                reference,
+                activeNote.id,
+                activeNote.stableId,
+                index.noteAliases,
+              ),
+            ),
         );
   const linkedBookmarks =
     demo && activeNote
@@ -726,8 +736,13 @@ export function NotesPage() {
       : bookmarkLeaves(bookmarks.tree).filter(
           (bookmark) =>
             activeNote &&
-            bookmarkMeta.metadata[bookmark.id]?.relatedNotes.includes(
-              activeNote.id,
+            bookmarkMeta.metadata[bookmark.id]?.relatedNotes.some((reference) =>
+              matchesNoteReference(
+                reference,
+                activeNote.id,
+                activeNote.stableId,
+                index.noteAliases,
+              ),
             ),
         );
 
@@ -1301,10 +1316,25 @@ export function NotesPage() {
               if (!activeNote) return;
               setBusy(true);
               try {
-                const linked = linkedTasks.some((task) => task.id === id);
-                if (await taskData.linkTask(id, "note", activeNote.id))
+                const previous = taskData.tasks
+                  .find((task) => task.id === id)
+                  ?.noteIds.find((reference) =>
+                    matchesNoteReference(
+                      reference,
+                      activeNote.id,
+                      activeNote.stableId,
+                      index.noteAliases,
+                    ),
+                  );
+                if (
+                  await taskData.linkTask(
+                    id,
+                    "note",
+                    previous ?? activeNote.stableId ?? activeNote.id,
+                  )
+                )
                   notifications.success(
-                    linked ? "Task unlinked." : "Task linked.",
+                    previous ? "Task unlinked." : "Task linked.",
                   );
                 else notifications.error("Could not update the task link.");
               } finally {

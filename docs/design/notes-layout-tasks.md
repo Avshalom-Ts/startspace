@@ -16,12 +16,12 @@ This is the implementation backlog, not a claim that all design requirements shi
 - [x] Session-only Recent, clearly labeled.
 - [x] Explicit synthetic design preview with in-memory favorites and example tags/relations.
 - [x] ADR 0009 records the layout transition without a storage migration.
+- [x] NOTES-01: versioned portable note IDs, legacy relationship migration, and historical path aliases. See [ADR 0015](../decisions/0015-stable-note-identities.md).
 
 ## Remaining work
 
 | ID | Priority | Task / acceptance criteria | Current UI |
 | --- | --- | --- | --- |
-| NOTES-01 | P1 | Define versioned note metadata migration from path IDs to stable IDs; preserve existing task/bookmark edges across note/folder moves and backups; test rollback and collisions. | Existing path IDs; renamed targets can leave old relations. |
 | NOTES-02 | P1 | Persist favorites/tags/last-opened in workspace after NOTES-01; validate malformed files and external edits, propagate cross-tab updates. | Favorites/Tags visibly planned; preview mocks only; Recent session-only. |
 | NOTES-03 | P1 | Restore dirty drafts after reload/crash, keyed by workspace identity; provide recover/discard and clean up after save. Test revoked access and deleted files. | Complete: device-local recovery prompt after permission and scan; unchanged disk is guarded on save, failed saves retain drafts. See ADR 0014. |
 | NOTES-04 | P1 | Coordinate read-check-write across tabs with browser locks; reject external conflicts, preserve both copies and provide Save as new file. | Content comparison before save; external editors can still race the write. |

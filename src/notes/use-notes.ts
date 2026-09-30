@@ -2,6 +2,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import type { FolderEntry, NoteEntry, NotesIndex } from "../types/notes";
 import {
+  ensureNoteIdentities,
+  forgetNoteIdentity,
+  readNoteIdentities,
+  relocateNoteFolder,
+  relocateNoteIdentity,
+  stableNoteReference,
+  updateNoteIdentities,
+} from "./note-identity";
+import { migrateNoteEdges } from "./note-link-migration";
+import {
   createFolder as createFolderInWorkspace,
   createNote as createNoteInWorkspace,
   deleteFolder as deleteFolderInWorkspace,
@@ -60,6 +70,8 @@ export function useNotes(workspace?: ReturnType<typeof useWorkspace>) {
   const handleRef = useRef(grant.handle);
   handleRef.current = grant.handle;
   const [index, setIndex] = useState<NotesIndex | null>(null);
+  const indexRef = useRef(index);
+  indexRef.current = index;
   const [indexHandle, setIndexHandle] =
     useState<FileSystemDirectoryHandle | null>(null);
   const [loading, setLoading] = useState(false);
@@ -84,6 +96,20 @@ export function useNotes(workspace?: ReturnType<typeof useWorkspace>) {
       try {
         const nextIndex = await scanWorkspace(grant.handle);
         if (handleRef.current !== grant.handle) return;
+        try {
+          const identities = await ensureNoteIdentities(
+            grant.handle,
+            nextIndex.notes.map((note) => note.id),
+          );
+          nextIndex.notes = nextIndex.notes.map((note) => ({
+            ...note,
+            stableId: stableNoteReference(identities, note.id),
+          }));
+          nextIndex.noteAliases = identities.aliases;
+          await migrateNoteEdges(grant.handle, identities);
+        } catch (cause) {
+          setError(mapError(cause));
+        }
         setIndex(nextIndex);
         setIndexHandle(grant.handle);
         if (selectedId && selectionRef.current === selectedId) {
@@ -185,7 +211,29 @@ export function useNotes(workspace?: ReturnType<typeof useWorkspace>) {
           message: "Choose a workspace folder first.",
         });
       try {
+        const identities = await ensureNoteIdentities(grant.handle, [noteId]);
+        await migrateNoteEdges(grant.handle, identities);
+        const original = await readNote(grant.handle, noteId);
         await deleteNoteInWorkspace(grant.handle, noteId);
+        try {
+          await updateNoteIdentities(grant.handle, (document) =>
+            forgetNoteIdentity(document, noteId),
+          );
+        } catch (error) {
+          try {
+            await createNoteInWorkspace(
+              grant.handle,
+              original.folder,
+              noteId.split("/").pop()!,
+              original.content,
+            );
+          } catch {
+            throw new Error(
+              `Note deletion metadata failed and "${noteId}" could not be restored. Check the workspace before retrying.`,
+            );
+          }
+          throw error;
+        }
         if (selectedNoteId === noteId) {
           setSelectedNoteId(null);
           setSelectedNote(null);
@@ -207,11 +255,33 @@ export function useNotes(workspace?: ReturnType<typeof useWorkspace>) {
           message: "Choose a workspace folder first.",
         });
       try {
+        await ensureNoteIdentities(grant.handle, [noteId]);
         const value = await renameNoteInWorkspace(
           grant.handle,
           noteId,
           newName.endsWith(".md") ? newName : `${newName}.md`,
         );
+        try {
+          const identities = await updateNoteIdentities(
+            grant.handle,
+            (document) => relocateNoteIdentity(document, noteId, value.id),
+          );
+          value.stableId = stableNoteReference(identities, value.id);
+        } catch (error) {
+          try {
+            await moveNoteInWorkspace(
+              grant.handle,
+              value.id,
+              noteId.split("/").slice(0, -1).join("/"),
+              noteId.split("/").pop()!,
+            );
+          } catch {
+            throw new Error(
+              `Metadata failed after renaming. Check both "${noteId}" and "${value.id}" before retrying.`,
+            );
+          }
+          throw error;
+        }
         if (selectedNoteId === noteId) {
           setSelectedNoteId(value.id);
           setSelectedNote(value);
@@ -237,12 +307,34 @@ export function useNotes(workspace?: ReturnType<typeof useWorkspace>) {
           message: "Choose a workspace folder first.",
         });
       try {
+        await ensureNoteIdentities(grant.handle, [noteId]);
         const value = await moveNoteInWorkspace(
           grant.handle,
           noteId,
           folderId,
           name,
         );
+        try {
+          const identities = await updateNoteIdentities(
+            grant.handle,
+            (document) => relocateNoteIdentity(document, noteId, value.id),
+          );
+          value.stableId = stableNoteReference(identities, value.id);
+        } catch (error) {
+          try {
+            await moveNoteInWorkspace(
+              grant.handle,
+              value.id,
+              noteId.split("/").slice(0, -1).join("/"),
+              noteId.split("/").pop()!,
+            );
+          } catch {
+            throw new Error(
+              `Metadata failed after moving. Check both "${noteId}" and "${value.id}" before retrying.`,
+            );
+          }
+          throw error;
+        }
         if (selectedNoteId === noteId) {
           setSelectedNoteId(value.id);
           setSelectedNote(value);
@@ -314,11 +406,33 @@ export function useNotes(workspace?: ReturnType<typeof useWorkspace>) {
           message: "Choose a workspace folder first.",
         });
       try {
+        await ensureNoteIdentities(
+          grant.handle,
+          indexRef.current?.notes.map((note) => note.id) ?? [],
+        );
         const value = await renameFolderInWorkspace(
           grant.handle,
           folderId,
           newName,
         );
+        try {
+          await updateNoteIdentities(grant.handle, (document) =>
+            relocateNoteFolder(document, folderId, value.id),
+          );
+        } catch (error) {
+          try {
+            await renameFolderInWorkspace(
+              grant.handle,
+              value.id,
+              folderId.split("/").pop()!,
+            );
+          } catch {
+            throw new Error(
+              `Metadata failed after folder rename. Check both "${folderId}" and "${value.id}" before retrying.`,
+            );
+          }
+          throw error;
+        }
         if (selectedNoteId?.startsWith(`${folderId}/`)) {
           const updatedNoteId = `${value.id}${selectedNoteId.slice(folderId.length)}`;
           setSelectedNoteId(updatedNoteId);
@@ -380,6 +494,20 @@ export function useNotes(workspace?: ReturnType<typeof useWorkspace>) {
       const handle = grant.handle;
       try {
         const note = await readNote(handle, noteId);
+        const identity = indexRef.current?.notes.find(
+          (item) => item.id === noteId,
+        );
+        if (identity?.stableId) note.stableId = identity.stableId;
+        else {
+          try {
+            const identities = await readNoteIdentities(handle);
+            note.stableId = Object.keys(identities.notes).find(
+              (id) => identities.notes[id] === noteId,
+            );
+          } catch {
+            note.stableId = undefined;
+          }
+        }
         if (requestRef.current === requestId && handleRef.current === handle)
           setSelectedNote(note);
         return { ok: true, value: note };

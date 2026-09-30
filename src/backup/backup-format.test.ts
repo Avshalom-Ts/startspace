@@ -10,6 +10,7 @@ import {
   parseBackupJson,
   type StartSpaceBackup,
 } from "./backup-format";
+import { parseNoteIdentities } from "../notes/note-identity";
 
 /** Creates a minimal valid backup fixture containing only synthetic data. */
 function backupFixture(): StartSpaceBackup {
@@ -42,6 +43,36 @@ describe("backup parsing", () => {
     );
   });
 
+  it("retains portable note identities and stable bookmark links in a backup", () => {
+    const fixture = backupFixture();
+    const noteId = "note-00000000-0000-4000-8000-000000000001";
+    fixture.workspace.files.push({
+      path: ".startspace/note-identities.json",
+      encoding: "base64",
+      content: btoa(
+        JSON.stringify({
+          version: 1,
+          notes: { [noteId]: "notes/example.md" },
+          aliases: {},
+        }),
+      ),
+    });
+    fixture.extension.bookmarkMetadata = {
+      synthetic: {
+        favorites: false,
+        tags: [],
+        dateAdded: "",
+        relatedNotes: [noteId],
+        relatedTasks: [],
+      },
+    };
+    expect(parseBackupJson(JSON.stringify(fixture))).toEqual(fixture);
+    expect(
+      parseNoteIdentities(JSON.parse(atob(fixture.workspace.files[1]!.content)))
+        .notes[noteId],
+    ).toBe("notes/example.md");
+  });
+
   it("rejects paths that could escape the selected workspace", () => {
     const fixture = backupFixture();
     fixture.workspace.files[0]!.path = "../outside.md";
@@ -71,8 +102,20 @@ describe("backup parsing", () => {
 
 it("discards legacy engine preferences when restoring a backup", () => {
   const backup = backupFixture();
-  const legacy = { ...backup, extension: { ...backup.extension, config: {
-    ...backup.extension.config, webSearchEngine: { name: "Old provider", urlTemplate: "https://example.com/{query}" },
-  } } };
-  expect(parseBackupJson(JSON.stringify(legacy)).extension.config).toEqual(backup.extension.config);
+  const legacy = {
+    ...backup,
+    extension: {
+      ...backup.extension,
+      config: {
+        ...backup.extension.config,
+        webSearchEngine: {
+          name: "Old provider",
+          urlTemplate: "https://example.com/{query}",
+        },
+      },
+    },
+  };
+  expect(parseBackupJson(JSON.stringify(legacy)).extension.config).toEqual(
+    backup.extension.config,
+  );
 });

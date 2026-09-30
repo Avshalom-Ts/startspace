@@ -101,6 +101,7 @@ On first launch, StartSpace asks you to choose a workspace folder using the File
 **Things to know:**
 - You can use an existing Markdown folder as your workspace if you want — your existing notes remain usable.
 - You can edit notes with any Markdown editor (VS Code, Obsidian, etc.) — StartSpace reads and writes ordinary `.md` files.
+- StartSpace keeps note relationship IDs in `.startspace/note-identities.json` inside the workspace. Keep this file with the Markdown files when moving a workspace; Settings backups include it automatically. App-managed note and folder moves keep task and bookmark relationships connected.
 - You can change or reconnect your workspace from Settings.
 
 ## Quick Tour

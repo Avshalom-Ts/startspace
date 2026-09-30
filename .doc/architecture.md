@@ -76,6 +76,7 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 ### Notes Module
 
 - Notes are normal Markdown (`.md`) files in the user's workspace.
+- A versioned `.startspace/note-identities.json` workspace sidecar maps stable note IDs to relative paths. Task and bookmark edges use stable IDs; legacy path edges are migrated on Notes indexing, with old paths retained as aliases across app-managed moves. Search and file navigation still use paths.
 - Supported raster images are indexed separately from notes and read through the granted File System Access handle for folder thumbnails, image viewing and workspace-relative Markdown previews. Temporary object URLs are revoked on view changes; remote images are not loaded.
 - Persistent two-pane workspace: recursive filesystem explorer in the left pane and active Markdown editor or preview in the main pane.
 - Operations: create, edit, delete, rename, and move notes; create, rename, and recursively delete folders.
