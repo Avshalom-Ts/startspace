@@ -8,7 +8,10 @@ import {
   deleteImage,
   deleteFolder,
   moveImage,
+  moveNote,
   readWorkspaceImage,
+  renameFolder,
+  renameNote,
   scanWorkspace,
 } from "./notes-workspace";
 
@@ -285,5 +288,148 @@ describe("folder deletion", () => {
     expect(workspace.removeEntry).toHaveBeenCalledWith("Projects", {
       recursive: false,
     });
+  });
+});
+
+/** Mutable nested directory fixture with File System Access copy semantics. */
+function moveWorkspace() {
+  let corruptFolder: string | null = null;
+  const directory = (name: string) => {
+    const files = new Map<string, Uint8Array>();
+    const folders = new Map<string, FileSystemDirectoryHandle>();
+    const handle = {
+      kind: "directory" as const,
+      name,
+      getDirectoryHandle: async (
+        child: string,
+        options?: { create?: boolean },
+      ) => {
+        if (!folders.has(child)) {
+          if (!options?.create)
+            throw new DOMException("Missing", "NotFoundError");
+          folders.set(child, directory(child));
+        }
+        return folders.get(child)!;
+      },
+      getFileHandle: async (
+        fileName: string,
+        options?: { create?: boolean },
+      ) => {
+        if (!files.has(fileName)) {
+          if (!options?.create)
+            throw new DOMException("Missing", "NotFoundError");
+          files.set(fileName, new Uint8Array());
+        }
+        return {
+          kind: "file" as const,
+          name: fileName,
+          getFile: async () => ({
+            lastModified: 0,
+            text: async () => new TextDecoder().decode(files.get(fileName)!),
+            arrayBuffer: async () =>
+              Uint8Array.from(files.get(fileName)!).buffer,
+          }),
+          createWritable: async () => {
+            let bytes = new Uint8Array();
+            return {
+              write: async (
+                value: string | { arrayBuffer: () => Promise<ArrayBuffer> },
+              ) => {
+                bytes =
+                  typeof value === "string"
+                    ? new TextEncoder().encode(value)
+                    : new Uint8Array(await value.arrayBuffer());
+              },
+              close: async () => {
+                files.set(
+                  fileName,
+                  name === corruptFolder ? bytes.slice(1) : bytes,
+                );
+              },
+              abort: async () => undefined,
+            };
+          },
+        } as unknown as FileSystemFileHandle;
+      },
+      values: () =>
+        (async function* () {
+          for (const fileName of files.keys())
+            yield await handle.getFileHandle(fileName);
+          for (const folder of folders.values()) yield folder;
+        })(),
+      removeEntry: async (entry: string) => {
+        if (!files.delete(entry) && !folders.delete(entry))
+          throw new DOMException("Missing", "NotFoundError");
+      },
+    };
+    return handle as unknown as FileSystemDirectoryHandle;
+  };
+  return {
+    root: directory("Workspace"),
+    corrupt: (name: string | null) => {
+      corruptFolder = name;
+    },
+  };
+}
+
+describe("verified note and folder moves", () => {
+  it("keeps the source when the copied note differs and renames only after verification", async () => {
+    const fixture = moveWorkspace();
+    const original = await fixture.root.getFileHandle("plan.md", {
+      create: true,
+    });
+    const writable = await original.createWritable();
+    await writable.write("# Original");
+    await writable.close();
+    await fixture.root.getDirectoryHandle("archive", { create: true });
+    fixture.corrupt("archive");
+    await expect(
+      moveNote(fixture.root, "plan.md", "archive", "plan"),
+    ).rejects.toThrow("plan.md");
+    expect(await (await original.getFile()).text()).toBe("# Original");
+    fixture.corrupt(null);
+    const renamed = await renameNote(fixture.root, "plan.md", "renamed.md");
+    expect(renamed.content).toBe("# Original");
+    await expect(fixture.root.getFileHandle("plan.md")).rejects.toMatchObject({
+      name: "NotFoundError",
+    });
+  });
+
+  it("preserves nested files on failed verification and removes the source on success", async () => {
+    const fixture = moveWorkspace();
+    const source = await fixture.root.getDirectoryHandle("Projects", {
+      create: true,
+    });
+    const assets = await source.getDirectoryHandle("assets", { create: true });
+    for (const [folder, name, data] of [
+      [source, "note.md", "# Note"],
+      [assets, "photo.png", "binary"],
+    ] as const) {
+      const writable = await (
+        await folder.getFileHandle(name, { create: true })
+      ).createWritable();
+      await writable.write(data);
+      await writable.close();
+    }
+    fixture.corrupt("Broken");
+    await expect(
+      renameFolder(fixture.root, "Projects", "Broken"),
+    ).rejects.toThrow("Projects");
+    expect(
+      await (await (await source.getFileHandle("note.md")).getFile()).text(),
+    ).toBe("# Note");
+    fixture.corrupt(null);
+    await renameFolder(fixture.root, "Projects", "Archive");
+    await expect(
+      fixture.root.getDirectoryHandle("Projects"),
+    ).rejects.toMatchObject({ name: "NotFoundError" });
+    const copied = await fixture.root.getDirectoryHandle("Archive");
+    expect(
+      await (
+        await (
+          await copied.getDirectoryHandle("assets")
+        ).getFileHandle("photo.png")
+      ).getFile(),
+    ).toBeTruthy();
   });
 });

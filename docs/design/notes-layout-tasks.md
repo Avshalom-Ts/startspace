@@ -17,15 +17,15 @@ This is the implementation backlog, not a claim that all design requirements shi
 - [x] Explicit synthetic design preview with in-memory favorites and example tags/relations.
 - [x] ADR 0009 records the layout transition without a storage migration.
 - [x] NOTES-01: versioned portable note IDs, legacy relationship migration, and historical path aliases. See [ADR 0015](../decisions/0015-stable-note-identities.md).
+- [x] NOTES-02: workspace-backed note favorites, tags and recent opens with validation, external-edit detection and cross-tab refresh. See [ADR 0016](../decisions/0016-note-preferences.md).
+- [x] NOTES-03: device-local draft recovery with explicit Recover / Discard and guarded saves. See [ADR 0014](../decisions/0014-notes-draft-recovery.md).
+- [x] NOTES-04: browser-locked note saves, conflict-preserving drafts and collision-safe Save as new file. See [ADR 0017](../decisions/0017-notes-save-conflicts.md).
+- [x] NOTES-05: verified note moves/renames and recursive folder rename with original files preserved on copy mismatch; stable Note IDs and historical paths follow app-managed moves. See [ADR 0018](../decisions/0018-verified-folder-moves.md).
 
 ## Remaining work
 
 | ID | Priority | Task / acceptance criteria | Current UI |
 | --- | --- | --- | --- |
-| NOTES-02 | P1 | Persist favorites/tags/last-opened in workspace after NOTES-01; validate malformed files and external edits, propagate cross-tab updates. | Favorites/Tags visibly planned; preview mocks only; Recent session-only. |
-| NOTES-03 | P1 | Restore dirty drafts after reload/crash, keyed by workspace identity; provide recover/discard and clean up after save. Test revoked access and deleted files. | Complete: device-local recovery prompt after permission and scan; unchanged disk is guarded on save, failed saves retain drafts. See ADR 0014. |
-| NOTES-04 | P1 | Coordinate read-check-write across tabs with browser locks; reject external conflicts, preserve both copies and provide Save as new file. | Content comparison before save; external editors can still race the write. |
-| NOTES-05 | P1 | Complete safe folder rename and post-copy verification for move/rename. Update all related paths. | Folder creation and empty-folder-only delete are available in row menus; rename and move verification remain. |
 | NOTES-06 | P2 | Add bookmark relationship picker using current browser IDs; migrate extension-local relation metadata to workspace deliberately. | Existing relations displayed, Add link marked soon. |
 | NOTES-07 | P2 | Add explicit remote-image consent and relative note links with URL encoding/anchors. | Safe code blocks support Copy code; remote images remain placeholders; simple relative .md links work. Local images are tracked in NOTES-15. |
 | NOTES-08 | P2 | Full keyboard tree arrow navigation, resizable panes, modal inspector drawers and remembered scroll. Last-note restoration is tracked separately in NOTES-12. | Native disclosure/buttons; responsive single-region stages. |
@@ -50,7 +50,7 @@ Each folder row (including root) provides New note and New folder in a three-dot
 
 Use Notes → Preview the layout when disconnected, or #notes?demo=1. The banner always identifies the preview. Synthetic note edits and favorites last only while that preview is mounted. File mutation dialogs do not write. Exit preview returns to the real connection state. No service/network calls are added for demo content; external reference links navigate only when clicked.
 
-Real relationships continue using existing relative paths. Do not describe stable-ID migration, portable tags or crash recovery as complete. Do not remove working APIs/features from other pages because a new design marked them “later”.
+Real relationships use stable Note IDs; old relative-path links are migrated on Notes indexing, with historical aliases for app-managed moves. Note favorites, tags and recent timestamps live in the workspace; crash drafts remain device-local. Do not remove working APIs/features from other pages because a new design marked them “later”.
 
 ## Validation and rerun
 

@@ -77,10 +77,13 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 
 - Notes are normal Markdown (`.md`) files in the user's workspace.
 - A versioned `.startspace/note-identities.json` workspace sidecar maps stable note IDs to relative paths. Task and bookmark edges use stable IDs; legacy path edges are migrated on Notes indexing, with old paths retained as aliases across app-managed moves. Search and file navigation still use paths.
+- Note favorites, tags and last-opened timestamps are stored by stable ID in `.startspace/note-metadata.json`; the last-selected note remains a separate device-local preference. Sidecar edits are validated and read again before mutation; successful changes signal other extension tabs to reload.
+- Note writes check the disk baseline under a per-path browser lock. A second check before closing the writable stream catches intervening external edits; a conflict keeps the draft and offers Save as new file rather than replacing the disk version.
 - Supported raster images are indexed separately from notes and read through the granted File System Access handle for folder thumbnails, image viewing and workspace-relative Markdown previews. Temporary object URLs are revoked on view changes; remote images are not loaded.
 - Persistent two-pane workspace: recursive filesystem explorer in the left pane and active Markdown editor or preview in the main pane.
 - Operations: create, edit, delete, rename, and move notes; create, rename, and recursively delete folders.
 - Folder rename copies all entries to a new sibling directory, then removes the original because the File System Access API has no native rename operation.
+- Note moves verify copied Markdown and unchanged source content; folder renames compare every copied file and folder tree before deleting the source. Partial failures leave paths for manual recovery. App-managed moves update stable Note ID paths and aliases after filesystem success.
 - Import existing Markdown notes/folders; optionally use an existing Markdown folder directly as the workspace.
 - Notes remain usable with external tools (VS Code, Obsidian, etc.).
 - Search indexes both note titles and content.

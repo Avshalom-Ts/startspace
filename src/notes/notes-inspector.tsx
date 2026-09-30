@@ -1,6 +1,5 @@
-// Note information and current workspace task/bookmark relationships. No new
-// persistence format is introduced; unavailable metadata controls are labeled.
-import { useState } from "react";
+// Note information, portable tags and current task/bookmark relationships.
+import { useEffect, useState } from "react";
 import { Check, Link, ListTodo, Plus, X } from "lucide-react";
 import type { NoteEntry } from "../types/notes";
 import type { Task } from "../tasks/tasks-model";
@@ -9,6 +8,10 @@ import type { BookmarkNode } from "../hooks/useBookmarks";
 type Props = {
   note: NoteEntry | null;
   demo: boolean;
+  tags: string[];
+  metadataEnabled: boolean;
+  onAddTag: (tag: string) => Promise<boolean>;
+  onRemoveTag: (tag: string) => void;
   links: BookmarkNode[];
   tasks: Task[];
   availableTasks: Task[];
@@ -22,6 +25,10 @@ type Props = {
 export function NotesInspector({
   note,
   demo,
+  tags,
+  metadataEnabled,
+  onAddTag,
+  onRemoveTag,
   links,
   tasks,
   availableTasks,
@@ -33,6 +40,12 @@ export function NotesInspector({
 }: Props) {
   const [tab, setTab] = useState<"info" | "links" | "tasks">("info");
   const [picker, setPicker] = useState(false);
+  const [tagInput, setTagInput] = useState("");
+  const [tagError, setTagError] = useState("");
+  useEffect(() => {
+    setTagInput("");
+    setTagError("");
+  }, [note?.id]);
   return (
     <aside
       aria-label="Note information"
@@ -75,18 +88,77 @@ export function NotesInspector({
             <>
               <section>
                 <h3 className="mb-3 font-semibold">Tags</h3>
-                {demo ? (
+                {tags.length ? (
                   <div className="flex flex-wrap gap-2">
-                    <span className="notes-tag">homelab</span>
-                    <span className="notes-tag">planning</span>
+                    {tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="notes-tag inline-flex items-center gap-1"
+                      >
+                        {tag}
+                        {!demo && (
+                          <button
+                            type="button"
+                            disabled={!metadataEnabled}
+                            aria-label={`Remove tag ${tag}`}
+                            title={`Remove tag ${tag}`}
+                            onClick={() => onRemoveTag(tag)}
+                          >
+                            <X size={14} aria-hidden="true" />
+                          </button>
+                        )}
+                      </span>
+                    ))}
                   </div>
                 ) : (
-                  <p className="text-muted">Note tags are coming soon.</p>
+                  <p className="text-muted">No tags.</p>
                 )}
-                <button disabled className="notes-button mt-3">
-                  <Plus size={16} aria-hidden="true" /> Add tag
-                  {demo ? " (demo)" : ""}
-                </button>
+                {!demo && (
+                  <form
+                    className="mt-3 flex gap-2"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const tag = tagInput.trim();
+                      if (!tag || tag.length > 64 || tags.includes(tag)) {
+                        setTagError("Enter a new tag (1-64 characters).");
+                        return;
+                      }
+                      void onAddTag(tag).then((ok) => {
+                        if (ok) {
+                          setTagInput("");
+                          setTagError("");
+                        }
+                      });
+                    }}
+                  >
+                    <input
+                      className="notes-input min-w-0 flex-1"
+                      aria-label="New note tag"
+                      placeholder="Tag"
+                      maxLength={64}
+                      disabled={!metadataEnabled}
+                      value={tagInput}
+                      onChange={(event) => {
+                        setTagInput(event.target.value);
+                        setTagError("");
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      className="notes-icon-button"
+                      aria-label="Add tag"
+                      title="Add tag"
+                      disabled={!metadataEnabled || !tagInput.trim()}
+                    >
+                      <Plus size={18} aria-hidden="true" />
+                    </button>
+                  </form>
+                )}
+                {tagError && (
+                  <p role="alert" className="mt-2 text-red-400">
+                    {tagError}
+                  </p>
+                )}
               </section>
               <dl className="space-y-4 border-y border-border py-5">
                 <div>

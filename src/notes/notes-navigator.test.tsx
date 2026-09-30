@@ -26,6 +26,7 @@ describe("NotesNavigator", () => {
     onCreate = vi.fn(),
     onDeleteFolder = vi.fn(),
     workspace: FileSystemDirectoryHandle | null = null,
+    onRenameFolder = vi.fn(),
   ) {
     act(() =>
       root.render(
@@ -42,6 +43,7 @@ describe("NotesNavigator", () => {
           onFolder={vi.fn()}
           onCreate={onCreate}
           onDeleteFolder={onDeleteFolder}
+          onRenameFolder={onRenameFolder}
           onClose={vi.fn()}
         />,
       ),
@@ -108,7 +110,8 @@ describe("NotesNavigator", () => {
   it("scopes actions to each folder and never offers root deletion", () => {
     const onCreate = vi.fn();
     const onDeleteFolder = vi.fn();
-    render("", onCreate, onDeleteFolder);
+    const onRenameFolder = vi.fn();
+    render("", onCreate, onDeleteFolder, null, onRenameFolder);
     expect(
       container.querySelector('[aria-label="Actions for Demo workspace"]')
         ?.parentElement?.textContent,
@@ -124,6 +127,9 @@ describe("NotesNavigator", () => {
 
     act(() => personal?.click());
     act(() => menu?.querySelectorAll<HTMLButtonElement>("button")[2]?.click());
+    expect(onRenameFolder).toHaveBeenCalledWith("Personal");
+    act(() => personal?.click());
+    act(() => menu?.querySelectorAll<HTMLButtonElement>("button")[3]?.click());
     expect(onDeleteFolder).toHaveBeenCalledWith("Personal");
   });
   it("resets disclosures when the workspace changes", () => {

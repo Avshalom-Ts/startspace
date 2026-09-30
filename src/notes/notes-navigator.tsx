@@ -26,6 +26,7 @@ type Props = {
   onFolder: (id: string) => void;
   onCreate: (kind: "note" | "folder", parent: string) => void;
   onDeleteFolder: (id: string) => void;
+  onRenameFolder: (id: string) => void;
   onClose: () => void;
 };
 /** Returns the directory IDs needed to reveal a note's containing folder. */
@@ -95,12 +96,6 @@ export function NotesNavigator(props: Props) {
           return (
             <button
               key={item.id}
-              disabled={item.id === "favorites" && !props.demo}
-              title={
-                item.id === "favorites" && !props.demo
-                  ? "Persistent note favorites are planned."
-                  : undefined
-              }
               className={
                 "notes-nav-row " +
                 (props.view === item.id ? "notes-selected" : "")
@@ -114,7 +109,7 @@ export function NotesNavigator(props: Props) {
               />
               <span className="flex-1 text-left">{item.label}</span>
               <span className="rounded bg-fg/5 px-1.5 text-xs text-muted">
-                {item.id === "favorites" && !props.demo ? "Soon" : item.count}
+                {item.count}
               </span>
             </button>
           );
@@ -140,7 +135,7 @@ export function NotesNavigator(props: Props) {
         <p className="text-xs text-muted">
           {props.demo
             ? "Demo data · not saved"
-            : "Recent shows notes opened this session."}
+            : "Notes stay in your workspace."}
         </p>
       </div>
     </aside>
@@ -171,15 +166,26 @@ function FolderActions(props: Props & { id: string; name: string }) {
           </button>
         ))}
         {props.id && (
-          <button
-            className="block w-full rounded p-2 text-left text-sm hover:bg-fg/10"
-            onClick={(event) => {
-              event.currentTarget.closest("details")?.removeAttribute("open");
-              props.onDeleteFolder(props.id);
-            }}
-          >
-            Delete folder
-          </button>
+          <>
+            <button
+              className="block w-full rounded p-2 text-left text-sm hover:bg-fg/10"
+              onClick={(event) => {
+                event.currentTarget.closest("details")?.removeAttribute("open");
+                props.onRenameFolder(props.id);
+              }}
+            >
+              Rename folder
+            </button>
+            <button
+              className="block w-full rounded p-2 text-left text-sm hover:bg-fg/10"
+              onClick={(event) => {
+                event.currentTarget.closest("details")?.removeAttribute("open");
+                props.onDeleteFolder(props.id);
+              }}
+            >
+              Delete folder
+            </button>
+          </>
         )}
       </div>
     </details>

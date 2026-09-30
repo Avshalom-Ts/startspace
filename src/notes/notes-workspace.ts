@@ -369,26 +369,42 @@ export async function writeNote(
   expectedContent?: string,
 ): Promise<NoteEntry> {
   validateNoteId(noteId);
-  const parent = await directoryAt(workspace, noteFolder(noteId));
-  const handle = await parent.getFileHandle(noteDisplayName(noteId) + ".md");
-  if (
-    expectedContent !== undefined &&
-    (await (await handle.getFile()).text()) !== expectedContent
-  ) {
-    throw new NoteWorkspaceError(
-      "io",
-      "This file changed on disk. Your draft has not been overwritten.",
-    );
-  }
-  const writable = await handle.createWritable();
-  try {
-    await writable.write(content);
-    await writable.close();
-  } catch (error) {
-    await writable.abort().catch(() => undefined);
-    throw error;
-  }
-  return readFileEntry(workspace, noteId);
+  const operation = async () => {
+    const parent = await directoryAt(workspace, noteFolder(noteId));
+    const handle = await parent.getFileHandle(noteDisplayName(noteId) + ".md");
+    if (
+      expectedContent !== undefined &&
+      (await (await handle.getFile()).text()) !== expectedContent
+    ) {
+      throw new NoteWorkspaceError(
+        "io",
+        "This file changed on disk. Your draft has not been overwritten.",
+      );
+    }
+    const writable = await handle.createWritable();
+    try {
+      await writable.write(content);
+      if (
+        expectedContent !== undefined &&
+        (await (await handle.getFile()).text()) !== expectedContent
+      )
+        throw new NoteWorkspaceError(
+          "io",
+          "This file changed on disk while saving. Your draft has not been overwritten.",
+        );
+      await writable.close();
+    } catch (error) {
+      await writable.abort().catch(() => undefined);
+      throw error;
+    }
+    return readFileEntry(workspace, noteId);
+  };
+  return typeof navigator !== "undefined" && navigator.locks
+    ? navigator.locks.request(
+        `startspace:note-write:${workspace.name}/${noteId}`,
+        operation,
+      )
+    : operation();
 }
 
 export async function deleteNote(
@@ -423,26 +439,12 @@ export async function renameNote(
       "Rename cannot change folders.",
       newNoteId,
     );
-  const note = await readNote(workspace, noteId);
-  const parent = await directoryAt(workspace, noteFolder(noteId));
-  const newName = noteDisplayName(newNoteId);
-  validateName(newName);
-  try {
-    await parent.getFileHandle(newName + ".md");
-    throw new NoteWorkspaceError(
-      "already-exists",
-      `A note with that name already exists: "${newNoteId}".`,
-      newNoteId,
-    );
-  } catch (error) {
-    if (!isNotFound(error)) throw error;
-  }
-  const handle = await parent.getFileHandle(newName + ".md", { create: true });
-  const writable = await handle.createWritable();
-  await writable.write(note.content);
-  await writable.close();
-  await parent.removeEntry(noteDisplayName(noteId) + ".md");
-  return readFileEntry(workspace, newNoteId);
+  return moveNote(
+    workspace,
+    noteId,
+    noteFolder(noteId),
+    newNoteId.split("/").pop()!,
+  );
 }
 
 export async function moveNote(
@@ -469,15 +471,39 @@ export async function moveNote(
     if (!isNotFound(error)) throw error;
   }
   const handle = await target.getFileHandle(destination, { create: true });
-  const writable = await handle.createWritable();
-  await writable.write(note.content);
-  await writable.close();
+  const nextId = targetFolderId
+    ? `${targetFolderId}/${destination}`
+    : destination;
+  try {
+    const writable = await handle.createWritable();
+    try {
+      await writable.write(note.content);
+      await writable.close();
+    } catch (error) {
+      await writable.abort().catch(() => undefined);
+      throw error;
+    }
+    if (
+      (await (await handle.getFile()).text()) !== note.content ||
+      (await readNote(workspace, noteId)).content !== note.content
+    )
+      throw new Error("The source or destination changed during the move.");
+  } catch (error) {
+    throw new NoteWorkspaceError(
+      "io",
+      `Could not verify "${nextId}". "${noteId}" was kept. Check both files before retrying: ${errorMessage(error)}`,
+    );
+  }
   const source = await directoryAt(workspace, noteFolder(noteId));
-  await source.removeEntry(noteDisplayName(noteId) + ".md");
-  return readFileEntry(
-    workspace,
-    targetFolderId ? `${targetFolderId}/${destination}` : destination,
-  );
+  try {
+    await source.removeEntry(noteDisplayName(noteId) + ".md");
+  } catch (error) {
+    throw new NoteWorkspaceError(
+      "io",
+      `Copied to "${nextId}" but could not remove "${noteId}". Check both files: ${errorMessage(error)}`,
+    );
+  }
+  return readFileEntry(workspace, nextId);
 }
 
 export async function createFolder(
@@ -557,13 +583,53 @@ async function copyDirectory(
         create: true,
       });
       const writable = await targetFile.createWritable();
-      await writable.write(sourceFile);
-      await writable.close();
+      try {
+        await writable.write(sourceFile);
+        await writable.close();
+      } catch (error) {
+        await writable.abort().catch(() => undefined);
+        throw error;
+      }
     } else if (entry.kind === "directory") {
       const targetDirectory = await destination.getDirectoryHandle(entry.name, {
         create: true,
       });
       await copyDirectory(entry, targetDirectory);
+    }
+  }
+}
+
+/** Compares a copied directory tree byte-for-byte before the source is removed. */
+async function verifyDirectory(
+  source: FileSystemDirectoryHandle,
+  destination: FileSystemDirectoryHandle,
+): Promise<void> {
+  const sourceEntries = [];
+  const destinationEntries = [];
+  for await (const entry of source.values()) sourceEntries.push(entry);
+  for await (const entry of destination.values())
+    destinationEntries.push(entry);
+  if (sourceEntries.length !== destinationEntries.length)
+    throw new Error("Directory entry count differs.");
+  for (const entry of sourceEntries) {
+    const copied = destinationEntries.find(
+      (item) => item.name === entry.name && item.kind === entry.kind,
+    );
+    if (!copied) throw new Error(`Missing copied entry: ${entry.name}`);
+    if (entry.kind === "directory" && copied.kind === "directory")
+      await verifyDirectory(entry, copied);
+    else if (entry.kind === "file" && copied.kind === "file") {
+      const original = new Uint8Array(
+        await (await entry.getFile()).arrayBuffer(),
+      );
+      const result = new Uint8Array(
+        await (await copied.getFile()).arrayBuffer(),
+      );
+      if (
+        original.length !== result.length ||
+        !original.every((byte, index) => byte === result[index])
+      )
+        throw new Error(`Copied file differs: ${entry.name}`);
     }
   }
 }
@@ -612,6 +678,7 @@ export async function renameFolder(
       create: true,
     });
     await copyDirectory(source, destination);
+    await verifyDirectory(source, destination);
     await parent.removeEntry(originalName, { recursive: true });
   } catch (error) {
     if (isNotFound(error))
@@ -620,7 +687,10 @@ export async function renameFolder(
         `Folder not found: "${folderId}".`,
         folderId,
       );
-    throw error;
+    throw new NoteWorkspaceError(
+      "io",
+      `Could not verify or finish renaming "${folderId}" to "${parentId ? `${parentId}/` : ""}${newName}". Check both folders before retrying: ${errorMessage(error)}`,
+    );
   }
   const id = parentId ? `${parentId}/${newName}` : newName;
   return { id, name: newName, noteCount: 0 };

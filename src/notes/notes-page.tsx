@@ -28,6 +28,7 @@ import { deleteImage, moveImage, readNote } from "./notes-workspace";
 import { readLastNote, writeLastNote } from "./last-note";
 import { readDraft, writeDraft, type SavedDraft } from "./draft-recovery";
 import { matchesNoteReference } from "./note-identity";
+import { useNotePreferences } from "./use-note-preferences";
 import { demoIndex } from "./notes-demo";
 import { fileTitle, visibleNotes, type NotesView } from "./notes-model";
 import { NotesNavigator } from "./notes-navigator";
@@ -59,6 +60,14 @@ export function NotesPage() {
   const [demo, setDemo] = useState(
     () => new URLSearchParams(location.hash.split("?")[1]).get("demo") === "1",
   );
+  const preferences = useNotePreferences(
+    workspace.grant.handle,
+    workspace.grant.id,
+    workspace.grant.permission,
+    demo,
+  );
+  const updatePreferenceRef = useRef(preferences.update);
+  updatePreferenceRef.current = preferences.update;
   const [demoNotes, setDemoNotes] = useState(demoIndex);
   const [demoId, setDemoId] = useState(demoIndex.notes[0]!.id);
   const [imageId, setImageId] = useState<string | null>(null);
@@ -79,13 +88,16 @@ export function NotesPage() {
   const [recovery, setRecovery] = useState<SavedDraft | null>(null);
   const [recoveryChecked, setRecoveryChecked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [saveConflict, setSaveConflict] = useState(false);
   const [action, setAction] = useState<
     | "note"
     | "folder"
     | "rename"
     | "move"
     | "delete"
+    | "save-as"
     | "delete-folder"
+    | "rename-folder"
     | "rename-image"
     | "move-image"
     | "delete-image"
@@ -108,6 +120,36 @@ export function NotesPage() {
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const index = demo ? demoNotes : (notes.index ?? emptyIndex);
+  const realFavorites = index.notes
+    .filter(
+      (note) =>
+        note.stableId && preferences.document?.notes[note.stableId]?.favorite,
+    )
+    .map((note) => note.id);
+  const realRecent = index.notes
+    .filter(
+      (note) =>
+        note.stableId &&
+        preferences.document?.notes[note.stableId]?.lastOpenedAt,
+    )
+    .sort((first, second) =>
+      (
+        preferences.document?.notes[second.stableId!]?.lastOpenedAt ?? ""
+      ).localeCompare(
+        preferences.document?.notes[first.stableId!]?.lastOpenedAt ?? "",
+      ),
+    )
+    .map((note) => note.id);
+  useEffect(() => {
+    if (!demo && notes.index && notes.indexHandle === workspace.grant.handle)
+      void preferences.refresh();
+  }, [
+    demo,
+    notes.index,
+    notes.indexHandle,
+    workspace.grant.handle,
+    preferences.refresh,
+  ]);
   const activeImage = (index.images ?? []).find(
     (image) => image.id === imageId,
   );
@@ -245,11 +287,17 @@ export function NotesPage() {
             modifiedAt: new Date().toISOString(),
           }
         : null));
+  const activeTags = demo
+    ? ["homelab", "planning"]
+    : activeNote?.stableId
+      ? (preferences.document?.notes[activeNote.stableId]?.tags ?? [])
+      : [];
   const externalConflict =
     !!selected &&
     selected.id === editingId &&
     dirty &&
     selected.content !== baseline;
+  useEffect(() => setSaveConflict(false), [editingId]);
 
   /** Defers navigation until the dirty document has been resolved by the user. */
   const guard = useCallback((next: () => void) => {
@@ -279,18 +327,32 @@ export function NotesPage() {
     };
   }, [guard]);
 
-  /** Opens a note after a dirty-buffer guard and records only a session recent list. */
+  /** Opens a note after the dirty-buffer guard and records a workspace recent time. */
   const openNote = useCallback(
     (id: string) => {
       openAttemptRef.current++;
       guard(() => {
         setImageId(null);
         if (demo) setDemoId(id);
-        else void notes.selectNote(id);
+        else
+          void notes.selectNote(id).then((result) => {
+            if (result?.ok && result.value.stableId)
+              void updatePreferenceRef.current(
+                result.value.stableId,
+                (current) => ({
+                  ...current,
+                  lastOpenedAt: new Date().toISOString(),
+                }),
+              );
+          });
         setFolder(id.split("/").slice(0, -1).join("/"));
         setView("folder");
         setQuery("");
-        setRecent((current) => [id, ...current.filter((item) => item !== id)]);
+        if (demo)
+          setRecent((current) => [
+            id,
+            ...current.filter((item) => item !== id),
+          ]);
         setMode("preview");
         setPanel("document");
       });
@@ -330,6 +392,14 @@ export function NotesPage() {
       )
         return;
       if (result?.ok) {
+        if (result.value.stableId)
+          void updatePreferenceRef.current(
+            result.value.stableId,
+            (current) => ({
+              ...current,
+              lastOpenedAt: new Date().toISOString(),
+            }),
+          );
         setFolder(result.value.folder);
         setView("folder");
         setPanel("document");
@@ -453,6 +523,7 @@ export function NotesPage() {
         if (!result.ok) throw new Error(result.error.message);
       }
       setBaseline(savedDraft);
+      setSaveConflict(false);
       dirtyRef.current = draftRef.current !== savedDraft;
       failedSaveRef.current = null;
       if (!demo) {
@@ -481,6 +552,7 @@ export function NotesPage() {
           ? cause.message
           : "Could not save. Your draft is still here.";
       failedSaveRef.current = `${activeNote.id}\0${savedDraft}\0${baseline}`;
+      if (/changed on disk|not found/i.test(error)) setSaveConflict(true);
       notifications.error(`Could not save note. ${error}`);
       return false;
     } finally {
@@ -503,6 +575,7 @@ export function NotesPage() {
       !dirty ||
       busy ||
       !activeNote ||
+      action === "save-as" ||
       editingId !== activeNote.id ||
       externalConflict
     )
@@ -521,6 +594,7 @@ export function NotesPage() {
     draft,
     baseline,
     externalConflict,
+    action,
     save,
   ]);
 
@@ -538,15 +612,25 @@ export function NotesPage() {
   /** Opens a contextual file operation without discarding an unsaved buffer. */
   const beginAction = (next: NonNullable<typeof action>, parent = folder) => {
     if (next === "note") openAttemptRef.current++;
+    if (next === "save-as" && activeNote) {
+      setAction(next);
+      setActionFolder(activeNote.folder);
+      setDestination(activeNote.folder);
+      setName(`${fileTitle(activeNote)} copy`);
+      setActionError("");
+      return;
+    }
     guard(() => {
       setAction(next);
       setActionFolder(parent);
       setName(
-        next === "rename" && activeNote
-          ? fileTitle(activeNote)
-          : next === "rename-image" && activeImage
-            ? (activeImage.id.split("/").pop() ?? "")
-            : "",
+        next === "rename-folder"
+          ? (parent.split("/").pop() ?? "")
+          : next === "rename" && activeNote
+            ? fileTitle(activeNote)
+            : next === "rename-image" && activeImage
+              ? (activeImage.id.split("/").pop() ?? "")
+              : "",
       );
       setDestination(
         next === "move"
@@ -612,8 +696,12 @@ export function NotesPage() {
         return;
       }
       const result =
-        action === "note"
-          ? await notes.createNote(destination, name.trim(), "")
+        action === "note" || action === "save-as"
+          ? await notes.createNote(
+              destination,
+              name.trim(),
+              action === "save-as" ? draft : "",
+            )
           : action === "folder"
             ? await notes.createFolder(destination, name.trim())
             : action === "rename" && activeNote
@@ -632,7 +720,9 @@ export function NotesPage() {
                   ? await notes.deleteNote(activeNote.id)
                   : action === "delete-folder"
                     ? await notes.deleteFolder(actionFolder)
-                    : null;
+                    : action === "rename-folder"
+                      ? await notes.renameFolder(actionFolder, name.trim())
+                      : null;
       if (!result?.ok) {
         const error = result && !result.ok ? result.error : null;
         const message = error?.message ?? "Select a note first.";
@@ -646,6 +736,25 @@ export function NotesPage() {
         setMode("edit");
         setPanel("document");
       }
+      if (action === "save-as" && result.value && "content" in result.value) {
+        dirtyRef.current = false;
+        failedSaveRef.current = null;
+        setSaveConflict(false);
+        setEditingId(result.value.id);
+        setDraft(result.value.content);
+        setBaseline(result.value.content);
+        await notes.selectNote(result.value.id);
+        setFolder(result.value.folder);
+        setView("folder");
+        setMode("edit");
+        setPanel("document");
+        if (workspace.grant.id)
+          void writeDraft(workspace.grant.id, null).catch(() =>
+            notifications.error(
+              "The new file was saved, but the recovery copy could not be cleared.",
+            ),
+          );
+      }
       if (action === "delete") {
         if (workspace.grant.id && activeNote)
           await writeLastNote(workspace.grant.id, null);
@@ -656,19 +765,30 @@ export function NotesPage() {
       if (action === "delete-folder" && folder === actionFolder) {
         setFolder(actionFolder.split("/").slice(0, -1).join("/"));
       }
+      if (
+        action === "rename-folder" &&
+        result.value &&
+        "name" in result.value &&
+        (folder === actionFolder || folder.startsWith(`${actionFolder}/`))
+      )
+        setFolder(result.value.id + folder.slice(actionFolder.length));
       setAction(null);
       notifications.success(
         action === "note"
           ? "Note created."
-          : action === "folder"
-            ? "Folder created."
-            : action === "rename"
-              ? "Note renamed."
-              : action === "move"
-                ? "Note moved."
-                : action === "delete-folder"
-                  ? "Folder deleted."
-                  : "Note deleted.",
+          : action === "save-as"
+            ? "Draft saved as a new note."
+            : action === "folder"
+              ? "Folder created."
+              : action === "rename"
+                ? "Note renamed."
+                : action === "move"
+                  ? "Note moved."
+                  : action === "delete-folder"
+                    ? "Folder deleted."
+                    : action === "rename-folder"
+                      ? "Folder renamed."
+                      : "Note deleted.",
       );
     } finally {
       setBusy(false);
@@ -679,8 +799,8 @@ export function NotesPage() {
     view,
     folder,
     query,
-    recent,
-    demo ? favorites : [],
+    demo ? recent : realRecent,
+    demo ? favorites : realFavorites,
     sort,
   );
   const filteredImages =
@@ -837,6 +957,20 @@ export function NotesPage() {
           </button>
         </div>
       )}
+      {preferences.error && !demo && (
+        <div
+          role="alert"
+          className="mb-2 rounded border border-red-400 p-3 text-sm"
+        >
+          Note metadata unavailable: {preferences.error}
+          <button
+            className="ml-3 underline"
+            onClick={() => void preferences.refresh()}
+          >
+            Retry
+          </button>
+        </div>
+      )}
       <div className="mb-2 flex flex-wrap gap-2 min-[1600px]:hidden">
         <button
           className="notes-button min-[1280px]:hidden"
@@ -877,10 +1011,11 @@ export function NotesPage() {
             activeFolder={activeNote?.folder ?? ""}
             workspace={demo ? null : workspace.grant.handle}
             recentCount={
-              recent.filter((id) => index.notes.some((note) => note.id === id))
-                .length
+              (demo ? recent : realRecent).filter((id) =>
+                index.notes.some((note) => note.id === id),
+              ).length
             }
-            favoritesCount={favorites.length}
+            favoritesCount={demo ? favorites.length : realFavorites.length}
             demo={demo}
             onClose={() => setPanel("list")}
             onView={(next) => {
@@ -894,6 +1029,7 @@ export function NotesPage() {
             }}
             onCreate={beginAction}
             onDeleteFolder={(id) => beginAction("delete-folder", id)}
+            onRenameFolder={(id) => beginAction("rename-folder", id)}
           />
         </div>
         <section
@@ -911,7 +1047,9 @@ export function NotesPage() {
                 {view === "folder"
                   ? folder || index.root.name
                   : view === "recent"
-                    ? "Recent · this session"
+                    ? demo
+                      ? "Recent · this session"
+                      : "Recent"
                     : view === "favorites"
                       ? "Favorites"
                       : "All Notes"}
@@ -924,6 +1062,7 @@ export function NotesPage() {
                 onClick={() => {
                   void notes.refresh();
                   void taskData.refresh();
+                  void preferences.refresh();
                 }}
               >
                 <RefreshCw size={20} aria-hidden="true" />
@@ -1038,24 +1177,44 @@ export function NotesPage() {
                         </span>
                       </div>
                     </button>
-                    {demo && (
+                    {(demo || note.stableId) && (
                       <button
                         className="notes-icon-button mr-1 mt-3 shrink-0 text-accent"
                         aria-label={"Favorite " + fileTitle(note)}
                         title={"Favorite " + fileTitle(note)}
-                        aria-pressed={favorites.includes(note.id)}
-                        onClick={() =>
-                          setFavorites((current) =>
-                            current.includes(note.id)
-                              ? current.filter((id) => id !== note.id)
-                              : [...current, note.id],
-                          )
+                        disabled={
+                          !demo &&
+                          (!!preferences.error || !preferences.document)
                         }
+                        aria-pressed={(demo
+                          ? favorites
+                          : realFavorites
+                        ).includes(note.id)}
+                        onClick={() => {
+                          if (demo)
+                            setFavorites((current) =>
+                              current.includes(note.id)
+                                ? current.filter((id) => id !== note.id)
+                                : [...current, note.id],
+                            );
+                          else if (note.stableId)
+                            void preferences
+                              .update(note.stableId, (current) => ({
+                                ...current,
+                                favorite: !current.favorite,
+                              }))
+                              .then((ok) => {
+                                if (!ok)
+                                  notifications.error(
+                                    "Could not update note favorite.",
+                                  );
+                              });
+                        }}
                       >
                         <Star
                           aria-hidden="true"
                           fill={
-                            favorites.includes(note.id)
+                            (demo ? favorites : realFavorites).includes(note.id)
                               ? "currentColor"
                               : "none"
                           }
@@ -1227,20 +1386,22 @@ export function NotesPage() {
                         <Ellipsis size={20} aria-hidden="true" />
                       </summary>
                       <div className="absolute right-0 z-20 mt-1 w-40 rounded-lg border border-border bg-surface p-1 shadow-xl">
-                        {(["rename", "move", "delete"] as const).map((item) => (
-                          <button
-                            key={item}
-                            className="block w-full rounded p-2 text-left text-sm capitalize hover:bg-fg/10"
-                            onClick={(event) => {
-                              event.currentTarget
-                                .closest("details")
-                                ?.removeAttribute("open");
-                              beginAction(item);
-                            }}
-                          >
-                            {item}
-                          </button>
-                        ))}
+                        {(["rename", "move", "save-as", "delete"] as const)
+                          .filter((item) => item !== "save-as" || dirty)
+                          .map((item) => (
+                            <button
+                              key={item}
+                              className="block w-full rounded p-2 text-left text-sm capitalize hover:bg-fg/10"
+                              onClick={(event) => {
+                                event.currentTarget
+                                  .closest("details")
+                                  ?.removeAttribute("open");
+                                beginAction(item);
+                              }}
+                            >
+                              {item === "save-as" ? "Save as new file" : item}
+                            </button>
+                          ))}
                       </div>
                     </details>
                   </div>
@@ -1248,15 +1409,45 @@ export function NotesPage() {
                     <Clock3 size={15} aria-hidden="true" />
                     Last modified:{" "}
                     {new Date(activeNote.modifiedAt).toLocaleString()}
-                    {demo && (
-                      <>
-                        <span className="notes-tag">homelab</span>
-                        <span className="notes-tag">planning</span>
-                      </>
-                    )}
+                    {activeTags.map((tag) => (
+                      <span key={tag} className="notes-tag">
+                        {tag}
+                      </span>
+                    ))}
                   </p>
                 </div>
               </header>
+              {(externalConflict || saveConflict) && dirty && (
+                <div
+                  role="alert"
+                  className="mx-6 mt-3 flex flex-wrap items-center gap-3 border border-red-400 p-3 text-sm"
+                >
+                  <span className="min-w-0 flex-1">
+                    The workspace file changed or is missing. Your draft is
+                    preserved.
+                  </span>
+                  <button
+                    className="notes-button"
+                    onClick={() => beginAction("save-as")}
+                  >
+                    Save as new file
+                  </button>
+                  {selected && (
+                    <button
+                      className="notes-button"
+                      onClick={() =>
+                        guard(() => {
+                          setDraft(selected.content);
+                          setBaseline(selected.content);
+                          setSaveConflict(false);
+                        })
+                      }
+                    >
+                      Reload disk version
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="app-scrollbar min-h-0 flex-1 overflow-auto">
                 {mode === "edit" ? (
                   <textarea
@@ -1305,6 +1496,37 @@ export function NotesPage() {
           <NotesInspector
             note={activeNote}
             demo={demo}
+            tags={activeTags}
+            metadataEnabled={
+              !!activeNote?.stableId &&
+              !!preferences.document &&
+              !preferences.error
+            }
+            onAddTag={async (tag) => {
+              if (!activeNote?.stableId) return false;
+              const ok = await preferences.update(
+                activeNote.stableId,
+                (current) => ({
+                  ...current,
+                  tags: current.tags.includes(tag)
+                    ? current.tags
+                    : [...current.tags, tag],
+                }),
+              );
+              if (!ok) notifications.error("Could not add note tag.");
+              return ok;
+            }}
+            onRemoveTag={(tag) => {
+              if (!activeNote?.stableId) return;
+              void preferences
+                .update(activeNote.stableId, (current) => ({
+                  ...current,
+                  tags: current.tags.filter((item) => item !== tag),
+                }))
+                .then((ok) => {
+                  if (!ok) notifications.error("Could not remove note tag.");
+                });
+            }}
             links={linkedBookmarks}
             tasks={linkedTasks}
             availableTasks={taskData.tasks}
@@ -1347,23 +1569,27 @@ export function NotesPage() {
       {action && (
         <NotesDialog
           title={
-            action === "delete-image"
-              ? "Delete this image?"
-              : action === "rename-image"
-                ? "Rename image"
-                : action === "move-image"
-                  ? "Move image"
-                  : action === "delete-folder"
-                    ? "Delete this empty folder?"
-                    : action === "delete"
-                      ? "Delete this Markdown file?"
-                      : action === "note"
-                        ? "New note"
-                        : action === "folder"
-                          ? "New folder"
-                          : action === "rename"
-                            ? "Rename note"
-                            : "Move note"
+            action === "save-as"
+              ? "Save draft as new note"
+              : action === "delete-image"
+                ? "Delete this image?"
+                : action === "rename-image"
+                  ? "Rename image"
+                  : action === "move-image"
+                    ? "Move image"
+                    : action === "delete-folder"
+                      ? "Delete this empty folder?"
+                      : action === "rename-folder"
+                        ? "Rename folder"
+                        : action === "delete"
+                          ? "Delete this Markdown file?"
+                          : action === "note"
+                            ? "New note"
+                            : action === "folder"
+                              ? "New folder"
+                              : action === "rename"
+                                ? "Rename note"
+                                : "Move note"
           }
           onCancel={() => {
             if (!busy) setAction(null);
@@ -1393,6 +1619,11 @@ export function NotesPage() {
                   links updated.
                 </p>
               )}
+              {action === "save-as" && (
+                <p className="text-sm text-muted">
+                  The original file will not be changed.
+                </p>
+              )}
               {action !== "move" && action !== "move-image" && (
                 <label className="block text-sm">
                   Name
@@ -1409,23 +1640,25 @@ export function NotesPage() {
                   />
                 </label>
               )}
-              {action !== "rename" && action !== "rename-image" && (
-                <label className="block text-sm">
-                  Folder
-                  <select
-                    className="notes-input mt-2"
-                    value={destination}
-                    onChange={(event) => setDestination(event.target.value)}
-                  >
-                    <option value="">Workspace root</option>
-                    {index.folders.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.id}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
+              {action !== "rename" &&
+                action !== "rename-image" &&
+                action !== "rename-folder" && (
+                  <label className="block text-sm">
+                    Folder
+                    <select
+                      className="notes-input mt-2"
+                      value={destination}
+                      onChange={(event) => setDestination(event.target.value)}
+                    >
+                      <option value="">Workspace root</option>
+                      {index.folders.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.id}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
             </div>
           )}
           {actionError && (
@@ -1461,13 +1694,15 @@ export function NotesPage() {
             >
               {busy
                 ? "Working…"
-                : action === "delete-image"
-                  ? "Delete image"
-                  : action === "delete-folder"
-                    ? "Delete folder"
-                    : action === "delete"
-                      ? "Delete file"
-                      : "Confirm"}
+                : action === "save-as"
+                  ? "Save new note"
+                  : action === "delete-image"
+                    ? "Delete image"
+                    : action === "delete-folder"
+                      ? "Delete folder"
+                      : action === "delete"
+                        ? "Delete file"
+                        : "Confirm"}
             </button>
           </div>
         </NotesDialog>
