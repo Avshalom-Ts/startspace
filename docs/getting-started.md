@@ -118,7 +118,10 @@ Once installed and your workspace is chosen:
    description, lists linked notes (link or unlink existing notes) and tasks
    that reference the bookmark. Recent lists bookmarks opened through
    StartSpace in the last 30 days. Create, edit, move and delete still write
-   to the browser's bookmarks. **View all in Links** under bookmark search
+   to the browser's bookmarks. HTTP(S) links use Chrome's browser-managed
+   favicon when available, with a local initial fallback; FTP and file links
+   use the fallback. Chrome may display a permission warning for website icons.
+   **View all in Links** under bookmark search
    results opens All Links filtered by your query. Outside the extension, or with `#links?demo=1`,
    **Preview the layout** shows synthetic bookmarks that are never saved.
 3. **Notes** — browse the folder explorer (closed by default except the opened note's path). Use a folder's three-dot menu to create notes/folders or delete an empty folder. Toggle preview/edit from the note header; edits save after 1 second of inactivity. Rename, move and import services remain available where exposed in the UI.

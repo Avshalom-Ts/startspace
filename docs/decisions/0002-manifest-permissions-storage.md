@@ -45,6 +45,8 @@ Before implementation, we need three things decided enough to build from:
   "permissions": [
     "bookmarks",
     "storage",
+    "search",
+    "favicon",
     "fileSystemAccess"
   ],
   "host_permissions": [],
@@ -69,6 +71,8 @@ Declare only what the product requires:
 
 - **`bookmarks`** — read and manage browser bookmarks via the Bookmark API. Core to the product; bookmarks are the browser's source of truth; StartSpace links its metadata by Bookmark ID.
 - **`storage`** — extension storage for config and bookmark-linked StartSpace metadata. Small, serializable, extension-owned state.
+- **`search`** — use the browser's default search provider only when the user triggers a web search.
+- **`favicon`** — use Chrome's documented Favicon API to display browser-managed icons for HTTP(S) bookmarks without adding site host permissions or direct site image requests. Chrome displays the warning “Read the icons of the websites you visit.”
 - **File System Access API access** — runtime-gained via `showDirectoryPicker()` for workspace selection and file operations. Treat it as a user-granted capability, not a blanket manifest permission; confirm whether a manifest permission is needed in the target browsers and remove anything not actually required.
 
 Do **not** declare, by default in the initial version:

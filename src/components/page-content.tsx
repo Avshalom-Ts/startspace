@@ -19,6 +19,7 @@ import { useNotes } from "../notes/use-notes";
 import { useNotePreferences } from "../notes/use-note-preferences";
 import { useTasks } from "../tasks/use-tasks";
 import type { FolderEntry, NoteEntry } from "../types/notes";
+import { LinkIcon } from "../links/links-ui";
 
 function flattenBookmarks(nodes: BookmarkNode[]): BookmarkNode[] {
   return nodes.flatMap((node) =>
@@ -246,11 +247,20 @@ export function PageContent() {
                   rel="noopener noreferrer"
                   className="flex min-h-20 min-w-0 flex-col items-center justify-center gap-2 rounded-md border border-border bg-page/70 p-2 text-center hover:border-accent/60 hover:bg-accent/10"
                 >
-                  <Globe2
-                    size={25}
-                    aria-hidden="true"
-                    className="text-accent"
-                  />
+                  {bookmark.url ? (
+                    <LinkIcon
+                      title={bookmark.title || bookmark.url}
+                      url={bookmark.url}
+                      size={32}
+                    />
+                  ) : (
+                    <Globe2
+                      size={25}
+                      aria-hidden="true"
+                      className="text-accent"
+                    />
+                  )}
+
                   <span className="w-full truncate text-xs text-fg">
                     {bookmark.title || bookmark.url}
                   </span>

@@ -1,6 +1,6 @@
 # StartSpace Privacy Policy
 
-**Last updated:** 2026-09-30
+**Last updated:** 2026-10-02
 
 StartSpace is a local-first browser extension. It has no StartSpace-operated
 backend, account system, analytics service, advertising service, or cloud
@@ -42,6 +42,11 @@ Limited Use requirements.
 - The `bookmarks` permission provides the bookmark management and search
   features requested by the user.
 - The `storage` permission saves local settings and bookmark-linked metadata.
+- The `favicon` permission lets Chrome's Favicon API provide browser-managed
+  icons for HTTP(S) bookmarks. Chrome may show the warning “Read the icons of
+  the websites you visit.” StartSpace uses the browser's extension favicon
+  endpoint, does not request images directly from bookmark sites or a remote
+  favicon service, and does not store favicon data.
 - File System Access is requested through the browser's folder picker and is
   limited to folders the user chooses.
 

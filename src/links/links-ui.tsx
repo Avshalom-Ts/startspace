@@ -53,7 +53,33 @@ export function useDrawerFocusTrap(
   }, [ref, active, staticQuery]);
 }
 
-/** Local initial badge; no remote favicon service is contacted. */
+/**
+ * Builds a URL for Chrome's local favicon endpoint without adding a bookmark
+ * origin as the image source.
+ *
+ * @param pageUrl - HTTP(S) bookmark URL whose browser-managed icon is shown.
+ * @param endpointUrl - Extension URL for Chrome's `/_favicon/` endpoint.
+ * @param size - Requested favicon size in pixels.
+ * @returns The encoded extension endpoint URL, or undefined for invalid input.
+ */
+export function buildFaviconUrl(
+  pageUrl: string,
+  endpointUrl: string,
+  size = 32,
+): string | undefined {
+  try {
+    const page = new URL(pageUrl);
+    if (page.protocol !== "http:" && page.protocol !== "https:") return;
+    const endpoint = new URL(endpointUrl);
+    endpoint.searchParams.set("pageUrl", page.href);
+    endpoint.searchParams.set("size", String(size));
+    return endpoint.toString();
+  } catch {
+    return;
+  }
+}
+
+/** Local initial badge with a lazy browser favicon and initials fallback. */
 export function LinkIcon({
   title,
   url,
@@ -67,20 +93,47 @@ export function LinkIcon({
   const initial = label.charAt(0).toUpperCase();
   const hue =
     [...label].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 360;
+  let faviconUrl: string | undefined;
+  if (url && typeof chrome !== "undefined" && chrome.runtime?.id) {
+    try {
+      faviconUrl = buildFaviconUrl(url, chrome.runtime.getURL("/_favicon/"));
+    } catch {
+      faviconUrl = undefined;
+    }
+  }
+  const [loadedFavicon, setLoadedFavicon] = useState<string>();
+  const [failedFavicon, setFailedFavicon] = useState<string>();
+
   return (
-    <span
-      aria-hidden="true"
-      className="inline-flex shrink-0 items-center justify-center rounded-lg font-semibold"
-      style={{
-        width: size,
-        height: size,
-        fontSize: size * 0.42,
-        backgroundColor: `oklch(0.32 0.06 ${hue})`,
-        color: `oklch(0.9 0.08 ${hue})`,
-      }}
-    >
-      {initial || <Globe size={size * 0.5} />}
-    </span>
+    <>
+      <span
+        aria-hidden="true"
+        className="relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-lg font-semibold"
+        style={{
+          width: size,
+          height: size,
+          fontSize: size * 0.42,
+          backgroundColor: `oklch(0.32 0.06 ${hue})`,
+          color: `oklch(0.9 0.08 ${hue})`,
+        }}
+      >
+        {initial || <Globe size={size * 0.5} />}
+        {faviconUrl && failedFavicon !== faviconUrl && (
+          <img
+            key={faviconUrl}
+            src={faviconUrl}
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            decoding="async"
+            className="absolute inset-0 size-full rounded-lg bg-surface object-contain"
+            style={{ opacity: loadedFavicon === faviconUrl ? 1 : 0 }}
+            onLoad={() => setLoadedFavicon(faviconUrl)}
+            onError={() => setFailedFavicon(faviconUrl)}
+          />
+        )}
+      </span>
+    </>
   );
 }
 

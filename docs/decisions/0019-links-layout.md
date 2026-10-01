@@ -48,7 +48,7 @@ Grid: four equal columns from 768 px and six from 2560 px (ultrawide) (owner dec
 - Tags are trimmed plain text, deduplicated case-insensitively. Clicking a tag on a card or in the inspector opens All Links with that tag in the filter field; this text filter can also match names, URLs or descriptions containing the word (owner decision 2026-10-01). Description is edited inline.
 - Related Notes lists title/folder with Link existing note and Remove; opening goes to Notes. Related Tasks lists task and status; linking tasks from Links is later (edit on Tasks). Removing a relation never deletes its target.
 - External browser edits update the tree, grid and selection. A selected bookmark deleted elsewhere clears to no selection. A bookmark deleted while its edit dialog is open stays an unsaved form with an explanation and is never recreated automatically.
-- Icons are local initials or browser-provided favicons; no remote favicon service.
+- HTTP(S) bookmark icons use Chrome's documented Favicon API (`/_favicon/`) with the `favicon` permission and lazy image loading. This reads browser-managed favicon data through the extension endpoint; StartSpace does not request images from bookmark sites or a remote favicon service. Local initials (or a globe) remain visible until an icon loads and whenever the API is unavailable or the icon fails. FTP and file bookmarks use the local fallback. Favicon data is not stored in StartSpace metadata or backups.
 - An explicit synthetic preview (`#links?demo=1`, or Preview the layout when bookmarks are unavailable) uses in-memory data and never changes browser bookmarks.
 
 ### States
