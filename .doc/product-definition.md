@@ -43,9 +43,10 @@ The product outcome: a browser homepage that feels like the user's own workspace
   - Browser remains source of truth for: URL, Name, Folder structure, Bookmark ID.
   - StartSpace metadata linked by Bookmark ID: Favorites, Tags, Date added to StartSpace, Related notes/tasks.
   - Browser-backed links and folders manageable from the Links page: create,
-    rename/edit, move, and delete while preserving the folder-chip navigation.
-  - Search links by name or URL across all browser bookmark folders and filter
-    the page to favorite links only.
+    rename/edit, move, and delete from a folder sidebar, bookmark grid/list and
+    details inspector.
+  - Browse All Links, Favorites, Recent (opened through StartSpace) or a folder,
+    sort by name, and filter by text, favorites and tags.
 - **Notes:**
   - Normal Markdown (`.md`) files stored in the user's workspace.
   - Persistent two-pane workspace: recursive folder explorer beside the active editor or Markdown preview.

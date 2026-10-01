@@ -2,7 +2,7 @@
 
 Status: Accepted
 Date: 2026-09-29
-Related: [ADR 0010](0010-notes-context-and-feedback.md), [Notes design](../design/03-notes.md)
+Related: [ADR 0010](0010-notes-context-and-feedback.md), [Notes design](0022-notes-page-design.md)
 
 ## Decision
 

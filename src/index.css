@@ -3,6 +3,11 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
 
 @theme {
+  /* Links `wide:` layout (1440px); rem so it sorts after lg */
+  --breakpoint-wide: 90rem;
+  /* ultrawide monitors (2560px+) */
+  --breakpoint-ultra: 160rem;
+
   /* accent palette */
   --color-accent: oklch(0.65 0.18 245);
   --color-accent-foreground: oklch(0.99 0 0);

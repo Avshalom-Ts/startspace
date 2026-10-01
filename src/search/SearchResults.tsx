@@ -99,6 +99,12 @@ export function SearchResults({
               )}
             </a>
           ))}
+          <a
+            href={`#links?q=${encodeURIComponent(query.trim())}`}
+            className="self-end text-xs text-muted underline hover:text-accent"
+          >
+            View all in Links
+          </a>
         </Group>
       )}
 

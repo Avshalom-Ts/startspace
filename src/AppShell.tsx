@@ -5,7 +5,7 @@ import { SearchBar, PageFooter } from "./components";
 import { NAV } from "./data/nav";
 import { useTheme } from "./hooks/useTheme";
 import { PageContent } from "./components/page-content";
-import { LinksPage } from "./links/LinksPage";
+import { LinksPage } from "./links/links-page";
 import { NotesPage } from "./notes/notes-page";
 import { SettingsPage } from "./settings/SettingsPage";
 import { TasksPage } from "./tasks/tasks-page";
@@ -132,13 +132,14 @@ export function AppShell() {
   const { tree, loading: treeLoading } = bookmarkTree;
   const bookmarkMetadata = useBookmarkMetadata();
   const { metadata, loading: metaLoading } = bookmarkMetadata;
-  const { toggle: toggleFavorite, loading: toggleLoading } =
-    useFavoritesWrite();
+  const { toggle: toggleFavorite } = useFavoritesWrite();
 
   const isLinks = page === "links";
   const isNotes = page === "notes";
   const isSettings = page === "settings";
-  const showLoading = treeLoading || metaLoading || toggleLoading;
+  const fullHeight = isNotes || isLinks;
+  // Favorite toggles must not blank the Links layout, so only initial reads count.
+  const showLoading = treeLoading || metaLoading;
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -155,7 +156,7 @@ export function AppShell() {
   return (
     <div
       className={
-        isNotes
+        fullHeight
           ? "flex h-dvh min-h-0 flex-col bg-page"
           : "min-h-screen flex flex-col bg-page"
       }
@@ -164,12 +165,12 @@ export function AppShell() {
 
       <main
         className={
-          isNotes
+          fullHeight
             ? "flex min-h-0 flex-1 flex-col px-3 pb-3 min-[1280px]:px-4"
             : "flex-1 flex flex-col px-6 py-12 max-w-6xl mx-auto w-full"
         }
       >
-        {isNotes && (
+        {fullHeight && (
           <div className="relative z-20 mx-auto w-full max-w-4xl py-3">
             <SearchBar
               ref={searchInputRef}
@@ -227,9 +228,12 @@ export function AppShell() {
           <LinksPage
             tree={tree}
             metadata={metadata}
+            notes={searchData.notes}
+            tasks={searchData.tasks}
             onToggleFavorite={(id, current) => {
               void toggleFavorite(id, current).then(bookmarkMetadata.reload);
             }}
+            onUpdateMetadata={bookmarkMetadata.update}
             onCreate={bookmarkTree.create}
             onUpdate={bookmarkTree.update}
             onMove={bookmarkTree.move}
@@ -242,13 +246,14 @@ export function AppShell() {
             mutating={bookmarkTree.mutating}
             error={bookmarkTree.error}
             onClearError={bookmarkTree.clearError}
+            onRetry={() => void bookmarkTree.reload()}
           />
         ) : isSettings ? (
           <SettingsPage />
         ) : null}
       </main>
 
-      {!isNotes && <PageFooter />}
+      {!fullHeight && <PageFooter />}
 
       {!mounted && (
         <div className="fixed inset-0 flex items-center justify-center bg-page z-50 pointer-events-none">

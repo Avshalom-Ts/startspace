@@ -109,9 +109,18 @@ On first launch, StartSpace asks you to choose a workspace folder using the File
 Once installed and your workspace is chosen:
 
 1. **Home** — your homepage with favorites (from bookmarks) and the central search bar.
-2. **Links** — search links by name or URL across bookmark folders, show only
-   favorites with the star filter, and keep the folder-chip navigation while
-   creating, editing, moving, and deleting browser-backed links and folders.
+2. **Links** — a three-region view: folder sidebar (All Links, Favorites,
+   Recent, the browser folder tree with descendant counts and folder search),
+   a bookmark grid or list with name sort, browser order inside a folder and
+   a filter field, and a details panel for the selected bookmark.
+   Clicking a card opens the bookmark; the **!** icon shows its details and the copy
+   button copies the URL. The details panel edits tags and a personal
+   description, lists linked notes (link or unlink existing notes) and tasks
+   that reference the bookmark. Recent lists bookmarks opened through
+   StartSpace in the last 30 days. Create, edit, move and delete still write
+   to the browser's bookmarks. **View all in Links** under bookmark search
+   results opens All Links filtered by your query. Outside the extension, or with `#links?demo=1`,
+   **Preview the layout** shows synthetic bookmarks that are never saved.
 3. **Notes** — browse the folder explorer (closed by default except the opened note's path). Use a folder's three-dot menu to create notes/folders or delete an empty folder. Toggle preview/edit from the note header; edits save after 1 second of inactivity. Rename, move and import services remain available where exposed in the UI.
    In Preview, each Markdown code block has a Copy code button; clipboard access must be available in the browser.
    PNG, JPEG, GIF, WebP and AVIF files in the selected folder show thumbnails and can be viewed in the document pane. Markdown can display workspace-relative images from nested asset folders; remote images remain blocked.
@@ -152,4 +161,4 @@ Web search requires the installed extension and its `search` permission. In a we
 
 ## Preview the Notes redesign
 
-On feature/notes-layout, open Notes and choose a workspace for real Markdown editing, or select **Preview the layout** to inspect synthetic sample content. The optional hash route #notes?demo=1 also opens the labeled preview. Demo edits do not write files. Favorites/tags remain planned; Recent is session-only. See [remaining tasks](design/notes-layout-tasks.md).
+On feature/notes-layout, open Notes and choose a workspace for real Markdown editing, or select **Preview the layout** to inspect synthetic sample content. The optional hash route #notes?demo=1 also opens the labeled preview. Demo edits do not write files. Favorites/tags remain planned; Recent is session-only. See [remaining tasks](pages-tasks/notes-layout-tasks.md).

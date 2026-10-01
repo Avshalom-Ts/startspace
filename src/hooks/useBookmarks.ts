@@ -18,6 +18,8 @@ export interface BookmarkNode {
   parentId?: string;
   /** Zero-based position within the parent folder. */
   index?: number;
+  /** Browser creation time in epoch milliseconds, when provided. */
+  dateAdded?: number;
 }
 
 /** StartSpace metadata stored in extension storage, keyed by browser Bookmark ID. */
@@ -32,6 +34,12 @@ export interface BookmarkMetadata {
   relatedNotes: string[];
   /** Task IDs linked to this bookmark. */
   relatedTasks: string[];
+  /** User-written description; never fetched from the site. */
+  description?: string;
+  /** Last time the bookmark was opened through StartSpace (ISO). */
+  lastOpenedAt?: string;
+  /** Last time StartSpace metadata for this bookmark changed (ISO). */
+  updatedAt?: string;
 }
 
 /** Composite view of a bookmark as rendered on the homepage favorites. */

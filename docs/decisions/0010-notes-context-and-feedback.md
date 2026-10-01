@@ -2,7 +2,7 @@
 
 Status: Accepted; NOTES-12 through NOTES-14 implemented
 Date: 2026-09-29
-Related: [ADR 0009](0009-notes-layout-transition.md), [Notes design](../design/03-notes.md), [implementation tasks](../design/notes-layout-tasks.md)
+Related: [ADR 0009](0009-notes-layout-transition.md), [Notes design](0022-notes-page-design.md), [implementation tasks](../pages-tasks/notes-layout-tasks.md)
 
 ## Context
 

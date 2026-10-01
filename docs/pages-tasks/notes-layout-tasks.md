@@ -1,6 +1,6 @@
 # Notes layout implementation tasks
 
-Branch: feature/notes-layout. Visual source: [Notes reference](references/Notes-Page.png).
+Branch: feature/notes-layout. Visual source: [Notes reference](../references/Notes-Page.png).
 This is the implementation backlog, not a claim that all design requirements ship.
 
 ## Implemented in this branch

@@ -60,18 +60,20 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 
 - Uses the browser's Bookmark API.
 - Browser is source of truth for: URL, Name, Folder structure, Bookmark ID.
-- StartSpace metadata is linked by Bookmark ID: Favorites, Tags, Date added to StartSpace, Related notes/tasks.
+- StartSpace metadata is linked by Bookmark ID: Favorites, Tags, Description, Date added to StartSpace, Last opened through StartSpace, Metadata updated, Related notes/tasks.
 - Provides the Links page for managing bookmarks from within StartSpace.
-- Filters the in-memory bookmark tree by link name or URL and bookmark-linked
-  favorite metadata for page-wide Links filtering; no search index or duplicate
-  bookmark store is created.
+- Derives Links views (All, Favorites, Recent, folder with descendants),
+  counts, sorting and text/favorite/tag filters from the in-memory bookmark
+  tree and metadata in pure helpers (`src/links/links-view.ts`); no search
+  index or duplicate bookmark store is created.
 - Favorites are displayed on the homepage, backed by bookmark IDs.
 - Creates, updates, moves, and deletes links and folders through a dedicated
   Bookmark API service; the Links UI never becomes a second bookmark store.
 - Subscribes to bookmark mutation events and refreshes the displayed tree when
   changes originate in StartSpace or the browser bookmark manager.
-- Preserves folder-chip navigation while storing its active path as Bookmark
-  IDs, and cleans linked metadata after confirmed deletion.
+- Uses a three-region layout (folder sidebar, grid/list, inspector) where
+  selecting a card never navigates; see ADR 0019. Cleans linked metadata after
+  confirmed deletion.
 
 ### Notes Module
 
@@ -198,4 +200,4 @@ Browser-default search and the removal of stored engine preferences are defined 
 
 ### Notes layout transition (feature/notes-layout)
 
-ADR 0009 introduces four Notes panes and reuses global search on Notes. Existing path IDs, Markdown files, tasks.json and bookmark metadata remain unchanged. Safe preview and dirty-buffer guards live in the Notes UI. Demo data is explicitly opt-in and in-memory. See docs/design/notes-layout-tasks.md for remaining work.
+ADR 0009 introduces four Notes panes and reuses global search on Notes. Existing path IDs, Markdown files, tasks.json and bookmark metadata remain unchanged. Safe preview and dirty-buffer guards live in the Notes UI. Demo data is explicitly opt-in and in-memory. See docs/pages-tasks/notes-layout-tasks.md for remaining work.

@@ -4,11 +4,25 @@
 // reading real browser bookmarks.
 
 import { describe, expect, it } from "vitest";
-import { filterFavoriteLinks, filterLinks, type LinkSearchItem } from "./links-search";
+import {
+  filterFavoriteLinks,
+  filterLinks,
+  type LinkSearchItem,
+} from "./links-search";
 
 const links: LinkSearchItem[] = [
-  { node: { id: "1", title: "TypeScript Handbook", url: "https://typescriptlang.org/docs" }, folderTitle: "Development" },
-  { node: { id: "2", title: "Chess", url: "https://lichess.org" }, folderTitle: "Games" },
+  {
+    node: {
+      id: "1",
+      title: "TypeScript Handbook",
+      url: "https://typescriptlang.org/docs",
+    },
+    folderTitle: "Development",
+  },
+  {
+    node: { id: "2", title: "Chess", url: "https://lichess.org" },
+    folderTitle: "Games",
+  },
 ];
 
 describe("filterLinks", () => {
@@ -31,15 +45,17 @@ describe("filterLinks", () => {
 
 describe("filterFavoriteLinks", () => {
   it("returns only links marked as favorites", () => {
-    expect(filterFavoriteLinks(links, {
-      "2": {
-        favorites: true,
-        tags: [],
-        dateAdded: "2026-09-03T00:00:00.000Z",
-        relatedNotes: [],
-        relatedTasks: [],
-      },
-    })).toEqual([links[1]]);
+    expect(
+      filterFavoriteLinks(links, {
+        "2": {
+          favorites: true,
+          tags: [],
+          dateAdded: "2026-09-03T00:00:00.000Z",
+          relatedNotes: [],
+          relatedTasks: [],
+        },
+      }),
+    ).toEqual([links[1]]);
   });
 
   it("returns no links when none are favorites", () => {

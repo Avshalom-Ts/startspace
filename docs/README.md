@@ -35,7 +35,7 @@ This `docs/` folder is for reader-friendly guides, references, and operating doc
 - Keep getting-started and user-guide material accurate against the actual implementation, not the product vision alone.
 - Update `.doc/` templates when the product or architecture changes; mirror readable summaries in `docs/` where helpful.
 
-## Page design specifications
+## Page design
 
-See [StartSpace page design decisions](design/README.md) for the approved-image-based Home, Links, Notes, Tasks, Settings and shared UI specifications. These describe the redesign target, including MVP boundaries, and distinguish it from the current implementation and existing ADRs.
+The approved page images live in `references/`. Their design decisions are recorded as ADRs: [0020 shared UI, search and data](decisions/0020-shared-ui-search-and-data.md), [0021 Home](decisions/0021-home-dashboard.md), [0019 Links](decisions/0019-links-layout.md), [0022 Notes](decisions/0022-notes-page-design.md), [0023 Tasks](decisions/0023-tasks-page-design.md) and [0024 Settings](decisions/0024-settings-page-design.md). Earlier ADRs take precedence where they conflict; each design ADR lists those conflicts. Implementation backlogs are in `pages-tasks/*-tasks.md`.
 

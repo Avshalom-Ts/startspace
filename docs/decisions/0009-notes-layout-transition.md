@@ -5,7 +5,7 @@ Date: 2026-09-28
 
 ## Context
 
-The approved Notes image and docs/design/03-notes.md replace the previous two-pane visual target. The current workspace uses relative note paths, H1-derived search titles, tasks.json and browser-local bookmark metadata. A visual change must not silently migrate those stores.
+The approved Notes image and the Notes design (now [ADR 0022](0022-notes-page-design.md)) replace the previous two-pane visual target. The current workspace uses relative note paths, H1-derived search titles, tasks.json and browser-local bookmark metadata. A visual change must not silently migrate those stores.
 
 ## Decision
 
@@ -19,7 +19,7 @@ Demo mode is explicit and uses synthetic in-memory data. It cannot persist demo 
 
 ## Consequences
 
-The design can be reviewed while current data remains compatible. Some design features remain incomplete and are tracked in docs/design/notes-layout-tasks.md. The current session-only Recent list is not a persisted history. No browser store release or commit is authorized by this decision.
+The design can be reviewed while current data remains compatible. Some design features remain incomplete and are tracked in docs/pages-tasks/notes-layout-tasks.md. The current session-only Recent list is not a persisted history. No browser store release or commit is authorized by this decision.
 
 
 ## Follow-up decision
