@@ -4,14 +4,15 @@
 // useTasks; note relationships use workspace-stable IDs and bookmarks use
 // browser Bookmark IDs. No note or bookmark content is duplicated here.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ChevronLeft,
-  ChevronRight,
+  CheckCircle2,
+  Circle,
   Eye,
-  Pencil,
+  LayoutGrid,
   Plus,
-  Trash2,
+  Search,
+  SlidersHorizontal,
   X,
 } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
@@ -25,7 +26,6 @@ import {
   type TaskColumn,
   type TaskStatus,
 } from "./tasks-model";
-import { buildTaskBoardColumns } from "./task-board-columns";
 import { useTasks } from "./use-tasks";
 import { useNotifications } from "../notifications/notification-context";
 
@@ -49,25 +49,30 @@ export function TasksPage() {
   const bookmarks = useBookmarkTree();
   const [query, setQuery] = useState("");
   const [newTitle, setNewTitle] = useState("");
+  const [newTaskStatus, setNewTaskStatus] = useState<string | null>(null);
   const [newColumnTitle, setNewColumnTitle] = useState("");
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
   const [editingColumnTitle, setEditingColumnTitle] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeStatus, setActiveStatus] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
   const [draftStatus, setDraftStatus] = useState<TaskStatus>("todo");
   const [columnPendingDelete, setColumnPendingDelete] =
     useState<TaskColumn | null>(null);
 
-  const visibleTasks = useMemo(
+  const filteredTasks = useMemo(
     () => filterTasks(board.tasks, query),
     [board.tasks, query],
   );
+  const visibleTasks = activeStatus
+    ? filteredTasks.filter((task) => task.status === activeStatus)
+    : filteredTasks;
   const visibleColumns = board.columns.filter((column) => column.visible);
-  const taskBoardColumns = buildTaskBoardColumns(board.columns);
+  const displayedColumns = activeStatus
+    ? visibleColumns.filter((column) => column.id === activeStatus)
+    : visibleColumns;
   const columnsViewportRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
   const selectedTask =
     board.tasks.find((task) => task.id === selectedId) ?? null;
   const bookmarkItems = useMemo(
@@ -94,46 +99,6 @@ export function TasksPage() {
     if (board.error) notifications.error(board.error);
   }, [board.error, notifications]);
 
-  /** Updates which board-navigation arrows can move the horizontal viewport. */
-  const updateScrollControls = useCallback(() => {
-    const viewport = columnsViewportRef.current;
-    if (!viewport) return;
-
-    setCanScrollLeft(viewport.scrollLeft > 0);
-    setCanScrollRight(
-      viewport.scrollLeft + viewport.clientWidth < viewport.scrollWidth - 1,
-    );
-  }, []);
-
-  /** Scrolls the task-column viewport by most of its visible width. */
-  const scrollColumns = (direction: "left" | "right") => {
-    const viewport = columnsViewportRef.current;
-    if (!viewport) return;
-
-    viewport.scrollBy({
-      left:
-        (direction === "left" ? -1 : 1) *
-        Math.max(viewport.clientWidth * 0.8, 240),
-      behavior: "smooth",
-    });
-  };
-
-  useEffect(() => {
-    updateScrollControls();
-    const viewport = columnsViewportRef.current;
-    if (!viewport) return undefined;
-
-    const resizeObserver = new ResizeObserver(updateScrollControls);
-    resizeObserver.observe(viewport);
-    viewport.addEventListener("scroll", updateScrollControls, {
-      passive: true,
-    });
-    return () => {
-      resizeObserver.disconnect();
-      viewport.removeEventListener("scroll", updateScrollControls);
-    };
-  }, [updateScrollControls, visibleColumns.length]);
-
   const selectTask = (task: Task) => {
     setSelectedId(task.id);
     setDraftTitle(task.title);
@@ -141,10 +106,14 @@ export function TasksPage() {
     setDraftStatus(task.status);
   };
 
-  const addTask = async () => {
-    const task = await board.addTask(newTitle);
+  const addTask = async (status?: TaskStatus) => {
+    const task = await board.addTask(
+      newTitle,
+      status ?? newTaskStatus ?? board.columns[0]?.id,
+    );
     if (task) {
       setNewTitle("");
+      setNewTaskStatus(null);
       selectTask(task);
       notifications.success("Task created.");
     }
@@ -227,112 +196,163 @@ export function TasksPage() {
   }
 
   return (
-    <section className="flex h-[calc(100vh-12rem)] min-h-128 w-full max-w-6xl flex-col">
-      {/* Add Tasks button */}
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {/* Search tasks input */}
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search tasks…"
-          className="w-full max-w-sm rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg placeholder-muted focus:border-fg/40 focus:outline-none"
-        />
-        <div className="flex gap-2">
-          <input
-            value={newTitle}
-            onChange={(event) => setNewTitle(event.target.value)}
-            onKeyDown={(event) => event.key === "Enter" && void addTask()}
-            placeholder="New task title"
-            className="w-52 rounded border border-border bg-surface px-3 py-2 text-sm text-fg placeholder-muted focus:border-fg/40 focus:outline-none"
-          />
-          <button
-            onClick={() => void addTask()}
-            className="rounded border border-border bg-page px-3 py-2 text-sm font-medium text-fg hover:border-fg/40 hover:bg-surface"
-          >
-            <Plus
-              size={16}
-              aria-hidden="true"
-              className="inline-block align-middle"
-            />{" "}
-            Add task
-          </button>
-        </div>
-      </div>
-      {(board.loading || notes.loading) && (
-        <span className="text-xs text-muted">Loading…</span>
-      )}
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="mb-2 flex flex-wrap gap-2">
-          {board.columns
-            .filter((column) => !column.visible)
-            .map((column) => (
-              <button
-                key={column.id}
-                onClick={() => void board.toggleColumn(column.id)}
-                className="rounded-full border border-border px-3 py-1 text-xs text-muted hover:border-fg/40 hover:text-fg"
-              >
-                Show {column.title}
-              </button>
-            ))}
-        </div>
-        <div className="flex min-h-0 flex-1 items-stretch gap-2">
+    <section className="flex min-h-0 w-full flex-1 gap-3 overflow-hidden">
+      <aside className="hidden w-52 shrink-0 flex-col rounded-lg border border-border bg-surface/30 p-3 md:flex">
+        <div className="mb-3 flex items-center justify-between px-1">
+          <h2 className="text-sm font-semibold text-fg">Tasks</h2>
           <button
             type="button"
-            onClick={() => scrollColumns("left")}
-            disabled={!canScrollLeft}
-            aria-label="Scroll task columns left"
-            title="Scroll columns left"
-            className="my-auto shrink-0 rounded-full border border-border bg-surface p-2 text-lg leading-none text-fg shadow-sm hover:border-fg/40 hover:bg-page disabled:cursor-not-allowed disabled:opacity-35 cursor-pointer"
+            onClick={() => {
+              setNewTaskStatus(null);
+              document
+                .querySelector<HTMLInputElement>("[data-task-title]")
+                ?.focus();
+            }}
+            title="New task"
+            aria-label="New task"
+            className="rounded p-1 text-muted hover:bg-page hover:text-fg"
           >
-            <ChevronLeft size={20} aria-hidden="true" />
+            <Plus size={18} aria-hidden="true" />
           </button>
+        </div>
+        <nav aria-label="Task views" className="space-y-1">
+          <button
+            type="button"
+            onClick={() => setActiveStatus(null)}
+            aria-current={activeStatus === null ? "page" : undefined}
+            className={`flex min-h-9 w-full items-center justify-between rounded-md px-2 text-sm ${activeStatus === null ? "bg-accent/15 text-fg" : "text-muted hover:bg-page hover:text-fg"}`}
+          >
+            <span className="flex items-center gap-2">
+              <LayoutGrid size={16} aria-hidden="true" /> All tasks
+            </span>
+            <span className="text-xs">{board.tasks.length}</span>
+          </button>
+          <div className="mt-5 border-t border-border pt-4">
+            <h3 className="mb-2 px-2 text-xs font-semibold text-muted">
+              STATUS
+            </h3>
+            {board.columns.map((column) => {
+              const count = board.tasks.filter(
+                (task) => task.status === column.id,
+              ).length;
+              return (
+                <div key={column.id} className="group flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveStatus(column.id)}
+                    aria-current={
+                      activeStatus === column.id ? "page" : undefined
+                    }
+                    className={`flex min-h-9 min-w-0 flex-1 items-center justify-between rounded-md px-2 text-sm ${activeStatus === column.id ? "bg-accent/15 text-fg" : "text-muted hover:bg-page hover:text-fg"}`}
+                  >
+                    <span className="truncate">{column.title}</span>
+                    <span className="ml-2 text-xs">{count}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void board.toggleColumn(column.id)}
+                    title={`${column.visible ? "Hide" : "Show"} ${column.title}`}
+                    aria-label={`${column.visible ? "Hide" : "Show"} ${column.title}`}
+                    className="rounded p-1 text-muted opacity-70 hover:bg-page hover:text-fg"
+                  >
+                    <Eye size={14} aria-hidden="true" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </nav>
+        <div className="mt-auto border-t border-border pt-3">
+          <label
+            className="mb-2 block text-xs font-semibold text-muted"
+            htmlFor="new-task-column"
+          >
+            ADD COLUMN
+          </label>
+          <input
+            id="new-task-column"
+            value={newColumnTitle}
+            onChange={(event) => setNewColumnTitle(event.target.value)}
+            onKeyDown={(event) => event.key === "Enter" && void addColumn()}
+            placeholder="Column name"
+            className="w-full rounded-md border border-border bg-page px-2 py-1.5 text-sm text-fg placeholder-muted focus:border-accent focus:outline-none"
+          />
+          <button
+            onClick={() => void addColumn()}
+            className="mt-2 flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-sm text-muted hover:bg-page hover:text-fg"
+          >
+            <Plus size={15} aria-hidden="true" /> Add column
+          </button>
+        </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="mb-3 flex flex-wrap items-end justify-between gap-3 px-1">
+          <div>
+            <h1 className="text-xl font-semibold text-fg">Tasks</h1>
+            <p className="mt-0.5 text-xs text-muted">
+              {query
+                ? `${visibleTasks.length} of ${board.tasks.length} tasks`
+                : `${board.tasks.length} tasks`}
+              {` · ${visibleColumns.length} columns`}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <label className="relative">
+              <Search
+                size={16}
+                aria-hidden="true"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted"
+              />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Filter tasks"
+                aria-label="Filter tasks"
+                className="h-9 w-44 rounded-md border border-border bg-surface pl-8 pr-3 text-sm text-fg placeholder-muted focus:border-accent focus:outline-none"
+              />
+            </label>
+            <div className="hidden items-center gap-1 rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-muted sm:flex">
+              <SlidersHorizontal size={14} aria-hidden="true" /> Grouped by
+              status
+            </div>
+            <input
+              data-task-title
+              value={newTitle}
+              onChange={(event) => setNewTitle(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && void addTask()}
+              placeholder="New task title"
+              aria-label="New task title"
+              className="h-9 w-40 rounded-md border border-border bg-surface px-3 text-sm text-fg placeholder-muted focus:border-accent focus:outline-none"
+            />
+            <button
+              onClick={() => void addTask()}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-sm font-medium text-accent-foreground hover:brightness-110"
+            >
+              <Plus size={16} aria-hidden="true" /> Add task
+            </button>
+          </div>
+        </header>
+        {(board.loading || notes.loading) && (
+          <p className="mb-2 text-xs text-muted" role="status">
+            Loading tasks…
+          </p>
+        )}
+        <div className="flex min-h-0 flex-1 gap-3">
           <div
             ref={columnsViewportRef}
-            className="app-scrollbar min-h-0 flex-1 overflow-x-auto overflow-y-hidden scroll-smooth"
+            className="app-scrollbar min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
           >
-            <div className="flex h-full min-w-full gap-4 p-2">
-              {taskBoardColumns.map((item) => {
-                if (item.kind === "add-column") {
-                  return (
-                    <section
-                      key="add-column"
-                      className="flex min-h-0 w-[calc((100%-3rem)/4)] min-w-52 shrink-0 flex-col rounded-lg border border-dashed border-border bg-surface/20 p-4"
-                    >
-                      <input
-                        value={newColumnTitle}
-                        onChange={(event) =>
-                          setNewColumnTitle(event.target.value)
-                        }
-                        onKeyDown={(event) =>
-                          event.key === "Enter" && void addColumn()
-                        }
-                        placeholder="Column name"
-                        aria-label="New column name"
-                        className="mt-4 w-full rounded border border-border bg-surface px-3 py-2 text-sm text-fg placeholder-muted focus:border-fg/40 focus:outline-none"
-                      />
-                      <button
-                        onClick={() => void addColumn()}
-                        className="mt-2 rounded border border-border bg-page px-3 py-2 text-sm font-medium text-fg hover:border-fg/40 hover:bg-surface"
-                      >
-                        <Plus
-                          size={16}
-                          aria-hidden="true"
-                          className="inline-block align-middle"
-                        />{" "}
-                        Add column
-                      </button>
-                    </section>
-                  );
-                }
-
-                const { column } = item;
+            <div className="flex h-full min-w-max items-stretch gap-3 pb-2">
+              {displayedColumns.map((column) => {
                 const columnTasks = visibleTasks.filter(
                   (task) => task.status === column.id,
                 );
                 return (
                   <section
                     key={column.id}
+                    aria-label={`${column.title} tasks`}
                     onDragOver={(event) => event.preventDefault()}
                     onDrop={(event) => {
                       const taskId = event.dataTransfer.getData("text/task-id");
@@ -342,17 +362,14 @@ export function TasksPage() {
                       if (task && task.status !== column.id)
                         void moveTask(task, column.id);
                     }}
-                    className="flex min-h-0 w-[calc((100%-3rem)/4)] min-w-52 shrink-0 flex-col rounded-lg border border-border bg-surface/30 p-3"
+                    className="flex min-h-0 w-73.75 min-w-65 max-w-90 flex-[0_0_295px] flex-col rounded-lg border border-border bg-surface/30 p-2.5"
                   >
-                    <div className="mb-3 flex shrink-0 items-center gap-2">
-                      <button
-                        onClick={() => void board.toggleColumn(column.id)}
-                        title="Hide column"
-                        aria-label={`Hide ${column.title}`}
-                        className="shrink-0 text-base text-muted hover:text-fg"
-                      >
-                        <Eye size={18} aria-hidden="true" />
-                      </button>
+                    <div className="mb-2 flex shrink-0 items-center gap-2 px-1">
+                      <Circle
+                        size={16}
+                        aria-hidden="true"
+                        className="text-accent"
+                      />
                       {editingColumnId === column.id ? (
                         <input
                           autoFocus
@@ -370,27 +387,27 @@ export function TasksPage() {
                             }
                           }}
                           aria-label="Edit column name"
-                          className="min-w-0 flex-1 rounded border border-fg/40 bg-surface px-1 py-0.5 text-sm font-semibold text-fg focus:outline-none"
+                          className="min-w-0 flex-1 rounded border border-border bg-page px-1 py-0.5 text-sm font-semibold text-fg"
                         />
                       ) : (
                         <button
                           onClick={() => beginRenameColumn(column)}
-                          title="Edit column name"
-                          className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-fg hover:text-accent"
+                          title="Rename column"
+                          className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-fg"
                         >
                           {column.title}
                         </button>
                       )}
-                      <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
+                      <span className="rounded-full bg-page px-2 py-0.5 text-xs text-muted">
                         {columnTasks.length}
                       </span>
                       <button
                         onClick={() => setColumnPendingDelete(column)}
-                        title="Delete column"
+                        title={`Delete ${column.title}`}
                         aria-label={`Delete ${column.title}`}
-                        className="text-xs text-muted hover:text-red-500"
+                        className="rounded p-1 text-muted hover:bg-page hover:text-red-500"
                       >
-                        <X size={18} aria-hidden="true" />
+                        <X size={15} aria-hidden="true" />
                       </button>
                     </div>
                     <div className="app-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -401,44 +418,47 @@ export function TasksPage() {
                           onDragStart={(event) =>
                             event.dataTransfer.setData("text/task-id", task.id)
                           }
-                          className={`cursor-grab rounded-lg border bg-page p-3 active:cursor-grabbing ${selectedId === task.id ? "border-fg" : "border-border"}`}
+                          className={`rounded-md border bg-page p-3 ${selectedId === task.id ? "border-accent bg-accent/10" : "border-border"}`}
                         >
                           <div className="flex items-start gap-2">
-                            <div className="min-w-0 flex-1">
-                              <h3 className="truncate text-sm font-medium text-fg">
+                            <button
+                              type="button"
+                              onClick={() => selectTask(task)}
+                              aria-label={`Open ${task.title}`}
+                              className="mt-0.5 shrink-0 text-muted hover:text-accent"
+                            >
+                              {column.title.toLowerCase() === "done" ? (
+                                <CheckCircle2 size={17} aria-hidden="true" />
+                              ) : (
+                                <Circle size={17} aria-hidden="true" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => selectTask(task)}
+                              className="min-w-0 flex-1 text-left"
+                            >
+                              <h3 className="wrap-break-word text-sm font-medium text-fg">
                                 {task.title}
                               </h3>
                               {task.description && (
-                                <p className="mt-1 line-clamp-2 text-xs text-muted">
+                                <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted">
                                   {task.description}
                                 </p>
                               )}
                               {(task.noteIds.length > 0 ||
                                 task.bookmarkIds.length > 0) && (
                                 <p className="mt-2 text-xs text-muted">
-                                  {task.noteIds.length} note link(s) ·{" "}
-                                  {task.bookmarkIds.length} bookmark link(s)
+                                  {task.noteIds.length > 0 &&
+                                    `${task.noteIds.length} notes`}
+                                  {task.noteIds.length > 0 &&
+                                    task.bookmarkIds.length > 0 &&
+                                    " · "}
+                                  {task.bookmarkIds.length > 0 &&
+                                    `${task.bookmarkIds.length} links`}
                                 </p>
                               )}
-                            </div>
-                            <div className="flex shrink-0 items-center gap-1">
-                              <button
-                                onClick={() => selectTask(task)}
-                                title="Edit task"
-                                aria-label={`Edit ${task.title}`}
-                                className="rounded p-1 text-base leading-none text-muted hover:bg-surface hover:text-fg"
-                              >
-                                <Pencil size={18} aria-hidden="true" />
-                              </button>
-                              <button
-                                onClick={() => void board.deleteTask(task.id)}
-                                title="Delete task"
-                                aria-label={`Delete ${task.title}`}
-                                className="rounded p-1 text-base leading-none text-muted hover:bg-surface hover:text-red-500"
-                              >
-                                <Trash2 size={18} aria-hidden="true" />
-                              </button>
-                            </div>
+                            </button>
                           </div>
                         </article>
                       ))}
@@ -448,27 +468,84 @@ export function TasksPage() {
                         </p>
                       )}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewTaskStatus(column.id);
+                        document
+                          .querySelector<HTMLInputElement>("[data-task-title]")
+                          ?.focus();
+                      }}
+                      className="mt-2 flex min-h-9 shrink-0 items-center justify-center gap-1 rounded-md border border-transparent text-sm text-muted hover:border-border hover:bg-page hover:text-fg"
+                    >
+                      <Plus size={15} aria-hidden="true" /> Add task
+                    </button>
                   </section>
                 );
               })}
+              {displayedColumns.length === 0 && (
+                <div className="flex min-h-40 min-w-65 items-center justify-center rounded-lg border border-dashed border-border px-6 text-center text-sm text-muted">
+                  All columns are hidden. Show a column from the task sidebar.
+                </div>
+              )}
             </div>
           </div>
           <button
             type="button"
-            onClick={() => scrollColumns("right")}
-            disabled={!canScrollRight}
-            aria-label="Scroll task columns right"
-            title="Scroll columns right"
-            className="my-auto shrink-0 rounded-full border border-border bg-surface p-2 text-lg leading-none text-fg shadow-sm hover:border-fg/40 hover:bg-page disabled:cursor-not-allowed disabled:opacity-35 cursor-pointer"
+            onClick={() => setSelectedId(null)}
+            aria-label="Close task details"
+            className={`fixed inset-0 z-30 bg-black/40 wide:hidden ${selectedTask ? "block" : "hidden"}`}
+          />
+          <aside
+            className={`${selectedTask ? "fixed inset-y-0 right-0 z-40 flex w-full max-w-md shadow-2xl wide:static wide:z-auto wide:w-[18rem] wide:max-w-none wide:shadow-none" : "hidden wide:flex wide:w-[18rem]"} shrink-0 flex-col overflow-y-auto rounded-l-lg border border-border bg-surface p-3`}
           >
-            <ChevronRight size={20} aria-hidden="true" />
-          </button>
+            {selectedTask ? (
+              <TaskDetails
+                task={selectedTask}
+                title={draftTitle}
+                description={draftDescription}
+                notes={notes.index?.notes ?? []}
+                noteAliases={notes.index?.noteAliases ?? {}}
+                bookmarks={bookmarkItems}
+                columns={board.columns}
+                status={draftStatus}
+                onTitleChange={setDraftTitle}
+                onDescriptionChange={setDraftDescription}
+                onStatusChange={setDraftStatus}
+                onSave={() => void saveDetails()}
+                onDelete={() => {
+                  void board.deleteTask(selectedTask.id).then((deleted) => {
+                    if (deleted) setSelectedId(null);
+                  });
+                }}
+                onClose={() => setSelectedId(null)}
+                onToggleLink={(kind, value) => {
+                  const note =
+                    kind === "note"
+                      ? notes.index?.notes.find(
+                          (item) => (item.stableId ?? item.id) === value,
+                        )
+                      : null;
+                  const previous =
+                    note &&
+                    selectedTask.noteIds.find((reference) =>
+                      matchesNoteReference(
+                        reference,
+                        note.id,
+                        note.stableId,
+                        notes.index?.noteAliases,
+                      ),
+                    );
+                  void board.linkTask(selectedTask.id, kind, previous ?? value);
+                }}
+              />
+            ) : (
+              <p className="m-auto max-w-48 text-center text-sm text-muted">
+                Select a task to see its details.
+              </p>
+            )}
+          </aside>
         </div>
-        {visibleColumns.length === 0 && (
-          <p className="rounded-lg border border-border p-6 text-center text-sm text-muted">
-            All columns are hidden. Use the buttons above to show one.
-          </p>
-        )}
       </div>
 
       {columnPendingDelete && (
@@ -512,63 +589,6 @@ export function TasksPage() {
           </div>
         </div>
       )}
-
-      {selectedTask && (
-        <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4"
-          role="presentation"
-          onMouseDown={(event) =>
-            event.target === event.currentTarget && setSelectedId(null)
-          }
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="task-details-title"
-            className="app-scrollbar max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-border bg-page p-5 shadow-xl"
-          >
-            <TaskDetails
-              task={selectedTask}
-              title={draftTitle}
-              description={draftDescription}
-              notes={notes.index?.notes ?? []}
-              noteAliases={notes.index?.noteAliases ?? {}}
-              bookmarks={bookmarkItems}
-              columns={board.columns}
-              status={draftStatus}
-              onTitleChange={setDraftTitle}
-              onDescriptionChange={setDraftDescription}
-              onStatusChange={setDraftStatus}
-              onSave={() => void saveDetails()}
-              onDelete={() => {
-                void board.deleteTask(selectedTask.id).then((deleted) => {
-                  if (deleted) setSelectedId(null);
-                });
-              }}
-              onClose={() => setSelectedId(null)}
-              onToggleLink={(kind, value) => {
-                const note =
-                  kind === "note"
-                    ? notes.index?.notes.find(
-                        (item) => (item.stableId ?? item.id) === value,
-                      )
-                    : null;
-                const previous =
-                  note &&
-                  selectedTask.noteIds.find((reference) =>
-                    matchesNoteReference(
-                      reference,
-                      note.id,
-                      note.stableId,
-                      notes.index?.noteAliases,
-                    ),
-                  );
-                void board.linkTask(selectedTask.id, kind, previous ?? value);
-              }}
-            />
-          </div>
-        </div>
-      )}
     </section>
   );
 }
@@ -608,9 +628,12 @@ function TaskDetails({
 }) {
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 id="task-details-title" className="text-sm font-semibold text-fg">
-          Task details
+      <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
+        <h2
+          id="task-details-title"
+          className="min-w-0 truncate text-sm font-semibold text-fg"
+        >
+          {title || task.title}
         </h2>
         <div className="flex items-center gap-3">
           <button
@@ -623,25 +646,26 @@ function TaskDetails({
             onClick={onClose}
             aria-label="Close task details"
             title="Close task details"
-            className="rounded border border-border px-2 py-1 text-sm text-muted hover:border-fg/40 hover:text-fg"
+            className="rounded p-1 text-muted hover:bg-page hover:text-fg"
           >
             <X size={18} aria-hidden="true" />
           </button>
         </div>
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="space-y-4">
         <div className="space-y-3">
           <input
             value={title}
             onChange={(event) => onTitleChange(event.target.value)}
-            className="w-full rounded border border-border bg-surface px-3 py-2 text-sm text-fg focus:border-fg/40 focus:outline-none"
+            aria-label="Task title"
+            className="w-full rounded-md border border-border bg-page px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
           />
           <label className="block text-xs font-medium text-muted">
             Column
             <select
               value={status}
               onChange={(event) => onStatusChange(event.target.value)}
-              className="mt-1 w-full rounded border border-border bg-surface px-3 py-2 text-sm text-fg focus:border-fg/40 focus:outline-none"
+              className="mt-1 w-full rounded-md border border-border bg-page px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
             >
               {columns.map((column) => (
                 <option key={column.id} value={column.id}>
@@ -655,16 +679,16 @@ function TaskDetails({
             onChange={(event) => onDescriptionChange(event.target.value)}
             placeholder="Description"
             rows={5}
-            className="w-full resize-y rounded border border-border bg-surface px-3 py-2 text-sm text-fg placeholder-muted focus:border-fg/40 focus:outline-none"
+            className="w-full resize-y rounded-md border border-border bg-page px-3 py-2 text-sm text-fg placeholder-muted focus:border-accent focus:outline-none"
           />
           <button
             onClick={onSave}
-            className="rounded border border-border bg-page px-3 py-2 text-sm text-fg hover:border-fg/40 hover:bg-surface"
+            className="min-h-9 w-full rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground hover:brightness-110"
           >
             Save details
           </button>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-4 border-t border-border pt-4">
           <LinkPicker
             title="Link notes"
             items={notes.map((note) => ({

@@ -79,13 +79,13 @@ export function useTasks() {
   );
 
   const addTask = useCallback(
-    async (title: string): Promise<Task | null> => {
+    async (title: string, status?: TaskStatus): Promise<Task | null> => {
       const trimmed = title.trim();
       if (!trimmed) {
         setError("Enter a task title.");
         return null;
       }
-      const task = makeTask(trimmed);
+      const task = makeTask(trimmed, status);
       return (await save([task, ...tasks])) ? task : null;
     },
     [save, tasks],

@@ -5,7 +5,7 @@
 // deterministic unit-test targets.
 
 export type TaskStatus = string;
-export type TaskLinkKind = 'note' | 'bookmark';
+export type TaskLinkKind = "note" | "bookmark";
 
 export interface TaskColumn {
   id: string;
@@ -31,9 +31,9 @@ export interface TasksDocument {
 }
 
 export const DEFAULT_COLUMNS: TaskColumn[] = [
-  { id: 'todo', title: 'To do', visible: true },
-  { id: 'in-progress', title: 'In progress', visible: true },
-  { id: 'done', title: 'Done', visible: true },
+  { id: "todo", title: "To do", visible: true },
+  { id: "in-progress", title: "In progress", visible: true },
+  { id: "done", title: "Done", visible: true },
 ];
 
 /** Creates a new customizable Kanban column. */
@@ -48,25 +48,43 @@ export function toggleColumnVisibility(column: TaskColumn): TaskColumn {
 }
 
 /** Creates a new task with an empty description and no linked items. */
-export function createTask(title: string): Task {
+export function createTask(title: string, status: TaskStatus = "todo"): Task {
   const now = new Date().toISOString();
-  const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? `task-${crypto.randomUUID()}`
-    : `task-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return { id, title: title.trim(), description: '', status: 'todo', createdAt: now, updatedAt: now, noteIds: [], bookmarkIds: [] };
+  const id =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? `task-${crypto.randomUUID()}`
+      : `task-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return {
+    id,
+    title: title.trim(),
+    description: "",
+    status,
+    createdAt: now,
+    updatedAt: now,
+    noteIds: [],
+    bookmarkIds: [],
+  };
 }
 
 /** Filters tasks by a case-insensitive match against title or description. */
 export function filterTasks(tasks: Task[], query: string): Task[] {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return tasks;
-  return tasks.filter((task) => `${task.title}\n${task.description}`.toLowerCase().includes(normalized));
+  return tasks.filter((task) =>
+    `${task.title}\n${task.description}`.toLowerCase().includes(normalized),
+  );
 }
 
 /** Adds or removes a note path or browser bookmark ID from a task. */
-export function toggleTaskLink(task: Task, kind: TaskLinkKind, value: string): Task {
-  const key = kind === 'note' ? 'noteIds' : 'bookmarkIds';
+export function toggleTaskLink(
+  task: Task,
+  kind: TaskLinkKind,
+  value: string,
+): Task {
+  const key = kind === "note" ? "noteIds" : "bookmarkIds";
   const values = task[key];
-  const nextValues = values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
+  const nextValues = values.includes(value)
+    ? values.filter((item) => item !== value)
+    : [...values, value];
   return { ...task, [key]: nextValues, updatedAt: new Date().toISOString() };
 }

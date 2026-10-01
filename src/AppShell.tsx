@@ -137,7 +137,7 @@ export function AppShell() {
   const isLinks = page === "links";
   const isNotes = page === "notes";
   const isSettings = page === "settings";
-  const fullHeight = isNotes || isLinks;
+  const fullHeight = isNotes || isLinks || page === "tasks";
   // Favorite toggles must not blank the Links layout, so only initial reads count.
   const showLoading = treeLoading || metaLoading;
 
