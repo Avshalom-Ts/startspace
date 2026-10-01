@@ -7,6 +7,8 @@
 - Icon-only controls need an accessible name and a tooltip (`title`); decorative icons alongside visible text should be hidden from assistive technology.
 - Build responsive interfaces for the supported screen sizes.
 - Keep feedback messages concise, specific, and actionable.
+- Keep transient operation feedback, status messages, and error banners out of page work areas such as the Notes document pane; use global notifications or omit nonessential feedback.
+- When a message requires the user to choose an action or explicitly dismiss it, use a persistent, top-center global interactive message with clear actions that stays until acted on or dismissed. Keep field validation next to its field and confirmation workflows in dialogs.
 
 ## Extension Pages
 

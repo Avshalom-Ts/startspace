@@ -88,7 +88,6 @@ export function NotesPage() {
   const [recovery, setRecovery] = useState<SavedDraft | null>(null);
   const [recoveryChecked, setRecoveryChecked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [saveConflict, setSaveConflict] = useState(false);
   const [action, setAction] = useState<
     | "note"
     | "folder"
@@ -297,7 +296,6 @@ export function NotesPage() {
     selected.id === editingId &&
     dirty &&
     selected.content !== baseline;
-  useEffect(() => setSaveConflict(false), [editingId]);
 
   /** Defers navigation until the dirty document has been resolved by the user. */
   const guard = useCallback((next: () => void) => {
@@ -531,7 +529,6 @@ export function NotesPage() {
         if (!result.ok) throw new Error(result.error.message);
       }
       setBaseline(savedDraft);
-      setSaveConflict(false);
       dirtyRef.current = draftRef.current !== savedDraft;
       failedSaveRef.current = null;
       if (!demo) {
@@ -560,7 +557,6 @@ export function NotesPage() {
           ? cause.message
           : "Could not save. Your draft is still here.";
       failedSaveRef.current = `${activeNote.id}\0${savedDraft}\0${baseline}`;
-      if (/changed on disk|not found/i.test(error)) setSaveConflict(true);
       notifications.error(`Could not save note. ${error}`);
       return false;
     } finally {
@@ -747,7 +743,6 @@ export function NotesPage() {
       if (action === "save-as" && result.value && "content" in result.value) {
         dirtyRef.current = false;
         failedSaveRef.current = null;
-        setSaveConflict(false);
         setEditingId(result.value.id);
         setDraft(result.value.content);
         setBaseline(result.value.content);
@@ -1425,37 +1420,6 @@ export function NotesPage() {
                   </p>
                 </div>
               </header>
-              {(externalConflict || saveConflict) && dirty && (
-                <div
-                  role="alert"
-                  className="mx-6 mt-3 flex flex-wrap items-center gap-3 border border-red-400 p-3 text-sm"
-                >
-                  <span className="min-w-0 flex-1">
-                    The workspace file changed or is missing. Your draft is
-                    preserved.
-                  </span>
-                  <button
-                    className="notes-button"
-                    onClick={() => beginAction("save-as")}
-                  >
-                    Save as new file
-                  </button>
-                  {selected && (
-                    <button
-                      className="notes-button"
-                      onClick={() =>
-                        guard(() => {
-                          setDraft(selected.content);
-                          setBaseline(selected.content);
-                          setSaveConflict(false);
-                        })
-                      }
-                    >
-                      Reload disk version
-                    </button>
-                  )}
-                </div>
-              )}
               <div className="app-scrollbar min-h-0 flex-1 overflow-auto">
                 {mode === "edit" ? (
                   <textarea
