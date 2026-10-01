@@ -18,7 +18,18 @@ export interface WorkspaceRef {
 export interface Config {
   version: number;
   currentWorkspace: WorkspaceRef | null;
+  preferences?: Partial<UserPreferences>;
 }
+
+export interface UserPreferences {
+  showGreeting: boolean;
+  openLinksInNewTab: boolean;
+}
+
+export const DEFAULT_PREFERENCES: UserPreferences = {
+  showGreeting: true,
+  openLinksInNewTab: false,
+};
 
 // ---------------------------------------------------------------------------
 // Storage helpers — extension storage via chrome.storage.local.
@@ -61,7 +72,7 @@ function readConfig(): Promise<Config | null> {
 }
 
 function writeConfig(config: Config): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const chromeExt = (
       globalThis as {
         chrome?: {
@@ -81,7 +92,18 @@ function writeConfig(config: Config): Promise<void> {
       return;
     }
     chromeExt.storage.local.set({ [CONFIG_KEY]: config }, () => {
-      resolve();
+      const runtime = (
+        globalThis as {
+          chrome?: { runtime?: { lastError?: { message?: string } } };
+        }
+      ).chrome?.runtime;
+      if (runtime?.lastError)
+        reject(
+          new Error(
+            runtime.lastError.message ?? "Settings could not be saved.",
+          ),
+        );
+      else resolve();
     });
   });
 }
@@ -116,6 +138,14 @@ export function useConfig() {
         const defaultCfg: Config = {
           version: 1,
           currentWorkspace: cfg?.currentWorkspace ?? null,
+          preferences: {
+            ...DEFAULT_PREFERENCES,
+            ...Object.fromEntries(
+              Object.entries(cfg?.preferences ?? {}).filter(
+                ([key]) => key !== "showQuickLinks",
+              ),
+            ),
+          },
         };
         setConfig(defaultCfg);
         setLoading(false);

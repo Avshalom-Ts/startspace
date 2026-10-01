@@ -51,6 +51,19 @@ export function useBookmarkTree() {
   useEffect(() => void reload(), [reload]);
 
   useEffect(() => {
+    const storage = (globalThis as { chrome?: typeof chrome }).chrome?.storage;
+    if (!storage?.onChanged) return;
+    const refreshMetadata = (
+      changes: Record<string, unknown>,
+      areaName: string,
+    ) => {
+      if (areaName === "local" && changes[META_KEY]) void reload();
+    };
+    storage.onChanged.addListener(refreshMetadata);
+    return () => storage.onChanged.removeListener(refreshMetadata);
+  }, [reload]);
+
+  useEffect(() => {
     const api = (globalThis as { chrome?: typeof chrome }).chrome?.bookmarks;
     if (!api) return;
     const refresh = () => void reload();

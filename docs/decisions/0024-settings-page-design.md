@@ -31,7 +31,7 @@ A category click replaces the center and keeps the rail. Navigation list with `a
 ### General
 
 - **Appearance:** theme choice per ADR 0009 plus the accent swatch. Additional themes/accents only with complete accessible tokens; no decorative disabled choices.
-- **Startup & Behavior:** Show greeting on Home (default on; hides text only); Show quick links on Home (default on; hides only that panel); Open links in new tab (default off; normal bookmark activation only; modifiers still work); Confirm before deleting items is always on and shown as informational.
+- **Startup & Behavior:** Show greeting on Home (default on; hides text only); Open links in new tab (default off; normal bookmark activation only; modifiers still work); Confirm before deleting items is always on and shown as informational.
 - Settings save immediately, announce Saved only after success and revert on failure; no page-wide Save button.
 - **Date & Time:** show OS locale, timezone and a local example. Format/timezone overrides are later and never rewrite task dates.
 

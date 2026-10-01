@@ -90,7 +90,11 @@ export function LinksPage(props: LinksPageProps) {
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [deleting, setDeleting] = useState<BookmarkNode | null>(null);
   const [view, setView] = useState<LinksView>({ kind: "all" });
-  const [layout, setLayout] = useState<LinksLayout>("grid");
+  const [layout, setLayout] = useState<LinksLayout>(() =>
+    localStorage.getItem("startspace.links.layout") === "list"
+      ? "list"
+      : "grid",
+  );
   const [sort, setSort] = useState<LinksSort>("name-asc");
   const [filters, setFilters] = useState<LinkFilters>(EMPTY_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -102,6 +106,16 @@ export function LinksPage(props: LinksPageProps) {
   >(undefined);
   const foldersRef = useRef<HTMLDivElement>(null);
   const inspectorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const syncLayout = (event: Event) => {
+      const next = (event as CustomEvent<LinksLayout>).detail;
+      if (next === "grid" || next === "list") setLayout(next);
+    };
+    window.addEventListener("startspace:links-layout-changed", syncLayout);
+    return () =>
+      window.removeEventListener("startspace:links-layout-changed", syncLayout);
+  }, []);
 
   const tree = demo ? demoLinksTree : props.tree;
   const metadata = demo ? demoMetadata : props.metadata;
@@ -123,15 +137,26 @@ export function LinksPage(props: LinksPageProps) {
   useDrawerFocusTrap(inspectorRef, inspectorDrawer, "(min-width: 90rem)");
 
   useEffect(() => {
-    const applySearchHandoff = () => {
-      const query = new URLSearchParams(location.hash.split("?")[1]).get("q");
-      if (!query) return;
-      setView({ kind: "all" });
-      setFilters({ ...EMPTY_FILTERS, text: query });
+    const applyNavigationHandoff = () => {
+      const params = new URLSearchParams(location.hash.split("?")[1]);
+      const query = params.get("q");
+      const viewName = params.get("view");
+      const tag = params.get("tag");
+      if (viewName === "favorites" || viewName === "recent") {
+        setView({ kind: viewName });
+        setFilters(EMPTY_FILTERS);
+      } else if (tag) {
+        setView({ kind: "all" });
+        setFilters({ ...EMPTY_FILTERS, tags: [tag] });
+      } else if (query) {
+        setView({ kind: "all" });
+        setFilters({ ...EMPTY_FILTERS, text: query });
+      }
     };
-    applySearchHandoff();
-    window.addEventListener("hashchange", applySearchHandoff);
-    return () => window.removeEventListener("hashchange", applySearchHandoff);
+    applyNavigationHandoff();
+    window.addEventListener("hashchange", applyNavigationHandoff);
+    return () =>
+      window.removeEventListener("hashchange", applyNavigationHandoff);
   }, []);
 
   useEffect(() => {

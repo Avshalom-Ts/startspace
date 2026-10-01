@@ -4,6 +4,7 @@ import { Header } from "./Header";
 import { SearchBar, PageFooter } from "./components";
 import { NAV } from "./data/nav";
 import { useTheme } from "./hooks/useTheme";
+import { useConfig } from "./hooks/useConfig";
 import { PageContent } from "./components/page-content";
 import { LinksPage } from "./links/links-page";
 import { NotesPage } from "./notes/notes-page";
@@ -13,7 +14,7 @@ import { useBookmarkTree, useBookmarkMetadata } from "./hooks/useBookmarkTree";
 import { useSearchData } from "./search/use-search-data";
 import { searchWeb } from "./search/browser-search";
 import { useNotifications } from "./notifications/notification-context";
-import { orchestrateSearch } from "./search/search";
+import { orchestrateSearch, type SearchScope } from "./search/search";
 import { SearchResults } from "./search/SearchResults";
 import { collectBookmarkNodeIds } from "./bookmarks/bookmark-tree";
 import { useFavoritesWrite } from "./links/favorites-list";
@@ -28,8 +29,10 @@ type PageName = (typeof PAGE_NAMES)[number];
 export function AppShell() {
   const notifications = useNotifications();
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchScope, setSearchScope] = useState<SearchScope>("all");
   const [activeSearchResult, setActiveSearchResult] = useState(-1);
   const { mounted } = useTheme();
+  const { config: appConfig } = useConfig();
   const [page, setPage] = useState<PageName>("home");
   const routeRef = useRef(window.location.hash || "#home");
 
@@ -82,8 +85,14 @@ export function AppShell() {
   // Data needed by pages.
   const searchData = useSearchData();
   const searchResults = useMemo(
-    () => orchestrateSearch(searchData, searchQuery),
-    [searchData, searchQuery],
+    () =>
+      orchestrateSearch(
+        searchData,
+        searchQuery,
+        undefined,
+        page === "home" ? searchScope : "all",
+      ),
+    [searchData, searchQuery, searchScope, page],
   );
   const searchResultUrls = useMemo(
     () => [
@@ -137,7 +146,7 @@ export function AppShell() {
   const isLinks = page === "links";
   const isNotes = page === "notes";
   const isSettings = page === "settings";
-  const fullHeight = isNotes || isLinks || page === "tasks";
+  const fullHeight = isNotes || isLinks || page === "tasks" || isSettings;
   // Favorite toggles must not blank the Links layout, so only initial reads count.
   const showLoading = treeLoading || metaLoading;
 
@@ -167,7 +176,9 @@ export function AppShell() {
         className={
           fullHeight
             ? "flex min-h-0 flex-1 flex-col px-3 pb-3 min-[1280px]:px-4"
-            : "flex-1 flex flex-col px-6 py-12 max-w-6xl mx-auto w-full"
+            : page === "home"
+              ? "flex-1 flex flex-col px-4 pb-4 w-full"
+              : "flex-1 flex flex-col px-6 py-12 max-w-6xl mx-auto w-full"
         }
       >
         {fullHeight && (
@@ -193,29 +204,72 @@ export function AppShell() {
           </div>
         )}
         {page === "home" && (
-          <div className="flex-1 flex flex-col items-center justify-center">
-            <div className="relative w-full max-w-3xl py-3">
-              <SearchBar
-                ref={searchInputRef}
-                value={searchQuery}
-                onChange={(query) => {
-                  setSearchQuery(query);
-                  setActiveSearchResult(-1);
-                }}
-                onSubmit={submitSearch}
-                onNavigate={navigateSearchResults}
-              />
-              {searchQuery.trim() && (
-                <div className="absolute inset-x-0 top-full z-20 mt-2">
-                  <SearchResults
-                    onWebSearch={() => void submitWebSearch()}
-                    results={searchResults}
-                    query={searchQuery}
-                    activeResultIndex={activeSearchResult}
-                  />
-                </div>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <section className="home-hero -mx-4 flex min-h-56 flex-col items-center justify-center px-4 py-6 text-center">
+              {(appConfig?.preferences?.showGreeting ?? true) && (
+                <>
+                  <h1 className="text-2xl font-semibold text-fg">
+                    Good{" "}
+                    {new Date().getHours() >= 5 && new Date().getHours() < 12
+                      ? "morning"
+                      : new Date().getHours() < 18 &&
+                          new Date().getHours() >= 12
+                        ? "afternoon"
+                        : "evening"}
+                    !
+                  </h1>
+                  <p className="mt-1 text-sm text-muted">
+                    Your browser. Your workspace. Your data.
+                  </p>
+                </>
               )}
-            </div>
+              <div className="relative mt-4 w-full max-w-5xl">
+                <SearchBar
+                  ref={searchInputRef}
+                  value={searchQuery}
+                  onChange={(query) => {
+                    setSearchQuery(query);
+                    setActiveSearchResult(-1);
+                  }}
+                  onSubmit={submitSearch}
+                  onNavigate={navigateSearchResults}
+                />
+                <nav
+                  aria-label="Search scope"
+                  className="mt-2 flex flex-wrap justify-center gap-2"
+                >
+                  {(
+                    [
+                      ["all", "All"],
+                      ["bookmarks", "Bookmarks"],
+                      ["notes", "Notes"],
+                      ["tasks", "Tasks"],
+                      ["web", "Web"],
+                    ] as const
+                  ).map(([scope, label]) => (
+                    <button
+                      key={scope}
+                      type="button"
+                      aria-pressed={searchScope === scope}
+                      onClick={() => setSearchScope(scope)}
+                      className={`rounded-full border px-3 py-1 text-xs ${searchScope === scope ? "border-accent bg-accent/15 text-fg" : "border-border bg-surface/70 text-muted hover:text-fg"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </nav>
+                {searchQuery.trim() && (
+                  <div className="absolute inset-x-0 top-full z-20 mt-2">
+                    <SearchResults
+                      onWebSearch={() => void submitWebSearch()}
+                      results={searchResults}
+                      query={searchQuery}
+                      activeResultIndex={activeSearchResult}
+                    />
+                  </div>
+                )}
+              </div>
+            </section>
             <PageContent />
           </div>
         )}

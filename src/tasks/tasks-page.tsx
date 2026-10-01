@@ -99,6 +99,15 @@ export function TasksPage() {
     if (board.error) notifications.error(board.error);
   }, [board.error, notifications]);
 
+  useEffect(() => {
+    if (!selectedTask) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedId(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [selectedTask?.id]);
+
   const selectTask = (task: Task) => {
     setSelectedId(task.id);
     setDraftTitle(task.title);
@@ -339,7 +348,7 @@ export function TasksPage() {
             Loading tasks…
           </p>
         )}
-        <div className="flex min-h-0 flex-1 gap-3">
+        <div className="relative flex min-h-0 flex-1 gap-3">
           <div
             ref={columnsViewportRef}
             className="app-scrollbar min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden"
@@ -490,61 +499,62 @@ export function TasksPage() {
               )}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setSelectedId(null)}
-            aria-label="Close task details"
-            className={`fixed inset-0 z-30 bg-black/40 wide:hidden ${selectedTask ? "block" : "hidden"}`}
-          />
-          <aside
-            className={`${selectedTask ? "fixed inset-y-0 right-0 z-40 flex w-full max-w-md shadow-2xl wide:static wide:z-auto wide:w-[18rem] wide:max-w-none wide:shadow-none" : "hidden wide:flex wide:w-[18rem]"} shrink-0 flex-col overflow-y-auto rounded-l-lg border border-border bg-surface p-3`}
-          >
-            {selectedTask ? (
-              <TaskDetails
-                task={selectedTask}
-                title={draftTitle}
-                description={draftDescription}
-                notes={notes.index?.notes ?? []}
-                noteAliases={notes.index?.noteAliases ?? {}}
-                bookmarks={bookmarkItems}
-                columns={board.columns}
-                status={draftStatus}
-                onTitleChange={setDraftTitle}
-                onDescriptionChange={setDraftDescription}
-                onStatusChange={setDraftStatus}
-                onSave={() => void saveDetails()}
-                onDelete={() => {
-                  void board.deleteTask(selectedTask.id).then((deleted) => {
-                    if (deleted) setSelectedId(null);
-                  });
-                }}
-                onClose={() => setSelectedId(null)}
-                onToggleLink={(kind, value) => {
-                  const note =
-                    kind === "note"
-                      ? notes.index?.notes.find(
-                          (item) => (item.stableId ?? item.id) === value,
-                        )
-                      : null;
-                  const previous =
-                    note &&
-                    selectedTask.noteIds.find((reference) =>
-                      matchesNoteReference(
-                        reference,
-                        note.id,
-                        note.stableId,
-                        notes.index?.noteAliases,
-                      ),
-                    );
-                  void board.linkTask(selectedTask.id, kind, previous ?? value);
-                }}
+          {selectedTask && (
+            <>
+              <button
+                type="button"
+                onClick={() => setSelectedId(null)}
+                aria-label="Close task details"
+                title="Close task details"
+                className="absolute inset-0 z-20 bg-black/40 wide:hidden"
               />
-            ) : (
-              <p className="m-auto max-w-48 text-center text-sm text-muted">
-                Select a task to see its details.
-              </p>
-            )}
-          </aside>
+              <div className="absolute inset-y-0 right-0 z-30 flex w-full max-w-md flex-col shadow-2xl md:w-90 wide:w-82.5">
+                <TaskDetails
+                  task={selectedTask}
+                  title={draftTitle}
+                  description={draftDescription}
+                  notes={notes.index?.notes ?? []}
+                  noteAliases={notes.index?.noteAliases ?? {}}
+                  bookmarks={bookmarkItems}
+                  columns={board.columns}
+                  status={draftStatus}
+                  onTitleChange={setDraftTitle}
+                  onDescriptionChange={setDraftDescription}
+                  onStatusChange={setDraftStatus}
+                  onSave={() => void saveDetails()}
+                  onDelete={() => {
+                    void board.deleteTask(selectedTask.id).then((deleted) => {
+                      if (deleted) setSelectedId(null);
+                    });
+                  }}
+                  onClose={() => setSelectedId(null)}
+                  onToggleLink={(kind, value) => {
+                    const note =
+                      kind === "note"
+                        ? notes.index?.notes.find(
+                            (item) => (item.stableId ?? item.id) === value,
+                          )
+                        : null;
+                    const previous =
+                      note &&
+                      selectedTask.noteIds.find((reference) =>
+                        matchesNoteReference(
+                          reference,
+                          note.id,
+                          note.stableId,
+                          notes.index?.noteAliases,
+                        ),
+                      );
+                    void board.linkTask(
+                      selectedTask.id,
+                      kind,
+                      previous ?? value,
+                    );
+                  }}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -627,8 +637,11 @@ function TaskDetails({
   onToggleLink: (kind: "note" | "bookmark", value: string) => void;
 }) {
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
+    <aside
+      aria-label="Task details"
+      className="app-scrollbar flex h-full min-h-0 flex-col overflow-y-auto rounded-lg border border-border bg-surface p-3"
+    >
+      <div className="sticky top-0 z-10 mb-4 flex items-center justify-between border-b border-border bg-surface pb-3">
         <h2
           id="task-details-title"
           className="min-w-0 truncate text-sm font-semibold text-fg"
@@ -719,7 +732,7 @@ function TaskDetails({
           />
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
 
@@ -739,7 +752,7 @@ function LinkPicker({
       <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
         {title}
       </h3>
-      <div className="app-scrollbar max-h-44 space-y-1 overflow-y-auto rounded border border-border p-2">
+      <div className="space-y-1 rounded border border-border p-2">
         {items.length === 0 ? (
           <p className="text-xs text-muted">None available</p>
         ) : (

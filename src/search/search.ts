@@ -9,20 +9,21 @@
 // workspace scan, extension config) lives in use-search-data.ts; rendering
 // lives in SearchResults.tsx.
 
-import { searchNotes, type NoteSearchResult } from '../notes/notes-search';
-import { filterTasks, type Task } from '../tasks/tasks-model';
-import type { BookmarkNode } from '../hooks/useBookmarks';
-import type { NoteEntry } from '../types/notes';
+import { searchNotes, type NoteSearchResult } from "../notes/notes-search";
+import { filterTasks, type Task } from "../tasks/tasks-model";
+import type { BookmarkNode } from "../hooks/useBookmarks";
+import type { NoteEntry } from "../types/notes";
 
 /** Default maximum number of results shown per group. */
 export const DEFAULT_GROUP_LIMIT = 5;
+export type SearchScope = "all" | "bookmarks" | "notes" | "tasks" | "web";
 
 /** A bookmark that matched the query, with its match reason. */
 export interface BookmarkSearchResult {
   /** The matched bookmark (a leaf node with a `url`). */
   bookmark: BookmarkNode;
   /** Why it matched: 'title' ranks above 'url'. */
-  matchType: 'title' | 'url';
+  matchType: "title" | "url";
 }
 
 /** The grouped output of one orchestrated search, in display order. */
@@ -60,19 +61,24 @@ export function flattenBookmarks(nodes: BookmarkNode[]): BookmarkNode[] {
  * @param query - The search query. Empty queries return nothing.
  * @returns Matches sorted by relevance: title matches first, then URL matches.
  */
-export function searchBookmarks(bookmarks: BookmarkNode[], query: string): BookmarkSearchResult[] {
+export function searchBookmarks(
+  bookmarks: BookmarkNode[],
+  query: string,
+): BookmarkSearchResult[] {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return [];
 
   const results: BookmarkSearchResult[] = [];
   for (const bookmark of bookmarks) {
     if (bookmark.title.toLowerCase().includes(normalized)) {
-      results.push({ bookmark, matchType: 'title' });
+      results.push({ bookmark, matchType: "title" });
     } else if (bookmark.url?.toLowerCase().includes(normalized)) {
-      results.push({ bookmark, matchType: 'url' });
+      results.push({ bookmark, matchType: "url" });
     }
   }
-  results.sort((a, b) => (a.matchType === b.matchType ? 0 : a.matchType === 'title' ? -1 : 1));
+  results.sort((a, b) =>
+    a.matchType === b.matchType ? 0 : a.matchType === "title" ? -1 : 1,
+  );
   return results;
 }
 
@@ -97,6 +103,7 @@ export function orchestrateSearch(
   },
   query: string,
   limit: number = DEFAULT_GROUP_LIMIT,
+  scope: SearchScope = "all",
 ): SearchResults {
   const normalized = query.trim();
   if (!normalized) {
@@ -104,9 +111,21 @@ export function orchestrateSearch(
   }
 
   return {
-    bookmarks: searchBookmarks(flattenBookmarks(input.bookmarkTree), normalized).slice(0, limit),
-    notes: searchNotes(input.notes, normalized).slice(0, limit),
-    tasks: filterTasks(input.tasks, normalized).slice(0, limit),
-    webQuery: normalized,
+    bookmarks:
+      scope === "all" || scope === "bookmarks"
+        ? searchBookmarks(
+            flattenBookmarks(input.bookmarkTree),
+            normalized,
+          ).slice(0, limit)
+        : [],
+    notes:
+      scope === "all" || scope === "notes"
+        ? searchNotes(input.notes, normalized).slice(0, limit)
+        : [],
+    tasks:
+      scope === "all" || scope === "tasks"
+        ? filterTasks(input.tasks, normalized).slice(0, limit)
+        : [],
+    webQuery: scope === "all" || scope === "web" ? normalized : null,
   };
 }

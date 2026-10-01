@@ -469,7 +469,15 @@ export function NotesPage() {
       if (!location.hash.startsWith("#notes")) return;
       const params = new URLSearchParams(location.hash.split("?")[1]);
       const id = params.get("note");
-      if (id) openNote(id);
+      if (id) {
+        openNote(id);
+        return;
+      }
+      const nextView = params.get("view");
+      setView(
+        nextView === "recent" || nextView === "favorites" ? nextView : "all",
+      );
+      setPanel("list");
     };
     openHash();
     window.addEventListener("hashchange", openHash);
