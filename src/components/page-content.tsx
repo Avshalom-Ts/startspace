@@ -4,7 +4,6 @@ import {
   ChevronRight,
   Clock3,
   FileText,
-  Folder,
   Globe2,
   Plus,
   Star,
@@ -18,7 +17,7 @@ import { useNotifications } from "../notifications/notification-context";
 import { useNotes } from "../notes/use-notes";
 import { useNotePreferences } from "../notes/use-note-preferences";
 import { useTasks } from "../tasks/use-tasks";
-import type { FolderEntry, NoteEntry } from "../types/notes";
+import type { NoteEntry } from "../types/notes";
 import { LinkIcon } from "../links/links-ui";
 
 function flattenBookmarks(nodes: BookmarkNode[]): BookmarkNode[] {
@@ -73,11 +72,6 @@ function DashboardPanel({
       {children}
     </section>
   );
-}
-
-function parentFolder(path: string): string {
-  const separator = path.lastIndexOf("/");
-  return separator < 0 ? "" : path.slice(0, separator);
 }
 
 /** Renders live browser and workspace data on the Home dashboard. */
@@ -169,65 +163,9 @@ export function PageContent() {
       notifications.error("Task completion could not be saved. Try again.");
   };
 
-  const folders = notes.index?.folders ?? [];
-  const notesByFolder = notes.index?.notes ?? [];
-  const folderCount = (folder: FolderEntry): number =>
-    notesByFolder.filter(
-      (note) =>
-        note.folder === folder.id || note.folder.startsWith(`${folder.id}/`),
-    ).length;
-  const topFolders = folders
-    .filter((folder) => folder.id && !parentFolder(folder.id))
-    .slice(0, 7);
-  const renderFolder = (folder: FolderEntry, depth = 0): React.ReactNode => {
-    const nestedFolders = folders.filter(
-      (candidate) => parentFolder(candidate.id) === folder.id,
-    );
-    const folderNotes = notesByFolder.filter(
-      (note) => note.folder === folder.id,
-    );
-    return (
-      <details
-        key={folder.id}
-        className="group"
-        style={{ marginLeft: depth * 12 }}
-      >
-        <summary className="flex min-h-8 cursor-pointer list-none items-center gap-2 border-b border-border/70 text-sm text-fg marker:hidden">
-          <ChevronRight
-            size={13}
-            aria-hidden="true"
-            className="shrink-0 transition-transform group-open:rotate-90"
-          />
-          <Folder
-            size={15}
-            aria-hidden="true"
-            className="shrink-0 text-accent"
-          />
-          <span className="min-w-0 flex-1 truncate">{folder.name}</span>
-          <span className="rounded bg-page px-1.5 py-0.5 text-xs text-muted">
-            {folderCount(folder)}
-          </span>
-        </summary>
-        {(nestedFolders.length > 0 || folderNotes.length > 0) && (
-          <div className="border-l border-border pl-2">
-            {nestedFolders.map((child) => renderFolder(child, depth + 1))}
-            {folderNotes.slice(0, 6).map((note) => (
-              <a
-                key={note.id}
-                href={`#notes?note=${encodeURIComponent(note.id)}`}
-                className="flex min-h-7 items-center gap-2 truncate text-xs text-muted hover:text-accent"
-              >
-                <FileText size={13} aria-hidden="true" /> {note.title}
-              </a>
-            ))}
-          </div>
-        )}
-      </details>
-    );
-  };
-
   return (
     <div className="mx-auto grid min-h-0 w-full max-w-[1800px] flex-1 grid-cols-1 items-stretch gap-3 pt-3 min-[1024px]:grid-cols-2 min-[1500px]:grid-cols-3 min-[1500px]:grid-rows-2">
+      {/* Favorites Panel */}
       <div className="contents">
         <DashboardPanel
           title="Favorites"
@@ -281,9 +219,10 @@ export function PageContent() {
         </DashboardPanel>
       </div>
 
+      {/* Recent Notes Panel */}
       <div className="contents">
         <DashboardPanel
-          title="Recent"
+          title="Recent Notes"
           icon={Clock3}
           href="#notes?view=recent"
           className="order-1 min-h-0 min-[1500px]:col-start-1 min-[1500px]:row-start-1 min-[1500px]:row-span-2"
@@ -332,11 +271,12 @@ export function PageContent() {
           )}
         </DashboardPanel>
 
+        {/* Tasks Panel */}
         <DashboardPanel
           title="Tasks"
           icon={Check}
           href="#tasks"
-          className="order-3 min-h-0 min-[1500px]:col-start-3 min-[1500px]:row-start-1"
+          className="order-3 min-h-0 min-[1500px]:col-start-3 min-[1500px]:row-start-1 min-[1500px]:row-span-2"
         >
           {!workspaceReady ? (
             <p className="py-2 text-sm text-muted">
@@ -387,32 +327,6 @@ export function PageContent() {
               <span>No tasks yet.</span>
               <a href="#tasks" className="text-accent hover:underline">
                 New task
-              </a>
-            </div>
-          )}
-        </DashboardPanel>
-      </div>
-
-      <div className="contents">
-        <DashboardPanel
-          title="Notes"
-          icon={FileText}
-          href="#notes"
-          className="order-4 min-h-0 max-h-128 overflow-y-auto min-[1500px]:col-start-3 min-[1500px]:row-start-2 min-[1500px]:max-h-none"
-        >
-          {!workspaceReady ? (
-            <p className="py-2 text-sm text-muted">
-              Choose a workspace to browse notes.
-            </p>
-          ) : notes.loading ? (
-            <p className="py-2 text-sm text-muted">Loading folders…</p>
-          ) : topFolders.length ? (
-            <div>{topFolders.map((folder) => renderFolder(folder))}</div>
-          ) : (
-            <div className="flex justify-between py-2 text-sm text-muted">
-              <span>No folders yet.</span>
-              <a href="#notes" className="text-accent hover:underline">
-                New note / folder
               </a>
             </div>
           )}
