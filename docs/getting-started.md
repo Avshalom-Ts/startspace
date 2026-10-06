@@ -56,6 +56,32 @@ bundle, and verifies that the required manifest, New Tab page, service worker,
 and icons exist. A successful command prints
 `Verified load-unpacked extension in dist/.`
 
+### Optional: Package the Build as a ZIP
+
+After a successful build, run one of these commands from the repository root
+to compress the **contents** of `dist`. This keeps `manifest.json` at the
+archive root, as required for a Chrome Web Store upload.
+
+**Windows (PowerShell):**
+
+```powershell
+Compress-Archive -Path .\dist\* -DestinationPath .\startspace-build.zip
+```
+
+**Linux (Bash, with `zip` installed):**
+
+```bash
+(cd dist && zip -qr ../startspace-build.zip .)
+```
+
+Use a new archive filename if one already exists; updating an old ZIP can
+retain obsolete files. Keep generated ZIPs out of source control.
+For local installation, load the `dist` folder, not the ZIP. If sharing the
+ZIP for local installation, extract it first and load the folder containing
+`manifest.json`. For publishing, follow the
+[manual release checklist](publishing-to-chrome.md#3-create-the-upload-zip)
+and use a filename matching the release version.
+
 ### Load Unpacked
 
 1. Open your browser's extension management page:

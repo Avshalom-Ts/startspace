@@ -95,13 +95,16 @@ If source or versions change after verification, rebuild and verify again.
 Compress the **contents** of `dist`, not the `dist` directory itself.
 `manifest.json`, `index.html`, and `background.js` must be at the archive root.
 
-For example, from the clone in PowerShell:
+Run the appropriate command from the repository root after a successful build,
+replacing `0.1.1` with the version being released.
+
+**Windows (PowerShell):**
 
 ```powershell
 Compress-Archive -Path .\dist\* -DestinationPath .\startspace-0.1.1.zip
 ```
 
-Or in Bash, with `zip` installed:
+**Linux (Bash, with `zip` installed):**
 
 ```bash
 (cd dist && zip -qr ../startspace-0.1.1.zip .)
