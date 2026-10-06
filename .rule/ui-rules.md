@@ -15,6 +15,7 @@
 - The New Tab / Home page is the primary surface and the one the user sees most often. Keep it calm, legible, and fast: favorites, the central search bar, and primary navigation should be visually clear.
 - Navigation (Home · Links · Notes · Tasks · Settings · GitHub) should feel like one workspace, not a set of unrelated pages. Share visual language, spacing, and interaction patterns across pages, powered by the same Tailwind theme.
 - The central search bar is the main entry point; make its state, focus, and results easy to understand.
+- Preserve the New Tab keyboard flow across layout changes: open a new tab, press Escape to leave the browser address bar, then type immediately in the Home search input without clicking. Browser chrome can block or reclaim initial autofocus, so handle both Escape delivered to the page and window focus returning from the address bar. Limit this fallback to Home when no page control or dialog owns focus; do not steal focus from editors or dialogs. Escape inside the search input still clears the query, and Ctrl/Cmd+K remains available for search on every page. This is a required interaction, not an optional layout detail.
 - Keep React components small and purposeful. A page should be a composition of components, not one large component.
 
 ## Accessibility

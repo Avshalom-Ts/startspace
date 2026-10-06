@@ -27,6 +27,8 @@ The web fallback is user-triggered but leaves the extension page. Allowing arbit
 
 ### Dropdown interaction
 
+- Preserve the New Tab focus flow: open a new tab, press Escape to leave the browser address bar, then type immediately in the Home search input without clicking. Initial autofocus is best-effort because browser chrome can block or reclaim it. The shell handles both page-delivered Escape and window focus returning from the address bar, only on Home when no page control or dialog owns focus. Layout redesigns must retain this behavior.
+- Escape inside the search input clears its query. Ctrl/Cmd+K focuses search on every page; the Home fallback must not interfere with other controls, editors, or dialogs.
 - The homepage search input remains centered in the available main area.
 - Non-empty queries open a bounded, scrollable dropdown directly beneath the input; results do not push other homepage content down.
 - Arrow Down and Arrow Up cycle through every result, including the Web fallback, with wraparound.

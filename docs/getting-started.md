@@ -137,7 +137,7 @@ Once installed and your workspace is chosen:
 5. **Settings** — choose your workspace, view browser search information, open browser search settings, and export or restore a backup.
 6. **GitHub** — link to the source repository.
 
-**Search:** type in the central search bar. It searches in order: Bookmarks → Notes → Tasks → Web. Results appear in a scrollable dropdown below the input. Use Arrow Up/Down to select a result and Enter to open it; press Enter without a selected result to search using the browser’s default search engine.
+**Search:** when you open a new tab, the browser may keep focus in its address bar. Press **Escape** to move into the Home search input, then type immediately without clicking. **Ctrl/Cmd+K** focuses search on any page; Escape inside the search input clears the query. It searches in order: Bookmarks → Notes → Tasks → Web. Results appear in a scrollable dropdown below the input. Use Arrow Up/Down to select a result and Enter to open it; press Enter without a selected result to search using the browser’s default search engine.
 
 ## Import, Export, Backup, and Migration
 

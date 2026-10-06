@@ -152,15 +152,41 @@ export function AppShell() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
+    const focusHomeSearch = () => {
+      if (
+        page !== "home" ||
+        (document.activeElement !== document.body &&
+          document.activeElement !== document.documentElement) ||
+        document.querySelector(
+          'dialog[open], [role="dialog"], [role="alertdialog"]',
+        )
+      )
+        return;
+      searchInputRef.current?.focus();
+    };
     const focusSearch = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         searchInputRef.current?.focus();
+      } else if (
+        event.key === "Escape" &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.shiftKey
+      ) {
+        focusHomeSearch();
       }
     };
+    focusHomeSearch();
+    window.addEventListener("focus", focusHomeSearch);
     window.addEventListener("keydown", focusSearch);
-    return () => window.removeEventListener("keydown", focusSearch);
-  }, []);
+    return () => {
+      window.removeEventListener("focus", focusHomeSearch);
+      window.removeEventListener("keydown", focusSearch);
+    };
+  }, [page]);
 
   return (
     <div
