@@ -156,6 +156,10 @@ Once installed and your workspace is chosen:
 
 ## Philosophy
 
+In **Settings > About**, you can read an overview of StartSpace, learn where
+your data lives and how local and web search differ, check the installed
+version and license, and open the source repository or issue tracker.
+
 Your browser. Your workspace. Your data.
 
 StartSpace is private, local-first, Markdown-first, user-owned, transparent, and open source. No backend, cloud database, account, or vendor lock-in.

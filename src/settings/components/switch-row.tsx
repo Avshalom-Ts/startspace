@@ -27,7 +27,7 @@ export default function SwitchRow({
         className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${checked ? "bg-accent" : "bg-muted/40"}`}
       >
         <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-page shadow transition-transform ${checked ? "translate-x-5.5" : "translate-x-0.5"}`}
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-page shadow transition-[left,right] ${checked ? "right-0.5" : "left-0.5"}`}
         />
       </button>
     </div>

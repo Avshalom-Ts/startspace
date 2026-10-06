@@ -1,27 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import {
   Check,
-  Clock3,
   Download,
-  ExternalLink,
   FileText,
   Folder,
   Info,
   Link2,
-  Moon,
-  Palette,
   Search,
   Settings2,
-  SlidersHorizontal,
-  Sun,
   Upload,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useConfig, DEFAULT_PREFERENCES } from "../hooks/useConfig";
 import { useWorkspace } from "../hooks/useWorkspace";
-import { useTheme, type AccentName } from "../hooks/useTheme";
+import { useTheme } from "../hooks/useTheme";
 import { useNotes } from "../notes/use-notes";
-import { useTasks } from "../tasks/use-tasks";
 import { useNotifications } from "../notifications/notification-context";
 import {
   createBackup,
@@ -29,11 +22,16 @@ import {
   restoreBackup,
 } from "../backup/backup-service";
 import { BackupValidationError } from "../backup/backup-format";
-import { BrowserSearchSettings } from "./browser-search-settings";
 import { getBrowserSearchInfo } from "../search/browser-search";
-import SwitchRow from "./components/switch-row";
 import CapabilityRow from "./components/capability-row";
 import SettingsCard from "./components/settings-card";
+import GeneralSettingsSection from "./sections/general-settings-section";
+import WorkspaceSettingsSection from "./sections/workspace-settings-section";
+import SearchSettingsSection from "./sections/search-settings-section";
+import NotesSettingsSection from "./sections/notes-settings-section";
+import LinksSettingsSection from "./sections/links-settings-section";
+import TasksSettingsSection from "./sections/tasks-settings-section";
+import AboutSettingsSection from "./sections/about-settings-section";
 
 type Category =
   | "general"
@@ -42,7 +40,6 @@ type Category =
   | "notes"
   | "links"
   | "tasks"
-  | "import-export"
   | "about";
 
 const CATEGORIES: {
@@ -88,12 +85,6 @@ const CATEGORIES: {
     icon: Check,
   },
   {
-    id: "import-export",
-    title: "Import / Export",
-    description: "Backup and restore",
-    icon: SlidersHorizontal,
-  },
-  {
     id: "about",
     title: "About",
     description: "Version and open source",
@@ -101,30 +92,11 @@ const CATEGORIES: {
   },
 ];
 
-const ACCENT_CHOICES: { id: AccentName; label: string; color: string }[] = [
-  { id: "amber", label: "Amber", color: "#d97706" },
-  { id: "blue", label: "Blue", color: "#2563eb" },
-  { id: "green", label: "Green", color: "#16834a" },
-  { id: "red", label: "Red", color: "#dc2626" },
-  { id: "teal", label: "Teal", color: "#0e8490" },
-];
-
-function getInstalledVersion(): string {
-  try {
-    return typeof chrome === "undefined"
-      ? "Development preview"
-      : chrome.runtime.getManifest().version;
-  } catch {
-    return "Development preview";
-  }
-}
-
 /** Category-based settings workspace with a persistent status/action rail. */
 export function SettingsPage() {
   const notifications = useNotifications();
   const workspace = useWorkspace();
   const notes = useNotes(workspace);
-  const tasks = useTasks();
   const { config, save } = useConfig();
   const { theme, accent, mounted, setTheme, setAccent } = useTheme();
   const [category, setCategory] = useState<Category>(() => {
@@ -139,11 +111,7 @@ export function SettingsPage() {
   const [searchInfo, setSearchInfo] = useState<Awaited<
     ReturnType<typeof getBrowserSearchInfo>
   > | null>(null);
-  const [linksLayout, setLinksLayout] = useState<"grid" | "list">(() =>
-    localStorage.getItem("startspace.links.layout") === "list"
-      ? "list"
-      : "grid",
-  );
+
   const headingRef = useRef<HTMLHeadingElement>(null);
   const focusHeading = useRef(false);
   const restoreInputRef = useRef<HTMLInputElement>(null);
@@ -218,15 +186,6 @@ export function SettingsPage() {
     } catch {
       notifications.error("Setting could not be saved. Try again.");
     }
-  };
-
-  const selectLinksLayout = (value: "grid" | "list") => {
-    setLinksLayout(value);
-    localStorage.setItem("startspace.links.layout", value);
-    window.dispatchEvent(
-      new CustomEvent("startspace:links-layout-changed", { detail: value }),
-    );
-    showSaved();
   };
 
   const chooseWorkspace = async () => {
@@ -385,339 +344,46 @@ export function SettingsPage() {
           </div>
 
           {category === "general" && (
-            <div className="space-y-3">
-              <SettingsCard
-                title="Appearance"
-                subtitle="Theme and accent color"
-                icon={Palette}
-              >
-                <fieldset>
-                  <legend className="mb-2 text-xs font-medium text-muted">
-                    Theme
-                  </legend>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(["dark", "light"] as const).map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        role="radio"
-                        aria-checked={theme === option}
-                        disabled={!mounted}
-                        onClick={() => setTheme(option)}
-                        className={`flex min-h-12 items-center gap-2 rounded-md border px-3 text-sm capitalize ${theme === option ? "border-accent bg-accent/10 text-fg" : "border-border text-muted hover:text-fg"}`}
-                      >
-                        {option === "dark" ? (
-                          <Moon size={17} aria-hidden="true" />
-                        ) : (
-                          <Sun size={17} aria-hidden="true" />
-                        )}
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-                <fieldset className="mt-4">
-                  <legend className="mb-2 text-xs font-medium text-muted">
-                    Accent color
-                  </legend>
-                  <div
-                    role="radiogroup"
-                    aria-label="Accent color"
-                    className="flex flex-wrap gap-2"
-                  >
-                    {ACCENT_CHOICES.map((choice) => (
-                      <button
-                        key={choice.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={accent === choice.id}
-                        aria-label={`${choice.label} accent`}
-                        title={choice.label}
-                        onClick={() => setAccent(choice.id)}
-                        className={`flex h-9 w-9 items-center justify-center rounded-full border ${accent === choice.id ? "border-fg" : "border-transparent"}`}
-                      >
-                        <span
-                          className="h-5 w-5 rounded-full"
-                          style={{ backgroundColor: choice.color }}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-              </SettingsCard>
-              <SettingsCard
-                title="Startup & Behavior"
-                subtitle="What to show and how StartSpace behaves"
-                icon={SlidersHorizontal}
-              >
-                <SwitchRow
-                  label="Show greeting on Home page"
-                  checked={preferences.showGreeting}
-                  onChange={(value) =>
-                    void updatePreference("showGreeting", value)
-                  }
-                />
-                <SwitchRow
-                  label="Open links in new tab"
-                  detail="Applies to normal bookmark activation."
-                  checked={preferences.openLinksInNewTab}
-                  onChange={(value) =>
-                    void updatePreference("openLinksInNewTab", value)
-                  }
-                />
-                <SwitchRow
-                  label="Confirm before deleting items"
-                  detail="Always on for destructive actions."
-                  checked
-                  disabled
-                />
-              </SettingsCard>
-              <SettingsCard
-                title="Date & Time"
-                subtitle="Uses your operating system's locale and timezone"
-                icon={Clock3}
-              >
-                <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto]">
-                  <dt className="text-muted">Locale</dt>
-                  <dd className="text-fg">{navigator.language}</dd>
-                  <dt className="text-muted">Timezone</dt>
-                  <dd className="text-fg">{timeZone}</dd>
-                  <dt className="text-muted">Local example</dt>
-                  <dd className="text-fg">{currentTime.toLocaleString()}</dd>
-                </dl>
-              </SettingsCard>
-            </div>
+            <GeneralSettingsSection
+              theme={theme}
+              accent={accent}
+              mounted={mounted}
+              setTheme={setTheme}
+              setAccent={setAccent}
+              preferences={preferences}
+              updatePreference={updatePreference}
+              timeZone={timeZone}
+              currentTime={currentTime}
+            />
           )}
 
           {category === "search" && (
-            <div className="space-y-3">
-              <SettingsCard
-                title="Local search"
-                subtitle="Search order and scope"
-                icon={Search}
-              >
-                <p className="text-sm text-fg">
-                  Bookmarks → Notes → Tasks → Web
-                </p>
-                <p className="mt-2 text-sm text-muted">
-                  Bookmarks, notes, and tasks are searched locally. Choosing Web
-                  runs a search with your browser's current default provider.
-                </p>
-              </SettingsCard>
-              <SettingsCard
-                title="Web Search"
-                subtitle="Browser-managed search provider"
-                icon={ExternalLink}
-              >
-                <p className="text-sm font-medium text-fg">
-                  Uses your browser&apos;s default search engine.
-                </p>
-                <BrowserSearchSettings />
-                {!searchInfo?.available && (
-                  <p className="mt-2 text-xs text-muted">
-                    Local bookmark, note, and task search remains available when
-                    browser search integration is unavailable.
-                  </p>
-                )}
-              </SettingsCard>
-            </div>
+            <SearchSettingsSection searchInfo={searchInfo} />
           )}
 
           {category === "workspace" && (
-            <div className="space-y-3">
-              <SettingsCard
-                title="Workspace access"
-                subtitle="Choose a local folder for Markdown notes and tasks"
-                icon={Folder}
-              >
-                <p className="text-sm text-muted">
-                  Your browser manages the extension installation. You choose
-                  the folder containing your data. Changing location does not
-                  move files.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void chooseWorkspace()}
-                    className="min-h-9 rounded-md bg-accent px-3 text-sm font-medium text-accent-foreground"
-                  >
-                    {workspaceReady
-                      ? "Change location"
-                      : workspace.grant.handle
-                        ? "Reconnect workspace"
-                        : "Choose workspace"}
-                  </button>
-                  {workspaceReady && (
-                    <button
-                      type="button"
-                      onClick={disconnectWorkspace}
-                      className="min-h-9 rounded-md border border-border px-3 text-sm text-fg hover:bg-page"
-                    >
-                      Disconnect
-                    </button>
-                  )}
-                </div>
-                {workspace.error && (
-                  <p className="mt-2 text-sm text-red-500" role="alert">
-                    {workspace.error}
-                  </p>
-                )}
-              </SettingsCard>
-            </div>
+            <WorkspaceSettingsSection
+              workspaceReady={workspaceReady}
+              workspace={workspace}
+              chooseWorkspace={chooseWorkspace}
+              disconnectWorkspace={disconnectWorkspace}
+            />
           )}
 
           {category === "notes" && (
-            <div className="space-y-3">
-              <SettingsCard
-                title="Notes behavior"
-                subtitle="Ordinary Markdown files in your workspace"
-                icon={FileText}
-              >
-                <ul className="space-y-2 text-sm text-muted">
-                  <li>
-                    Notes are stored as Markdown files in the selected
-                    workspace.
-                  </li>
-                  <li>
-                    Edits autosave after a short pause; conflicts preserve your
-                    draft.
-                  </li>
-                  <li>Markdown preview avoids loading remote images.</li>
-                </ul>
-                <button
-                  type="button"
-                  onClick={() => void notes.refresh()}
-                  disabled={!workspaceReady || notes.loading}
-                  className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-md border border-border px-3 text-sm text-fg hover:bg-page disabled:opacity-50"
-                >
-                  <span aria-hidden="true">↻</span> Refresh workspace
-                </button>
-              </SettingsCard>
-            </div>
+            <NotesSettingsSection
+              notes={notes}
+              workspaceReady={workspaceReady}
+            />
           )}
 
           {category === "links" && (
-            <div className="space-y-3">
-              <SettingsCard
-                title="Bookmarks"
-                subtitle="The browser remains the source of truth"
-                icon={Link2}
-              >
-                <p className="text-sm text-muted">
-                  Names, URLs, folders, and deletion are managed by your
-                  browser. StartSpace stores favorites, tags, descriptions, and
-                  recent-open timestamps locally.
-                </p>
-              </SettingsCard>
-              <SettingsCard
-                title="Default Links layout"
-                subtitle="Choose how bookmarks open in StartSpace"
-                icon={SlidersHorizontal}
-              >
-                <div
-                  role="radiogroup"
-                  aria-label="Default Links layout"
-                  className="flex gap-2"
-                >
-                  {(["grid", "list"] as const).map((layout) => (
-                    <button
-                      key={layout}
-                      type="button"
-                      role="radio"
-                      aria-checked={linksLayout === layout}
-                      onClick={() => selectLinksLayout(layout)}
-                      className={`min-h-9 rounded-md border px-4 text-sm capitalize ${linksLayout === layout ? "border-accent bg-accent/10 text-fg" : "border-border text-muted hover:text-fg"}`}
-                    >
-                      {layout}
-                    </button>
-                  ))}
-                </div>
-              </SettingsCard>
-            </div>
+            <LinksSettingsSection showSaved={showSaved} />
           )}
 
-          {category === "tasks" && (
-            <div className="space-y-3">
-              <SettingsCard
-                title="Task statuses"
-                subtitle="Statuses are stored with your local task board"
-                icon={Check}
-              >
-                {tasks.loading ? (
-                  <p className="text-sm text-muted">Loading task statuses…</p>
-                ) : (
-                  <ul className="space-y-1">
-                    {tasks.columns.map((column) => (
-                      <li
-                        key={column.id}
-                        className="flex min-h-8 items-center gap-2 border-b border-border/70 text-sm text-fg"
-                      >
-                        <span className="h-2.5 w-2.5 rounded-full bg-accent" />
-                        {column.title}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </SettingsCard>
-              <p className="px-1 text-xs text-muted">
-                Priority defaults and task labels are not available in the
-                current task file format.
-              </p>
-            </div>
-          )}
+          {category === "tasks" && <TasksSettingsSection />}
 
-          {category === "import-export" && (
-            <SettingsCard
-              title="Portable backup"
-              subtitle="Export or restore workspace data"
-              icon={Download}
-            >
-              <p className="text-sm text-muted">
-                Create a portable JSON backup of your workspace files, settings,
-                theme, and bookmark metadata. Restore validates the backup and
-                merges its files without deleting unrelated workspace files.
-              </p>
-              <p className="mt-2 text-sm text-muted">
-                Use the Data Management actions in the right rail to export or
-                restore a backup.
-              </p>
-            </SettingsCard>
-          )}
-
-          {category === "about" && (
-            <SettingsCard
-              title="StartSpace"
-              subtitle="Your browser. Your workspace. Your data."
-              icon={Info}
-            >
-              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-                <dt className="text-muted">Version</dt>
-                <dd className="text-fg">{getInstalledVersion()}</dd>
-                <dt className="text-muted">License</dt>
-                <dd>
-                  <a
-                    href="https://github.com/Avshalom-Ts/startspace/blob/main/LICENSE"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-accent hover:underline"
-                  >
-                    MIT License
-                  </a>
-                </dd>
-                <dt className="text-muted">Source</dt>
-                <dd>
-                  <a
-                    href="https://github.com/Avshalom-Ts/startspace"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-accent hover:underline"
-                  >
-                    GitHub <ExternalLink size={13} aria-hidden="true" />
-                  </a>
-                </dd>
-              </dl>
-            </SettingsCard>
-          )}
+          {category === "about" && <AboutSettingsSection />}
         </main>
       </div>
 
