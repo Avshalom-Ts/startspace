@@ -16,4 +16,13 @@
 
 ## Documentation
 
+- Maintain root `CHANGELOG.md` alongside each meaningful user-visible change.
+  Add concise entries under Unreleased using Added, Changed, Deprecated,
+  Removed, Fixed, or Security as appropriate; omit routine refactor/format noise.
+- Before a manual release, review completeness, move applicable entries into
+  the chosen version section, record the actual release date when known, and
+  update source/compare links. Document migrations and compatibility changes.
+- Follow `docs/publishing-to-chrome.md` for manual uploads. Pushing a `v*.*.*`
+  tag triggers the existing automated publisher; it is not a required manual
+  release step.
 - Record substantive version-affecting decisions (e.g., workspace format changes, metadata schema changes, browser support changes) as ADRs in `docs/decisions/` and reference them from the relevant plan or changelog entry.

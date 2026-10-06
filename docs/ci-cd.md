@@ -1,7 +1,22 @@
 # CI/CD workflow
 
-StartSpace uses GitHub Actions to validate every change and publish tagged releases.
+StartSpace has GitHub Actions configured to validate changes and publish tagged releases.
 The workflows separate untrusted build work from the job that can access Chrome publisher credentials.
+
+## Current Manual Workflow
+
+Version 0.1.0 was uploaded manually to the Chrome Web Store. The current
+maintainer path is the [manual release checklist](publishing-to-chrome.md);
+automation below is optional and has not been changed by that checklist.
+
+**Pushing a `v*.*.*` tag still triggers the existing release workflow.**
+Do not push a version tag just to perform a manual upload. Installing from a
+[Git clone](getting-started.md#developer-installation-build-from-source)
+requires no release tag or publisher credentials.
+
+Maintain [CHANGELOG.md](../CHANGELOG.md) under Unreleased during development
+and prepare a version section before release. The existing automated workflow
+still generates GitHub notes; it does not extract or validate the changelog.
 
 ## Continuous integration
 
@@ -53,13 +68,18 @@ Add this environment secret:
 Never add the JSON key to the repository, an issue, a log, or a workflow artifact.
 The generated `gha-creds-*.json` pattern is ignored by Git.
 
-## Making a release
+## Making an Automated Release
+
+Use this section only when intentionally using GitHub Actions, not for a
+manual dashboard upload. Review the changelog and prepare the version section
+as described in the [manual guide](publishing-to-chrome.md#1-prepare-the-version-and-changelog)
+before continuing.
 
 Choose a semantic version greater than the version currently uploaded to Chrome.
-For example, to release `0.1.0`:
+For example, to release `0.1.1` (do not reuse the manually uploaded `0.1.0`):
 
 ```bash
-bun run release:version 0.1.0
+bun run release:version 0.1.1
 bun run test
 bun run build
 ```
@@ -67,36 +87,32 @@ bun run build
 On Bash, run the explicit version check as:
 
 ```bash
-export RELEASE_VERSION=0.1.0
-echo $RELEASE_VERSION
+RELEASE_VERSION=0.1.1 bun run verify:release-version
 ```
 
 On PowerShell, run the explicit version check as:
 
 ```powershell
-$env:RELEASE_VERSION = "0.1.0"
+$env:RELEASE_VERSION = "0.1.1"
 bun run verify:release-version
 Remove-Item Env:RELEASE_VERSION
 ```
 
-```bash
-bun run verify:release-version
-```
+The following Git steps require explicit approval; pushing the tag triggers
+the Chrome release workflow:
 
-Those commands would publish code to GitHub and trigger the Chrome release workflow:
-
-- git add ... — only stages the two files locally.
+- git add ... — only stages the version files and changelog locally.
 - git commit ... — creates a local commit.
-- git tag v0.1.0 — creates a local release tag.
+- git tag v0.1.1 — creates a local release tag.
 - git push origin main — publishes commits to GitHub.
-- git push origin v0.1.0 — publishes the tag and triggers release-chrome.yml.
+- git push origin v0.1.1 — publishes the tag and triggers release-chrome.yml.
 
 ```bash
-git add package.json public/manifest.json
-git commit -m "chore: release 0.1.0"
-git tag v0.1.0
+git add package.json public/manifest.json CHANGELOG.md
+git commit -m "chore: release 0.1.1"
+git tag v0.1.1
 git push origin main
-git push origin v0.1.0
+git push origin v0.1.1
 ```
 
 The version command updates only local source files; it never commits, tags, or publishes.

@@ -39,9 +39,12 @@ The extension itself is managed by the browser. On first launch, StartSpace asks
 
 ### Installation
 
-**End users:** Chrome Web Store / Firefox Add-ons → Install.
+**End users:** version 0.1.0 was uploaded manually to the Chrome Web Store;
+public installation instructions will be added when the listing is verified.
+Firefox is not currently supported.
 
-**Developers:** GitHub → Clone/download → Build → Load Unpacked.
+**From source:** Git clone → Bun install → Build → Load Unpacked in Chrome/Edge.
+Follow the [source installation guide](docs/getting-started.md#developer-installation-build-from-source).
 
 The browser manages the extension's installation location; you choose the StartSpace workspace location.
 
@@ -72,9 +75,10 @@ Private, local-first, Markdown-first, user-owned, transparent, and open source. 
 
 ## Documentation
 
+- [CHANGELOG.md](CHANGELOG.md) — released and unreleased changes.
 - `docs/getting-started.md` — setup and local development.
-- `docs/ci-cd.md` — CI checks and tagged Chrome release operations.
-- `docs/publishing-to-chrome.md` — first-time Chrome Web Store walkthrough.
+- [docs/ci-cd.md](docs/ci-cd.md) — CI checks and optional automated Chrome releases.
+- [docs/publishing-to-chrome.md](docs/publishing-to-chrome.md) — manual Chrome Web Store release checklist.
 - `docs/privacy-policy.md` — StartSpace's local data-handling disclosure.
 - `docs/decisions/` — architecture decision records.
 - `.doc/product-definition.md` — product definition (source of truth).

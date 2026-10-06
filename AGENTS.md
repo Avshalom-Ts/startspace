@@ -10,6 +10,10 @@ StartSpace is an open-source, local-first browser homepage/workspace. It runs en
 
 ## Project Documentation
 
+- Keep `CHANGELOG.md` current: record meaningful user-visible changes under
+  Unreleased in the same change, including compatibility or migration guidance.
+  Follow `.rule/versioning-rules.md` and `docs/publishing-to-chrome.md` for
+  changelog maintenance and manual releases.
 - Keep the product definition, architecture, and glossary current as the project takes shape (`.doc/product-definition.md`, `.doc/architecture.md`, `.doc/glossary.md`).
 - Keep `docs/getting-started.md` accurate against the real implementation — not the product vision alone.
 - Record architecture decisions in `docs/decisions/` as ADRs.

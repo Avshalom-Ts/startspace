@@ -10,12 +10,14 @@ Your browser bookmarks stay in the browser (the browser is the source of truth).
 
 ## End-User Installation
 
-StartSpace has not been published to an extension store yet. For the MVP, use
-the developer installation below.
+Version 0.1.0 was uploaded manually to the Chrome Web Store. Uploading does
+not mean the listing is approved or publicly available. Until a verified store
+listing is linked here, use the source installation below.
 
 ### Chrome / Chromium
 
-Store installation will be documented after a listing is published.
+Public store installation will be documented once the listing is verified.
+For installation without a store, follow the Chrome/Edge steps below.
 
 ### Firefox
 
@@ -28,49 +30,100 @@ Follow this path if you want to build StartSpace from source, contribute, or loa
 
 ### Prerequisites
 
-- Bun (the project's package manager).
-- A Chromium-based browser (Chrome, Chromium, Edge, etc.) for testing initially. Firefox support is planned but may have API differences (see `.doc/glossary.md` and `.doc/architecture.md`).
+- [Bun](https://bun.sh/) (the project's package manager), using the version
+  pinned in [`package.json`](../package.json) (currently 1.3.14).
+- Chrome or Microsoft Edge with **Developer mode** and **Load unpacked**
+  available. Managed browser policies may prevent loading local extensions.
 - Git to clone the repository.
 - Node.js is not required separately if Bun manages the runtime; use Bun for installs and scripts.
 
 ### Clone and Build
 
-```bash
+Run these commands in a terminal (PowerShell on Windows also works):
+
+```text
 git clone https://github.com/Avshalom-Ts/startspace.git
 cd startspace
-bun install
+bun install --frozen-lockfile
 bun run build
 ```
+
+This builds the checked-out source, including changes that may not yet be
+released. The current source is newer than the manually uploaded 0.1.0.
 
 The build type-checks the source, creates a Vite/WebExtensions Manifest V3
 bundle, and verifies that the required manifest, New Tab page, service worker,
 and icons exist. A successful command prints
 `Verified load-unpacked extension in dist/.`
 
-### Development Workflow
+### Load Unpacked
+
+1. Open your browser's extension management page:
+   - Chrome: `chrome://extensions`
+   - Edge: `edge://extensions`
+2. Enable **Developer mode**.
+3. Choose **Load unpacked** and select the generated `dist` folder inside
+   your clone, for example `W:\Documents\GitHub\startspace\dist` on Windows.
+   Do not select the repository root, `src`, or a ZIP file.
+4. Open a new tab. StartSpace should replace the New Tab page. If the browser
+   asks whether to keep the new page, confirm the change.
+5. Choose a workspace folder and grant read/write access when prompted.
+   See [workspace setup](#first-launch-choosing-your-workspace) below.
+
+Keep the clone and its `dist` folder in place: an unpacked extension loads
+from that location. The workspace is a separate folder containing your data.
+For development, use a separate browser profile with synthetic bookmarks and
+a test workspace; StartSpace can modify actual bookmarks and workspace files.
+If a store copy or another New Tab extension is enabled, disable it in the
+test profile so only one extension controls the New Tab page.
+
+### Update an Existing Source Installation
+
+Save any open drafts and back up important workspace data before updating.
+From your clone, with your own local changes preserved:
+
+```text
+git pull --ff-only
+bun install --frozen-lockfile
+bun run build
+```
+
+If Git reports conflicting local changes, resolve them before continuing;
+do not discard them just to update. After a successful build, click the
+extension's **Reload** button on `chrome://extensions` or `edge://extensions`
+and open a fresh New Tab page. Rebuilding alone does not reload the extension.
+If workspace access needs permission again, use **Reconnect** in Settings.
+
+### Development Workflow and UI Preview
 
 - Make changes to the TypeScript/React source.
-- Run the dev server / build as configured (`bun run dev` or `bun run build` per the project's scripts).
-- Reload the unpacked extension in the browser's extension management page.
-- Test in the New Tab page and other extension pages.
+- Run `bun run build`, reload the unpacked extension, and open a fresh New Tab
+  page to test browser integration.
+- `bun run dev` starts a Vite UI preview at the URL printed in the terminal.
+  It is not an installed extension: browser bookmarks and browser-default web
+  search are unavailable there. Do not use it as proof of extension behavior.
+- Firefox is not supported by the current workspace flow; do not load this
+  Chromium build as a Firefox temporary add-on.
+
+### Installation Troubleshooting
+
+- **Load unpacked fails:** confirm `bun run build` succeeded and select `dist`,
+  which must contain `manifest.json`, `index.html`, and `background.js`.
+- **The old UI is still visible:** rebuild, reload the extension, and open a
+  fresh tab. Check that you loaded the intended clone's `dist` folder.
+- **New Tab does not show StartSpace:** check that it is enabled and no other
+  extension controls New Tab; check browser prompts and managed policies.
+- **Workspace is disconnected:** choose or reconnect the folder in Settings
+  and approve the browser permission prompt.
+- **Bookmarks or web search are unavailable:** test the installed extension
+  rather than the Vite preview, and check its permissions/errors on the
+  extension management page.
 
 ### Formatting, Linting, and Tests
 
 - Format and lint changed code before handoff (TypeScript with strict typing as the primary safety net, plus the project's formatter and linter configured in `.rule/coding-rules.md`).
 - Run unit tests with Vitest and browser/extension-page tests with Playwright as configured.
 - Do not include real bookmarks, real notes, or real workspace contents in test data (see `.rule/testing-rules.md`).
-
-### Load Unpacked
-
-1. Open your browser's extension / add-on management page:
-   - Chrome: `chrome://extensions/`
-   - Firefox: `about:debugging` → "Load Temporary Add-on" (or the equivalent)
-2. Enable **Developer mode** if required.
-3. Choose **Load unpacked** and select the repository's generated `dist/`
-   directory.
-4. Open a new tab. The manifest installs StartSpace as the New Tab page.
-
-On first launch, StartSpace will prompt you to choose a workspace folder.
 
 ### Repository Structure
 
@@ -167,6 +220,15 @@ StartSpace is private, local-first, Markdown-first, user-owned, transparent, and
 Web search requires the installed extension and its `search` permission. In a web preview or unsupported browser, use the address bar. Settings displays the provider name where the browser exposes it (Firefox); Chrome displays “Browser default” because its API does not expose the name. Settings links to the browser’s search settings and provides a manual address if navigation is blocked. Firefox search API support does not imply full Firefox support for workspace files or the current Chromium build.
 
 
-## Preview the Notes redesign
+## Preview the Notes Layout
 
-On feature/notes-layout, open Notes and choose a workspace for real Markdown editing, or select **Preview the layout** to inspect synthetic sample content. The optional hash route #notes?demo=1 also opens the labeled preview. Demo edits do not write files. Favorites/tags remain planned; Recent is session-only. See [remaining tasks](pages-tasks/notes-layout-tasks.md).
+Open Notes and choose a workspace for real Markdown editing, or select
+**Preview the layout** to inspect synthetic sample content. The optional hash
+route `#notes?demo=1` also opens the labeled preview. Demo edits do not write
+files. See [remaining tasks](pages-tasks/notes-layout-tasks.md).
+
+## Changelog and Manual Releases
+
+See the [changelog](../CHANGELOG.md) for released and unreleased changes.
+Maintainers can follow the [manual Chrome Web Store guide](publishing-to-chrome.md)
+to prepare and upload a release without using CI/CD.
