@@ -26,7 +26,6 @@ import { getBrowserSearchInfo } from "../search/browser-search";
 import CapabilityRow from "./components/capability-row";
 import SettingsCard from "./components/settings-card";
 import GeneralSettingsSection from "./sections/general-settings-section";
-import WorkspaceSettingsSection from "./sections/workspace-settings-section";
 import SearchSettingsSection from "./sections/search-settings-section";
 import NotesSettingsSection from "./sections/notes-settings-section";
 import LinksSettingsSection from "./sections/links-settings-section";
@@ -59,12 +58,6 @@ const CATEGORIES: {
     title: "Search",
     description: "Local search, web search",
     icon: Search,
-  },
-  {
-    id: "workspace",
-    title: "Workspace",
-    description: "Location and access",
-    icon: Folder,
   },
   {
     id: "notes",
@@ -217,19 +210,6 @@ export function SettingsPage() {
     );
   };
 
-  const copyWorkspaceName = async () => {
-    const name = workspace.grant.handle
-      ? workspace.grant.name
-      : config?.currentWorkspace?.name;
-    if (!name) return;
-    try {
-      await navigator.clipboard.writeText(name);
-      notifications.success("Workspace name copied.");
-    } catch {
-      notifications.error("Workspace name could not be copied.");
-    }
-  };
-
   const exportBackup = async () => {
     if (!workspace.grant.handle || !config) return;
     setBackupBusy(true);
@@ -361,15 +341,6 @@ export function SettingsPage() {
             <SearchSettingsSection searchInfo={searchInfo} />
           )}
 
-          {category === "workspace" && (
-            <WorkspaceSettingsSection
-              workspaceReady={workspaceReady}
-              workspace={workspace}
-              chooseWorkspace={chooseWorkspace}
-              disconnectWorkspace={disconnectWorkspace}
-            />
-          )}
-
           {category === "notes" && (
             <NotesSettingsSection
               notes={notes}
@@ -423,16 +394,6 @@ export function SettingsPage() {
                 : workspace.grant.handle || config?.currentWorkspace
                   ? "Reconnect"
                   : "Choose workspace"}
-            </button>
-            <button
-              type="button"
-              onClick={() => void copyWorkspaceName()}
-              disabled={!workspace.grant.handle && !config?.currentWorkspace}
-              title="Copy workspace name"
-              aria-label="Copy workspace name"
-              className="min-h-9 rounded-md border border-border px-2 text-xs text-muted hover:bg-page disabled:opacity-50"
-            >
-              Copy name
             </button>
           </div>
           {workspaceReady && (
