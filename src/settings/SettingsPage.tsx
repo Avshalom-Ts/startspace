@@ -214,6 +214,7 @@ export function SettingsPage() {
       : "general";
   });
   const [saved, setSaved] = useState("");
+  const savedTimeoutRef = useRef<number | undefined>(undefined);
   const [backupBusy, setBackupBusy] = useState(false);
   const [searchInfo, setSearchInfo] = useState<Awaited<
     ReturnType<typeof getBrowserSearchInfo>
@@ -227,11 +228,12 @@ export function SettingsPage() {
   const focusHeading = useRef(false);
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const preferences = { ...DEFAULT_PREFERENCES, ...config?.preferences };
-  const selected =
-    CATEGORIES.find((item) => item.id === category) ?? CATEGORIES[0]!;
-  const SelectedIcon = selected.icon;
   const workspaceReady =
     !!workspace.grant.handle && workspace.grant.permission === "granted";
+
+  useEffect(() => {
+    return () => window.clearTimeout(savedTimeoutRef.current);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem("startspace.settings.category", category);
@@ -275,6 +277,15 @@ export function SettingsPage() {
     setCategory(value as Category);
   };
 
+  const showSaved = () => {
+    window.clearTimeout(savedTimeoutRef.current);
+    setSaved("Saved");
+    savedTimeoutRef.current = window.setTimeout(() => {
+      setSaved("");
+      savedTimeoutRef.current = undefined;
+    }, 3000);
+  };
+
   const updatePreference = async (
     key: keyof typeof DEFAULT_PREFERENCES,
     value: boolean,
@@ -283,7 +294,7 @@ export function SettingsPage() {
     setSaved("");
     try {
       await save({ ...config, preferences: { ...preferences, [key]: value } });
-      setSaved("Saved");
+      showSaved();
     } catch {
       notifications.error("Setting could not be saved. Try again.");
     }
@@ -295,7 +306,7 @@ export function SettingsPage() {
     window.dispatchEvent(
       new CustomEvent("startspace:links-layout-changed", { detail: value }),
     );
-    setSaved("Saved");
+    showSaved();
   };
 
   const chooseWorkspace = async () => {
@@ -401,6 +412,7 @@ export function SettingsPage() {
 
   return (
     <section className="grid min-h-0 flex-1 grid-cols-1 gap-3 min-[1024px]:grid-cols-[15rem_minmax(0,1fr)] min-[1600px]:grid-cols-[22rem_minmax(0,1fr)_30.625rem]">
+      {/* Sidebar menu */}
       <aside className="hidden min-h-0 overflow-y-auto rounded-lg border border-border bg-surface/30 p-3 min-[1024px]:block">
         <h2 className="mb-3 px-2 text-base font-semibold text-fg">Settings</h2>
         <nav aria-label="Settings categories" className="space-y-1">
@@ -440,32 +452,17 @@ export function SettingsPage() {
           </select>
         </label>
         <main className="app-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto rounded-lg border border-border bg-surface/20 p-3 md:p-4">
-          <header className="mb-3 flex items-center gap-3 rounded-lg border border-border bg-surface/40 p-3">
-            <SelectedIcon
-              size={22}
-              aria-hidden="true"
-              className="text-accent"
-            />
-            <div className="min-w-0">
-              <h1
-                ref={headingRef}
-                tabIndex={-1}
-                className="text-lg font-semibold text-fg"
-              >
-                {selected.title} Settings
-              </h1>
-              <p className="text-xs text-muted">{selected.description}</p>
-            </div>
+          <div className="h-4 flex items-center justify-between mb-3">
             {saved && (
               <span
-                className="ml-auto text-xs text-muted"
+                className="ml-auto text-xs text-green-500"
                 role="status"
                 aria-live="polite"
               >
                 {saved}
               </span>
             )}
-          </header>
+          </div>
 
           {category === "general" && (
             <div className="space-y-3">

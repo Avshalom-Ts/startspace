@@ -135,6 +135,7 @@ Once installed and your workspace is chosen:
    If unsaved changes survived a reload or crash, choose **Recover draft** or **Discard draft** when the workspace reconnects. Recovered text stays local to this device and cannot overwrite a changed disk file without passing the normal save check. A missing note still leaves its recovered text available to copy.
 4. **Tasks** — a local Kanban board for tasks; link tasks to notes and bookmarks.
 5. **Settings** — choose your workspace, view browser search information, open browser search settings, and export or restore a backup.
+   Saving a startup preference or the default Links layout shows **Saved** for 3 seconds after the latest successful save.
 6. **GitHub** — link to the source repository.
 
 **Search:** when you open a new tab, the browser may keep focus in its address bar. Press **Escape** to move into the Home search input, then type immediately without clicking. **Ctrl/Cmd+K** focuses search on any page; Escape inside the search input clears the query. It searches in order: Bookmarks → Notes → Tasks → Web. Results appear in a scrollable dropdown below the input. Use Arrow Up/Down to select a result and Enter to open it; press Enter without a selected result to search using the browser’s default search engine.
