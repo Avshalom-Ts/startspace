@@ -18,7 +18,7 @@ Below the hero: three equal columns, 16 px gutters, 20 px outer margins. Recent 
 
 | Panel | Content and limits | Heading action |
 | --- | --- | --- |
-| Favorites | Up to seven bookmark tiles plus Add, four columns; tiles ≈125 × 96 px, 40 px icons | Links → Favorites |
+| Favorites | Up to seven bookmark tiles, four columns; tiles ≈125 × 96 px, 40 px icons | Links → Favorites |
 | Recent | Five most recently opened notes: title, parent path, relative last-opened time; ≈50 px rows | Notes → Recent |
 | Tasks | Five tasks: completion control, title, priority pill and due date if set; 36–40 px rows | Tasks → All Tasks |
 | Notes | Up to seven top-level folders with disclosure and descendant note counts; 300 px max height | Notes → All Notes |
@@ -26,7 +26,11 @@ Below the hero: three equal columns, 16 px gutters, 20 px outer margins. Recent 
 
 ### Data and interactions
 
-- Favorites: favorite flag in bookmark metadata, sorted by name then ID. Add opens a picker of existing bookmarks; New bookmark routes to the normal creation flow; never private duplicate URLs. Tiles open the current browser URL. Removing a favorite keeps the bookmark.
+- Favorites: favorite flag in bookmark metadata, sorted by name then ID. Add or
+  remove favorites from the Links page using a bookmark card's favorite toggle
+  or the toggle in its details panel. Home only displays favorites and has no
+  add button or picker. Tiles open the current browser URL; removing a favorite
+  keeps the bookmark.
 - Recent: locally recorded note opens (ADR 0016), not file modified times. Never show notes from a disconnected workspace.
 - Tasks: incomplete before complete, dated before undated, earliest due, then updated descending, then ID. Completion moves to Done and records the prior status; failures roll back. Title opens the Tasks inspector.
 - Notes: counts include descendant `.md` files; expanding shows subfolders and notes; note opens Notes; folder opens its list.
@@ -34,7 +38,7 @@ Below the hero: three equal columns, 16 px gutters, 20 px outer margins. Recent 
 
 ### States
 
-Panels load and fail independently with Retry. No workspace: one Choose workspace banner below search plus concise per-panel unavailable messages; never show unavailable data as empty. Empty states: “Add your first favorite”, “Notes you open will appear here.”, “No tasks yet” + New task, New note / New folder. Failed completion keeps the task and shows an inline error. Broken IDs are excluded, never replaced by URL match.
+Panels load and fail independently with Retry. No workspace: one Choose workspace banner below search plus concise per-panel unavailable messages; never show unavailable data as empty. Empty states: “Add your first favorite” with favorites managed from Links, “Notes you open will appear here.”, “No tasks yet” + New task, New note / New folder. Failed completion keeps the task and shows an inline error. Broken IDs are excluded, never replaced by URL match.
 
 ### Responsive and accessibility
 

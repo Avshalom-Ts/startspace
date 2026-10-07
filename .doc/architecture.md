@@ -66,7 +66,9 @@ StartSpace is an open-source, local-first browser extension that replaces the br
   counts, sorting and text/favorite/tag filters from the in-memory bookmark
   tree and metadata in pure helpers (`src/links/links-view.ts`); no search
   index or duplicate bookmark store is created.
-- Favorites are displayed on the homepage, backed by bookmark IDs.
+- Favorites are displayed on the homepage, backed by bookmark IDs. Users add or
+  remove favorites from the Links page; Home is display-only and has no
+  favorite-picker action.
 - Creates, updates, moves, and deletes links and folders through a dedicated
   Bookmark API service; the Links UI never becomes a second bookmark store.
 - Subscribes to bookmark mutation events and refreshes the displayed tree when

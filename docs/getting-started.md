@@ -187,13 +187,15 @@ On first launch, StartSpace asks you to choose a workspace folder using the File
 
 Once installed and your workspace is chosen:
 
-1. **Home** — your homepage with favorites (from bookmarks) and the central search bar.
+1. **Home** — your homepage with favorites (from bookmarks) and the central
+   search bar. Home displays favorites but does not add or remove them.
 2. **Links** — a three-region view: folder sidebar (All Links, Favorites,
    Recent, the browser folder tree with descendant counts and folder search),
    a bookmark grid or list with name sort, browser order inside a folder and
    a filter field, and a details panel for the selected bookmark.
    Clicking a card opens the bookmark; the **!** icon shows its details and the copy
-   button copies the URL. The details panel edits tags and a personal
+   button copies the URL. Use the favorite toggle on a bookmark card or in its
+   details panel to add or remove it from Home Favorites. The details panel edits tags and a personal
    description, lists linked notes (link or unlink existing notes) and tasks
    that reference the bookmark. Recent lists bookmarks opened through
    StartSpace in the last 30 days. Create, edit, move and delete still write

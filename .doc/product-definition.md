@@ -36,7 +36,8 @@ The product outcome: a browser homepage that feels like the user's own workspace
 - Browser extension replacing the browser's New Tab / Home page.
 - Central search bar with search order: Bookmarks → Notes → Tasks → Web.
 - Web fallback uses the browser’s default provider through its Search API.
-- Favorites displayed on the homepage (linked to browser bookmarks via Bookmark ID).
+- Favorites displayed on the homepage (linked to browser bookmarks via Bookmark
+  ID); add or remove favorites from the Links page, not Home.
 - Navigation: Home · Links · Notes · Tasks · Settings · GitHub.
 - **Browser Bookmarks:**
   - Use the browser's Bookmark API.

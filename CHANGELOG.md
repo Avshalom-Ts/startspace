@@ -29,6 +29,8 @@ Unreleased ready for the next changes. See the
 
 ### Changed
 
+- Bookmark favorites are managed from the Links page; Home displays favorites
+  without an add-favorite button or picker.
 - Notes now use an explorer/document layout with contextual controls,
   autosave, text direction controls, and code-block copying.
 - Links now have folder navigation, grid/list views, Favorites and Recent
