@@ -5,12 +5,6 @@ is complete, remove it from this file instead of marking it done. Detailed
 acceptance criteria and context for the page tasks are in the linked
 implementation notes.
 
-## Release
-
-- Complete the manual Chrome Web Store account and listing setup, privacy
-  disclosures, screenshots, and first submission. The automated delivery
-  workflow and first-publish runbook are already in place.
-
 ## Notes
 
 - **NOTES-06 (P2):** Add a bookmark relationship picker using current browser

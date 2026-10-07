@@ -5,9 +5,10 @@ The workflows separate untrusted build work from the job that can access Chrome 
 
 ## Current Manual Workflow
 
-Version 0.1.0 was uploaded manually to the Chrome Web Store. The current
-maintainer path is the [manual release checklist](publishing-to-chrome.md);
-automation below is optional and has not been changed by that checklist.
+Version 0.1.0 was manually uploaded, approved, and published in the Chrome Web
+Store. For future manual releases, use the
+[manual release checklist](publishing-to-chrome.md); automation below remains
+optional and was not changed by that release.
 
 **Pushing a `v*.*.*` tag still triggers the existing release workflow.**
 Do not push a version tag just to perform a manual upload. Installing from a

@@ -1,8 +1,9 @@
 # Manual Chrome Web Store Releases
 
-This is the current maintainer workflow: build locally and upload the ZIP in
-the Chrome Developer Dashboard. Version 0.1.0 was uploaded manually. Store
-submission, approval, and public availability are separate milestones.
+This is the maintainer workflow for future releases: build locally and upload
+the ZIP in the Chrome Developer Dashboard. Version 0.1.0 was manually
+uploaded, approved, and published. Submission, approval, and public
+availability remain separate milestones for each new release.
 
 For installing from a clone without publishing, see
 [Getting Started](getting-started.md#developer-installation-build-from-source).
@@ -117,8 +118,7 @@ Keep generated ZIPs out of source control.
 ## 4. Upload and Submit Manually
 
 1. Open the [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole)
-   and select the existing StartSpace item. For the first release, create a new
-   item by uploading the ZIP.
+   and select the existing StartSpace item.
 2. Upload the new package in the item's package controls.
 3. Resolve validation errors and review warnings, especially permission changes.
 4. Review the listing, screenshots, privacy disclosures, distribution settings,
@@ -135,7 +135,8 @@ new package, increment the version, update the changelog, rebuild, and reverify.
 ## 5. Record the Outcome
 
 - Record the version, source commit, and upload/review status in release records.
-  Once published, finalize the actual release date in the changelog.
+  Once published, record the actual release date in the changelog. Version
+  0.1.0 is approved and published; its publication date has not been recorded.
 - Verify the public listing and installed version after approval/publication.
   Test the store build in a separate profile; do not confuse it with the
   unpacked development copy.
@@ -148,7 +149,8 @@ new package, increment the version, update the changelog, rebuild, and reverify.
 
 ## Historical 0.1.0
 
-The manual 0.1.0 source includes commit `c965794` (browser-default search),
+Version 0.1.0 was approved and published in the Chrome Web Store. Its manual
+source includes commit `c965794` (browser-default search),
 which is after the existing `v0.1.0` Git tag. Use the
 [changelog's confirmed source link](../CHANGELOG.md#010) for that boundary;
 do not move the existing tag or infer the store publication date from it.

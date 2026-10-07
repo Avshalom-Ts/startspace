@@ -10,14 +10,12 @@ Your browser bookmarks stay in the browser (the browser is the source of truth).
 
 ## End-User Installation
 
-Version 0.1.0 was uploaded manually to the Chrome Web Store. Uploading does
-not mean the listing is approved or publicly available. Until a verified store
-listing is linked here, use the source installation below.
+Version 0.1.0 is approved and publicly available in the Chrome Web Store.
 
 ### Chrome / Chromium
 
-Public store installation will be documented once the listing is verified.
-For installation without a store, follow the Chrome/Edge steps below.
+Install StartSpace from the Chrome Web Store. For installation without a
+store, follow the Chrome/Edge steps below.
 
 ### Firefox
 

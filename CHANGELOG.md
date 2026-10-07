@@ -81,9 +81,9 @@ Unreleased ready for the next changes. See the
 
 ## [0.1.0]
 
-Initial manually uploaded Chrome Web Store version. The store publication date
-has not been recorded here; upload does not establish approval/public availability.
-Historical entries were reconstructed from Git history.
+Initial Chrome Web Store release. Version 0.1.0 was approved and published;
+the publication date has not been recorded here. Historical entries were
+reconstructed from Git history.
 
 The maintainer confirms this package includes source through
 [`c965794`](https://github.com/Avshalom-Ts/startspace/commit/c965794195ac54957cfabc714aa764fa080db613),

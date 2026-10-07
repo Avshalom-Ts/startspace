@@ -39,9 +39,8 @@ The extension itself is managed by the browser. On first launch, StartSpace asks
 
 ### Installation
 
-**End users:** version 0.1.0 was uploaded manually to the Chrome Web Store;
-public installation instructions will be added when the listing is verified.
-Firefox is not currently supported.
+**End users:** version 0.1.0 is approved and publicly available in the Chrome
+Web Store. Firefox is not currently supported.
 
 **From source:** Git clone → Bun install → Build → Load Unpacked in Chrome/Edge.
 Follow the [source installation guide](docs/getting-started.md#developer-installation-build-from-source).
