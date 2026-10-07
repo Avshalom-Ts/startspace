@@ -1,13 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   Check,
   ChevronRight,
   Clock3,
   FileText,
   Globe2,
-  Plus,
   Star,
-  X,
 } from "lucide-react";
 import type { BookmarkNode } from "../hooks/useBookmarks";
 import { useBookmarkMetadata, useBookmarkTree } from "../hooks/useBookmarkTree";
@@ -89,7 +87,6 @@ export function PageContent() {
   const bookmarkData = useBookmarkMetadata();
   const { config } = useConfig();
   const notifications = useNotifications();
-  const [addFavoriteOpen, setAddFavoriteOpen] = useState(false);
 
   const bookmarks = useMemo(
     () => flattenBookmarks(bookmarkTree.tree),
@@ -140,16 +137,6 @@ export function PageContent() {
   const workspaceReady =
     workspace.grant.handle && workspace.grant.permission === "granted";
 
-  const addFavorite = async (bookmark: BookmarkNode) => {
-    try {
-      await bookmarkData.update(bookmark.id, { favorites: true });
-      setAddFavoriteOpen(false);
-      notifications.success("Favorite added.");
-    } catch {
-      notifications.error("Favorite could not be saved. Try again.");
-    }
-  };
-
   const toggleTaskDone = async (task: (typeof tasks.tasks)[number]) => {
     const doneStatus = tasks.columns.find(
       (column) => column.title.toLowerCase() === "done",
@@ -165,67 +152,13 @@ export function PageContent() {
 
   return (
     <div className="mx-auto grid min-h-0 w-full max-w-[1800px] flex-1 grid-cols-1 items-stretch gap-3 pt-3 min-[1024px]:grid-cols-2 min-[1500px]:grid-cols-3 min-[1500px]:grid-rows-2">
-      {/* Favorites Panel */}
-      <div className="contents">
-        <DashboardPanel
-          title="Favorites"
-          icon={Star}
-          href="#links?view=favorites"
-          className="order-2 min-h-0 min-[1500px]:col-start-2 min-[1500px]:row-start-1 min-[1500px]:row-span-2"
-        >
-          {bookmarkTree.loading || bookmarkData.loading ? (
-            <p className="py-4 text-sm text-muted">Loading favorites…</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-2 min-[768px]:grid-cols-4">
-              {favorites.map((bookmark) => (
-                <a
-                  key={bookmark.id}
-                  href={bookmark.url}
-                  target={bookmarkTarget}
-                  rel="noopener noreferrer"
-                  className="flex min-h-20 min-w-0 flex-col items-center justify-center gap-2 rounded-md border border-border bg-page/70 p-2 text-center hover:border-accent/60 hover:bg-accent/10"
-                >
-                  {bookmark.url ? (
-                    <LinkIcon
-                      title={bookmark.title || bookmark.url}
-                      url={bookmark.url}
-                      size={32}
-                    />
-                  ) : (
-                    <Globe2
-                      size={25}
-                      aria-hidden="true"
-                      className="text-accent"
-                    />
-                  )}
-
-                  <span className="w-full truncate text-xs text-fg">
-                    {bookmark.title || bookmark.url}
-                  </span>
-                </a>
-              ))}
-              <button
-                type="button"
-                onClick={() => setAddFavoriteOpen(true)}
-                className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border text-xs text-muted hover:border-accent/60 hover:text-fg"
-              >
-                <Plus size={22} aria-hidden="true" /> Add
-              </button>
-            </div>
-          )}
-          {!bookmarkTree.loading && favorites.length === 0 && (
-            <p className="mt-2 text-xs text-muted">Add your first favorite.</p>
-          )}
-        </DashboardPanel>
-      </div>
-
       {/* Recent Notes Panel */}
       <div className="contents">
         <DashboardPanel
           title="Recent Notes"
           icon={Clock3}
           href="#notes?view=recent"
-          className="order-1 min-h-0 min-[1500px]:col-start-1 min-[1500px]:row-start-1 min-[1500px]:row-span-2"
+          className="min-h-0 min-[1500px]:col-start-1 min-[1500px]:row-start-1 min-[1500px]:row-span-2"
         >
           {!workspaceReady ? (
             <p className="py-2 text-sm text-muted">
@@ -270,13 +203,62 @@ export function PageContent() {
             </p>
           )}
         </DashboardPanel>
+      </div>
 
-        {/* Tasks Panel */}
+      {/* Favorites Panel */}
+      <div className="contents">
+        <DashboardPanel
+          title="Favorites"
+          icon={Star}
+          href="#links?view=favorites"
+          className="min-h-0 min-[1500px]:col-start-2 min-[1500px]:row-start-1 min-[1500px]:row-span-2"
+        >
+          {bookmarkTree.loading || bookmarkData.loading ? (
+            <p className="py-4 text-sm text-muted">Loading favorites…</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 min-[768px]:grid-cols-4">
+              {favorites.map((bookmark) => (
+                <a
+                  key={bookmark.id}
+                  href={bookmark.url}
+                  target={bookmarkTarget}
+                  rel="noopener noreferrer"
+                  className="flex min-h-20 min-w-0 flex-col items-center justify-center gap-2 rounded-md border border-border bg-page/70 p-2 text-center hover:border-accent/60 hover:bg-accent/10"
+                >
+                  {bookmark.url ? (
+                    <LinkIcon
+                      title={bookmark.title || bookmark.url}
+                      url={bookmark.url}
+                      size={32}
+                    />
+                  ) : (
+                    <Globe2
+                      size={25}
+                      aria-hidden="true"
+                      className="text-accent"
+                    />
+                  )}
+
+                  <span className="w-full truncate text-xs text-fg">
+                    {bookmark.title || bookmark.url}
+                  </span>
+                </a>
+              ))}
+            </div>
+          )}
+          {!bookmarkTree.loading && favorites.length === 0 && (
+            <p className="mt-2 text-xs text-muted">Add your first favorite.</p>
+          )}
+        </DashboardPanel>
+      </div>
+
+      {/* Tasks Panel */}
+      <div className="contents">
         <DashboardPanel
           title="Tasks"
           icon={Check}
           href="#tasks"
-          className="order-3 min-h-0 min-[1500px]:col-start-3 min-[1500px]:row-start-1 min-[1500px]:row-span-2"
+          className="min-h-0 min-[1500px]:col-start-3 min-[1500px]:row-start-1 min-[1500px]:row-span-2"
         >
           {!workspaceReady ? (
             <p className="py-2 text-sm text-muted">
@@ -332,70 +314,6 @@ export function PageContent() {
           )}
         </DashboardPanel>
       </div>
-
-      {addFavoriteOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          role="presentation"
-          onMouseDown={(event) =>
-            event.target === event.currentTarget && setAddFavoriteOpen(false)
-          }
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="favorite-picker-title"
-            className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-lg border border-border bg-page p-4 shadow-xl"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h2
-                id="favorite-picker-title"
-                className="text-base font-semibold text-fg"
-              >
-                Add a favorite
-              </h2>
-              <button
-                type="button"
-                onClick={() => setAddFavoriteOpen(false)}
-                aria-label="Close favorite picker"
-                title="Close"
-                className="rounded p-1 text-muted hover:bg-surface"
-              >
-                <X size={17} aria-hidden="true" />
-              </button>
-            </div>
-            <ul className="space-y-1">
-              {bookmarks
-                .filter(
-                  (bookmark) => !bookmarkData.metadata[bookmark.id]?.favorites,
-                )
-                .map((bookmark) => (
-                  <li key={bookmark.id}>
-                    <button
-                      type="button"
-                      onClick={() => void addFavorite(bookmark)}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm text-fg hover:bg-surface"
-                    >
-                      <Globe2
-                        size={16}
-                        aria-hidden="true"
-                        className="text-accent"
-                      />
-                      <span className="min-w-0 flex-1 truncate">
-                        {bookmark.title || bookmark.url}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-            </ul>
-            {bookmarks.length === 0 && (
-              <p className="text-sm text-muted">
-                No browser bookmarks are available.
-              </p>
-            )}
-          </section>
-        </div>
-      )}
     </div>
   );
 }
