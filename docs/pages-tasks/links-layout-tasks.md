@@ -12,7 +12,8 @@ This is the implementation backlog, not a claim that all design requirements shi
 - [x] Cards: local initial icon, name, URL, tags, info (!) button for details, favorite toggle, More (Open, Edit or move, Delete). Clicking the card opens the bookmark.
 - [x] Inspector: title/URL, favorite, More, tags (add/remove, trimmed, case-insensitive dedupe), user description, Open Link, Copy URL, Created (browser), Metadata updated, Added to StartSpace, Last opened, folder path.
 - [x] Related Notes: resolve stable IDs/paths, open note, Link existing note, remove relation, Missing note markers.
-- [x] Related Tasks: read-only list derived from `tasks.json` `bookmarkIds`, opening the task.
+- [x] Related Tasks: list tasks derived from `tasks.json` `bookmarkIds`, open
+  tasks, link/unlink existing tasks from the inspector with conflict checks.
 - [x] Recent: `lastOpenedAt` recorded when opened through StartSpace; 30-day window.
 - [x] Only http/https/ftp/file URLs are opened or saved.
 - [x] Opt-in synthetic preview (`#links?demo=1`, or Preview the layout when bookmarks are unavailable) — see Mock data below.
@@ -29,7 +30,7 @@ This is the implementation backlog, not a claim that all design requirements shi
 | ID | Priority | Task / acceptance criteria | Current UI |
 | --- | --- | --- | --- |
 | ~~LINKS-01~~ | — | Rejected: moving bookmark metadata to a workspace sidecar conflicts with ADR 0002, which keeps it in extension storage (see ADR 0019 conflicts). | Metadata stays in `chrome.storage.local`. |
-| LINKS-02 | P1 | Link/unlink existing tasks from the inspector by updating the task record in `tasks.json` with conflict checks. | Read-only list with a pointer to the Tasks page. |
+| ~~LINKS-02~~ | P1 | Done: link/unlink existing tasks from the inspector by updating the task record in `tasks.json` with conflict checks. | Task picker and unlink controls in the inspector. |
 | LINKS-03 | P2 | Browser-provided favicons via the `favicon` permission (`_favicon` API) with an ADR update to 0002; keep local initial fallback. | Local colored initial badge. |
 | LINKS-04 | — | Done (see above). | — |
 | LINKS-05 | P3 | Typeahead in the folder tree and focus restoration after dialogs close. | Arrow navigation and drawer focus handling implemented. |

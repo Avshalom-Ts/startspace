@@ -52,6 +52,19 @@ export function useTasks() {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const refreshAfterWorkspaceChange = () => void refresh();
+    window.addEventListener(
+      "startspace:workspace-changed",
+      refreshAfterWorkspaceChange,
+    );
+    return () =>
+      window.removeEventListener(
+        "startspace:workspace-changed",
+        refreshAfterWorkspaceChange,
+      );
+  }, [refresh]);
+
   const save = useCallback(
     async (nextTasks: Task[], nextColumns = columns): Promise<boolean> => {
       if (!grant.handle || grant.permission !== "granted") {
@@ -64,7 +77,11 @@ export function useTasks() {
           columns: nextColumns,
           tasks: nextTasks,
         };
-        await writeTasks(grant.handle, document);
+        await writeTasks(grant.handle, document, {
+          version: 1,
+          columns,
+          tasks,
+        });
         setTasks(nextTasks);
         setColumns(nextColumns);
         setError(null);

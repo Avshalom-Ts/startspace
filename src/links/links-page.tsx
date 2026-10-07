@@ -26,7 +26,9 @@ import {
   type LinksView,
 } from "./links-view";
 import type { BookmarkMetadata, BookmarkNode } from "../hooks/useBookmarks";
+import { useWorkspace } from "../hooks/useWorkspace";
 import { useNotifications } from "../notifications/notification-context";
+import { setTaskBookmarkLink } from "../tasks/task-workspace";
 import type { Task } from "../tasks/tasks-model";
 import type { NoteEntry } from "../types/notes";
 import {
@@ -85,12 +87,14 @@ const EMPTY_MESSAGES = {
 /** Renders the Links page, with an opt-in synthetic preview (#links?demo=1). */
 export function LinksPage(props: LinksPageProps) {
   const notifications = useNotifications();
+  const { grant } = useWorkspace();
   const [demo, setDemo] = useState(
     () => new URLSearchParams(location.hash.split("?")[1]).get("demo") === "1",
   );
   const [demoMetadata, setDemoMetadata] = useState(() =>
     createDemoLinksMetadata(Date.now()),
   );
+  const [previewTasks, setPreviewTasks] = useState(() => demoLinksTasks);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [deleting, setDeleting] = useState<BookmarkNode | null>(null);
   const [view, setView] = useState<LinksView>({ kind: "all" });
@@ -125,7 +129,7 @@ export function LinksPage(props: LinksPageProps) {
   const metadata = demo ? demoMetadata : props.metadata;
   const metadataAvailable = demo || props.metadataAvailable !== false;
   const notes = demo ? demoLinksNotes : props.notes;
-  const tasks = demo ? demoLinksTasks : props.tasks;
+  const tasks = demo ? previewTasks : props.tasks;
   const roots = useMemo(() => unwrapBookmarkRoots(tree), [tree]);
   const rootIds = useMemo(() => new Set(roots.map((root) => root.id)), [roots]);
   const now = Date.now();
@@ -244,6 +248,43 @@ export function LinksPage(props: LinksPageProps) {
           : "Bookmark details could not be saved. Try again.",
       );
       throw failure;
+    }
+  };
+  const updateTaskLink = async (
+    taskId: string,
+    bookmarkId: string,
+    linked: boolean,
+  ): Promise<boolean> => {
+    if (demo) {
+      setPreviewTasks((current) =>
+        current.map((task) => {
+          if (task.id !== taskId) return task;
+          const bookmarkIds = linked
+            ? task.bookmarkIds.includes(bookmarkId)
+              ? task.bookmarkIds
+              : [...task.bookmarkIds, bookmarkId]
+            : task.bookmarkIds.filter((id) => id !== bookmarkId);
+          return { ...task, bookmarkIds };
+        }),
+      );
+      return true;
+    }
+    if (!grant.handle || grant.permission !== "granted") {
+      notifications.error("Connect a workspace before changing task links.");
+      return false;
+    }
+    try {
+      await setTaskBookmarkLink(grant.handle, taskId, bookmarkId, linked);
+      window.dispatchEvent(new Event("startspace:workspace-changed"));
+      notifications.success(linked ? "Task linked to bookmark." : "Task unlinked from bookmark.");
+      return true;
+    } catch (failure) {
+      notifications.error(
+        failure instanceof Error
+          ? failure.message
+          : "Task link could not be saved. Refresh and retry.",
+      );
+      return false;
     }
   };
   const toggleFavorite = (id: string, current: boolean) => {
@@ -477,6 +518,7 @@ export function LinksPage(props: LinksPageProps) {
             meta={selectedNode ? metadata[selectedNode.id] : undefined}
             notes={notes}
             tasks={tasks}
+            onSetTaskLink={updateTaskLink}
             onClose={() => setSelectedId(null)}
             onToggleFavorite={toggleFavorite}
             onUpdateMetadata={updateMetadata}

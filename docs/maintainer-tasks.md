@@ -29,8 +29,6 @@ implementation notes.
 
 ## Links
 
-- **LINKS-02 (P1):** Allow linking/unlinking existing tasks from the inspector
-  by updating `tasks.json` with conflict checks.
 - **LINKS-03 (P2):** Add browser-provided favicons using the `favicon`
   permission and `_favicon` API; update ADR 0002 and retain the local fallback.
 - **LINKS-05 (P3):** Add folder-tree typeahead and focus restoration after

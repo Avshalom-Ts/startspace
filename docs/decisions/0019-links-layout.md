@@ -49,7 +49,7 @@ Grid: four equal columns from 768 px and six from 2560 px (ultrawide) (owner dec
 - Add/Edit dialog: required Name and URL, destination folder (default the selected folder, otherwise required). Only http, https, ftp and file URLs are opened or saved. Keep input on failure. Browser fields are saved through the Bookmark API; metadata uses the same ID. A creation that succeeded before a metadata failure is never repeated.
 - New Folder needs a name and writable parent. Move picks a folder and preserves the ID.
 - Tags are trimmed plain text, deduplicated case-insensitively. Clicking a tag on a card or in the inspector opens All Links with that tag in the filter field; this text filter can also match names, URLs or descriptions containing the word (owner decision 2026-10-01). Description is edited inline.
-- Related Notes lists title/folder with Link existing note and Remove; opening goes to Notes. Related Tasks lists task and status; linking tasks from Links is later (edit on Tasks). Removing a relation never deletes its target.
+- Related Notes lists title/folder with Link existing note and Remove; opening goes to Notes. Related Tasks lists task and status, links existing tasks from the inspector, and allows unlinking without deleting the task. Relationship updates preserve unrelated `tasks.json` data and report external file conflicts.
 - External browser edits update the tree, grid and selection. A selected bookmark deleted elsewhere clears to no selection. A bookmark deleted while its edit dialog is open stays an unsaved form with an explanation and is never recreated automatically.
 - HTTP(S) bookmark icons use Chrome's documented Favicon API (`/_favicon/`) with the `favicon` permission and lazy image loading. This reads browser-managed favicon data through the extension endpoint; StartSpace does not request images from bookmark sites or a remote favicon service. Local initials (or a globe) remain visible until an icon loads and whenever the API is unavailable or the icon fails. FTP and file bookmarks use the local fallback. Favicon data is not stored in StartSpace metadata or backups.
 - An explicit synthetic preview (`#links?demo=1`, or Preview the layout when bookmarks are unavailable) uses in-memory data and never changes browser bookmarks.
@@ -64,7 +64,7 @@ Skeletons for tree/grid. With no selection the inspector is hidden. Empty browse
 
 ### Scope
 
-MVP: three regions, grid/list, folder search/tree, All/Favorites/Recent, sorting, simple filters, browser CRUD, favorite/tags/description, inspector, note relations and read-only task relations. Later: Trash with real recovery, bulk actions, custom folder colors, drag ordering, center More menu, task linking from Links, cross-profile metadata remapping.
+MVP: three regions, grid/list, folder search/tree, All/Favorites/Recent, sorting, simple filters, browser CRUD, favorite/tags/description, inspector, note relations, and task link/unlink from the inspector. Later: Trash with real recovery, bulk actions, custom folder colors, drag ordering, center More menu, cross-profile metadata remapping.
 
 ## Conflicts with existing ADRs (existing ADR wins)
 

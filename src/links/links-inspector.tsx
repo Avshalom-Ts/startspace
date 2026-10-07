@@ -42,6 +42,11 @@ interface LinksInspectorProps {
     id: string,
     patch: Partial<BookmarkMetadata>,
   ) => Promise<void>;
+  onSetTaskLink: (
+    taskId: string,
+    bookmarkId: string,
+    linked: boolean,
+  ) => Promise<boolean>;
   onOpen: (node: BookmarkNode, event?: MouseEvent) => void;
   onCopy: (url: string) => void;
   onEdit: (node: BookmarkNode) => void;
@@ -89,6 +94,7 @@ function InspectorBody({
   onClose,
   onToggleFavorite,
   onUpdateMetadata,
+  onSetTaskLink,
   onOpen,
   onCopy,
   onEdit,
@@ -248,17 +254,19 @@ function InspectorBody({
         </div>
       </dl>
 
-      <fieldset disabled={!metadataAvailable} className="min-w-0">
+      <div className="min-w-0">
         <RelatedTabs
           node={node}
           meta={meta}
           notes={notes}
           tasks={tasks}
+          metadataAvailable={metadataAvailable}
           onChangeNotes={(relatedNotes) =>
             void save({ relatedNotes }).catch(() => undefined)
           }
+          onSetTaskLink={onSetTaskLink}
         />
-      </fieldset>
+      </div>
     </aside>
   );
 }
@@ -459,18 +467,29 @@ function RelatedTabs({
   meta,
   notes,
   tasks,
+  metadataAvailable,
   onChangeNotes,
+  onSetTaskLink,
 }: {
   node: BookmarkNode;
   meta?: BookmarkMetadata;
   notes: NoteEntry[];
   tasks: Task[];
+  metadataAvailable: boolean;
   onChangeNotes: (references: string[]) => void;
+  onSetTaskLink: (
+    taskId: string,
+    bookmarkId: string,
+    linked: boolean,
+  ) => Promise<boolean>;
 }) {
   const [tab, setTab] = useState<"notes" | "tasks">("notes");
   const [picking, setPicking] = useState(false);
+  const [pickingTask, setPickingTask] = useState(false);
   const [relinking, setRelinking] = useState<string | null>(null);
   const [choice, setChoice] = useState("");
+  const [taskChoice, setTaskChoice] = useState("");
+  const [taskBusy, setTaskBusy] = useState(false);
   const references = meta?.relatedNotes ?? [];
   const linkedNotes = references.map((reference) => ({
     reference,
@@ -488,6 +507,20 @@ function RelatedTabs({
   const linkedTasks = tasks.filter((task) =>
     task.bookmarkIds.includes(node.id),
   );
+  const linkableTasks = tasks.filter(
+    (task) => !task.bookmarkIds.includes(node.id),
+  );
+  const changeTaskLink = async (taskId: string, linked: boolean) => {
+    setTaskBusy(true);
+    try {
+      if (await onSetTaskLink(taskId, node.id, linked)) {
+        setTaskChoice("");
+        setPickingTask(false);
+      }
+    } finally {
+      setTaskBusy(false);
+    }
+  };
   const onTabKey = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
@@ -530,140 +563,147 @@ function RelatedTabs({
       </div>
 
       {tab === "notes" ? (
-        <div
-          id="links-panel-notes"
-          role="tabpanel"
-          aria-labelledby="links-tab-notes"
-          className="space-y-2"
+        <fieldset
+          disabled={!metadataAvailable}
+          className="m-0 min-w-0 border-0 p-0"
         >
-          {linkedNotes.length === 0 && (
-            <p className="text-sm text-muted">No related notes.</p>
-          )}
-          {linkedNotes.map(({ reference, note }) => (
-            <div
-              key={reference}
-              className="flex items-center gap-2 rounded-md border border-border p-2"
-            >
-              <FileText
-                size={18}
-                aria-hidden="true"
-                className="shrink-0 text-muted"
-              />
-              {note ? (
-                <a
-                  href={`#notes?note=${encodeURIComponent(note.id)}`}
-                  className="min-w-0 flex-1 hover:text-accent"
-                >
-                  <span className="block truncate text-sm text-fg">
-                    {note.title}
+          <div
+            id="links-panel-notes"
+            role="tabpanel"
+            aria-labelledby="links-tab-notes"
+            className="space-y-2"
+          >
+            {linkedNotes.length === 0 && (
+              <p className="text-sm text-muted">No related notes.</p>
+            )}
+            {linkedNotes.map(({ reference, note }) => (
+              <div
+                key={reference}
+                className="flex items-center gap-2 rounded-md border border-border p-2"
+              >
+                <FileText
+                  size={18}
+                  aria-hidden="true"
+                  className="shrink-0 text-muted"
+                />
+                {note ? (
+                  <a
+                    href={`#notes?note=${encodeURIComponent(note.id)}`}
+                    className="min-w-0 flex-1 hover:text-accent"
+                  >
+                    <span className="block truncate text-sm text-fg">
+                      {note.title}
+                    </span>
+                    <span className="block truncate text-xs text-muted">
+                      {note.folder || "Workspace root"}
+                    </span>
+                  </a>
+                ) : (
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm text-fg">
+                      {reference}
+                    </span>
+                    <span className="block text-xs text-red-400">
+                      Missing note
+                    </span>
                   </span>
-                  <span className="block truncate text-xs text-muted">
-                    {note.folder || "Workspace root"}
-                  </span>
-                </a>
-              ) : (
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm text-fg">
-                    {reference}
-                  </span>
-                  <span className="block text-xs text-red-400">
-                    Missing note
-                  </span>
-                </span>
-              )}
-              {!note && notes.length > 0 && (
+                )}
+                {!note && notes.length > 0 && (
+                  <button
+                    type="button"
+                    className="notes-button min-h-7 px-2 py-0.5 text-xs"
+                    aria-label={`Relink ${reference}`}
+                    disabled={!linkable.length}
+                    onClick={() => {
+                      setRelinking(reference);
+                      setPicking(true);
+                    }}
+                  >
+                    Relink
+                  </button>
+                )}
                 <button
                   type="button"
-                  className="notes-button min-h-7 px-2 py-0.5 text-xs"
-                  aria-label={`Relink ${reference}`}
-                  disabled={!linkable.length}
+                  className="notes-icon-button"
+                  aria-label={`Remove relation to ${note?.title ?? reference}`}
+                  title="Remove relation"
+                  onClick={() =>
+                    onChangeNotes(
+                      references.filter((item) => item !== reference),
+                    )
+                  }
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+            {picking ? (
+              <div className="flex gap-2">
+                <select
+                  aria-label={
+                    relinking ? `Note to relink ${relinking}` : "Note to link"
+                  }
+                  value={choice}
+                  onChange={(event) => setChoice(event.target.value)}
+                  className="notes-input min-w-0 flex-1"
+                >
+                  <option value="">Choose a note…</option>
+                  {linkable.map((note) => (
+                    <option key={note.id} value={note.stableId ?? note.id}>
+                      {note.title} — {note.folder || "root"}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="notes-primary"
+                  disabled={!choice}
                   onClick={() => {
-                    setRelinking(reference);
-                    setPicking(true);
+                    onChangeNotes(
+                      relinking
+                        ? references.map((item) =>
+                            item === relinking ? choice : item,
+                          )
+                        : [...references, choice],
+                    );
+                    setChoice("");
+                    setPicking(false);
+                    setRelinking(null);
                   }}
                 >
-                  Relink
+                  {relinking ? "Relink" : "Link"}
                 </button>
-              )}
+                <button
+                  type="button"
+                  className="notes-button"
+                  onClick={() => {
+                    setPicking(false);
+                    setRelinking(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : notes.length ? (
               <button
                 type="button"
-                className="notes-icon-button"
-                aria-label={`Remove relation to ${note?.title ?? reference}`}
-                title="Remove relation"
-                onClick={() =>
-                  onChangeNotes(references.filter((item) => item !== reference))
-                }
+                className="notes-button w-full"
+                onClick={() => setPicking(true)}
+                disabled={!linkable.length}
               >
-                <X size={16} aria-hidden="true" />
+                <Plus size={16} aria-hidden="true" /> Link existing note
               </button>
-            </div>
-          ))}
-          {picking ? (
-            <div className="flex gap-2">
-              <select
-                aria-label={
-                  relinking ? `Note to relink ${relinking}` : "Note to link"
-                }
-                value={choice}
-                onChange={(event) => setChoice(event.target.value)}
-                className="notes-input min-w-0 flex-1"
-              >
-                <option value="">Choose a note…</option>
-                {linkable.map((note) => (
-                  <option key={note.id} value={note.stableId ?? note.id}>
-                    {note.title} — {note.folder || "root"}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="notes-primary"
-                disabled={!choice}
-                onClick={() => {
-                  onChangeNotes(
-                    relinking
-                      ? references.map((item) =>
-                          item === relinking ? choice : item,
-                        )
-                      : [...references, choice],
-                  );
-                  setChoice("");
-                  setPicking(false);
-                  setRelinking(null);
-                }}
-              >
-                {relinking ? "Relink" : "Link"}
-              </button>
-              <button
-                type="button"
-                className="notes-button"
-                onClick={() => {
-                  setPicking(false);
-                  setRelinking(null);
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          ) : notes.length ? (
-            <button
-              type="button"
-              className="notes-button w-full"
-              onClick={() => setPicking(true)}
-              disabled={!linkable.length}
-            >
-              <Plus size={16} aria-hidden="true" /> Link existing note
-            </button>
-          ) : (
-            <p className="text-xs text-muted">
-              Connect a workspace in{" "}
-              <a className="underline" href="#notes">
-                Notes
-              </a>{" "}
-              to link notes.
-            </p>
-          )}
-        </div>
+            ) : (
+              <p className="text-xs text-muted">
+                Connect a workspace in{" "}
+                <a className="underline" href="#notes">
+                  Notes
+                </a>{" "}
+                to link notes.
+              </p>
+            )}
+          </div>
+        </fieldset>
       ) : (
         <div
           id="links-panel-tasks"
@@ -675,33 +715,89 @@ function RelatedTabs({
             <p className="text-sm text-muted">No related tasks.</p>
           )}
           {linkedTasks.map((task) => (
-            <a
+            <div
               key={task.id}
-              href={`#tasks?task=${encodeURIComponent(task.id)}`}
-              className="flex items-center gap-2 rounded-md border border-border p-2 hover:border-fg/30"
+              className="flex items-center gap-2 rounded-md border border-border p-2"
             >
               <ListTodo
                 size={18}
                 aria-hidden="true"
                 className="shrink-0 text-muted"
               />
-              <span className="min-w-0 flex-1">
+              <a
+                href={`#tasks?task=${encodeURIComponent(task.id)}`}
+                className="min-w-0 flex-1 hover:text-accent"
+              >
                 <span className="block truncate text-sm text-fg">
                   {task.title}
                 </span>
                 <span className="block text-xs text-muted">
                   Status: {task.status}
                 </span>
-              </span>
-            </a>
+              </a>
+              <button
+                type="button"
+                className="notes-icon-button"
+                aria-label={`Unlink task ${task.title}`}
+                title="Unlink task"
+                disabled={taskBusy}
+                onClick={() => void changeTaskLink(task.id, false)}
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            </div>
           ))}
-          <p className="text-xs text-muted">
-            Link tasks to this bookmark from the{" "}
-            <a className="underline" href="#tasks">
-              Tasks
-            </a>{" "}
-            page.
-          </p>
+          {pickingTask ? (
+            <div className="flex gap-2">
+              <select
+                aria-label="Task to link"
+                value={taskChoice}
+                onChange={(event) => setTaskChoice(event.target.value)}
+                className="notes-input min-w-0 flex-1"
+                disabled={taskBusy}
+              >
+                <option value="">Choose a task…</option>
+                {linkableTasks.map((task) => (
+                  <option key={task.id} value={task.id}>
+                    {task.title} — {task.status}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="notes-primary"
+                disabled={!taskChoice || taskBusy}
+                onClick={() => void changeTaskLink(taskChoice, true)}
+              >
+                {taskBusy ? "Saving…" : "Link"}
+              </button>
+              <button
+                type="button"
+                className="notes-button"
+                disabled={taskBusy}
+                onClick={() => {
+                  setPickingTask(false);
+                  setTaskChoice("");
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : tasks.length > 0 ? (
+            <button
+              type="button"
+              className="notes-button w-full"
+              disabled={!linkableTasks.length}
+              onClick={() => setPickingTask(true)}
+            >
+              <Plus size={16} aria-hidden="true" /> Link existing task
+            </button>
+          ) : (
+            <p className="text-xs text-muted">
+              Create tasks in the <a className="underline" href="#tasks">Tasks</a>{" "}
+              page before linking them.
+            </p>
+          )}
         </div>
       )}
     </section>
