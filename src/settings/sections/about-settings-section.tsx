@@ -75,14 +75,17 @@ export default function AboutSettingsSection() {
             </p>
             <p className="text-sm leading-relaxed text-muted">
               StartSpace runs on your computer. Notes and tasks live in your
-              chosen workspace folder; app settings and bookmark metadata stay
-              in local browser storage. Local search does not send your workspace
+              chosen workspace folder, along with bookmark metadata under
+              .startspace; app settings stay in local browser storage. Local search does not send your workspace
               content to a server.
             </p>
             <p className="border-l-2 border-accent/40 pl-3 text-xs leading-relaxed text-muted">
               When you choose Web search, your query is sent to your
               browser&apos;s default search provider. Opening external links also
-              leaves StartSpace.
+              leaves StartSpace. With optional website access, description fetching
+              contacts bookmarked websites directly, including automatically
+              after saving a bookmark and once per New Tab. Disable either
+              automatic behavior in Settings &gt; Links.
             </p>
           </section>
           <section

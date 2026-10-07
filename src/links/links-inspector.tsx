@@ -28,6 +28,7 @@ import { matchesNoteReference } from "../notes/note-identity";
 import type { Task } from "../tasks/tasks-model";
 import type { NoteEntry } from "../types/notes";
 import { hostname, LinkIcon, MenuButton } from "./links-ui";
+import { setDescriptionEditing } from "./description-editing";
 
 interface LinksInspectorProps {
   node: BookmarkNode | null;
@@ -46,6 +47,9 @@ interface LinksInspectorProps {
   onEdit: (node: BookmarkNode) => void;
   onDelete: (node: BookmarkNode) => void;
   onTagClick: (tag: string) => void;
+  metadataAvailable?: boolean;
+  fetching?: boolean;
+  onFetchDescription?: (id: string) => Promise<void>;
 }
 
 const dateFormat = new Intl.DateTimeFormat(undefined, {
@@ -90,6 +94,9 @@ function InspectorBody({
   onEdit,
   onDelete,
   onTagClick,
+  metadataAvailable = true,
+  fetching = false,
+  onFetchDescription,
 }: LinksInspectorProps & { node: BookmarkNode }) {
   const favorite = meta?.favorites === true;
   const name = node.title || hostname(node.url) || "Untitled bookmark";
@@ -97,8 +104,9 @@ function InspectorBody({
   const metadataUpdated = formatDate(meta?.updatedAt);
   const addedToStartSpace = meta ? formatDate(meta.dateAdded) : null;
   const lastOpened = formatDate(meta?.lastOpenedAt);
+  const [descriptionEditing, setEditing] = useState(false);
   const save = (patch: Partial<BookmarkMetadata>) =>
-    void onUpdateMetadata(node.id, patch);
+    onUpdateMetadata(node.id, patch);
 
   return (
     <aside
@@ -128,6 +136,7 @@ function InspectorBody({
           aria-label={favorite ? "Remove from favorites" : "Add to favorites"}
           title={favorite ? "Remove from favorites" : "Add to favorites"}
           onClick={() => onToggleFavorite(node.id, favorite)}
+          disabled={!metadataAvailable}
           className={`notes-icon-button ${favorite ? "text-accent!" : ""}`}
         >
           <Star
@@ -154,15 +163,34 @@ function InspectorBody({
         </button>
       </div>
 
-      <TagEditor
-        tags={meta?.tags ?? []}
-        onChange={(tags) => save({ tags })}
-        onTagClick={onTagClick}
-      />
-      <DescriptionEditor
-        value={meta?.description ?? ""}
-        onChange={(description) => save({ description })}
-      />
+      <fieldset
+        disabled={!metadataAvailable}
+        className="min-w-0 space-y-4 disabled:opacity-60"
+      >
+        <TagEditor
+          tags={meta?.tags ?? []}
+          onChange={(tags) => void save({ tags }).catch(() => undefined)}
+          onTagClick={onTagClick}
+        />
+        {onFetchDescription && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="notes-button"
+              disabled={fetching || descriptionEditing}
+              onClick={() => void onFetchDescription(node.id)}
+            >
+              {fetching ? "Fetching description..." : "Fetch description"}
+            </button>
+          </div>
+        )}
+        <DescriptionEditor
+          bookmarkId={node.id}
+          value={meta?.description ?? ""}
+          onChange={(description) => save({ description })}
+          onEditing={setEditing}
+        />
+      </fieldset>
 
       <div className="flex gap-2">
         <a
@@ -220,13 +248,17 @@ function InspectorBody({
         </div>
       </dl>
 
-      <RelatedTabs
-        node={node}
-        meta={meta}
-        notes={notes}
-        tasks={tasks}
-        onChangeNotes={(relatedNotes) => save({ relatedNotes })}
-      />
+      <fieldset disabled={!metadataAvailable} className="min-w-0">
+        <RelatedTabs
+          node={node}
+          meta={meta}
+          notes={notes}
+          tasks={tasks}
+          onChangeNotes={(relatedNotes) =>
+            void save({ relatedNotes }).catch(() => undefined)
+          }
+        />
+      </fieldset>
     </aside>
   );
 }
@@ -324,17 +356,30 @@ function TagEditor({
   );
 }
 
-/** User-written description, never fetched from the bookmarked site. */
+/** Editable description shared by manual edits and direct fetch results. */
 function DescriptionEditor({
+  bookmarkId,
   value,
   onChange,
+  onEditing,
 }: {
+  bookmarkId: string;
   value: string;
-  onChange: (value: string) => void;
+  onChange: (value: string) => Promise<void>;
+  onEditing: (active: boolean) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!editing) setDraft(value);
+  }, [value, editing]);
+  useEffect(() => {
+    setDescriptionEditing(bookmarkId, editing);
+    onEditing(editing);
+    return () => setDescriptionEditing(bookmarkId, false);
+  }, [bookmarkId, editing, onEditing]);
   if (!editing)
     return value ? (
       <button
@@ -362,12 +407,19 @@ function DescriptionEditor({
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         rows={3}
+        disabled={saving}
         className="notes-input resize-y"
       />
+      {saveError && (
+        <p role="alert" className="text-sm text-red-500">
+          {saveError}
+        </p>
+      )}
       <div className="flex justify-end gap-2">
         <button
           type="button"
           className="notes-button"
+          disabled={saving}
           onClick={() => {
             setDraft(value);
             setEditing(false);
@@ -378,12 +430,23 @@ function DescriptionEditor({
         <button
           type="button"
           className="notes-primary"
+          disabled={saving}
           onClick={() => {
-            onChange(draft.trim());
-            setEditing(false);
+            setSaving(true);
+            setSaveError(null);
+            void onChange(draft.trim())
+              .then(() => setEditing(false))
+              .catch((error: unknown) => {
+                setSaveError(
+                  error instanceof Error
+                    ? error.message
+                    : "Description could not be saved.",
+                );
+              })
+              .finally(() => setSaving(false));
           }}
         >
-          Save
+          {saving ? "Saving..." : "Save"}
         </button>
       </div>
     </div>

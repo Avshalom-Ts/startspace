@@ -23,6 +23,7 @@ interface LinksGridProps {
   items: LinkSearchItem[];
   totalBeforeFilters: number;
   metadata: Record<string, BookmarkMetadata>;
+  metadataAvailable?: boolean;
   selectedId: string | null;
   layout: LinksLayout;
   sort: LinksSort;
@@ -38,6 +39,7 @@ interface LinksGridProps {
   onFilters: (filters: LinkFilters) => void;
   onClearFilters: () => void;
   onSelect: (id: string) => void;
+  onInspect: (id: string) => void;
   onToggleFavorite: (id: string, current: boolean) => void;
   onOpen: (node: BookmarkNode, event?: MouseEvent) => void;
   onEdit: (node: BookmarkNode) => void;
@@ -170,11 +172,13 @@ export function LinksGrid(props: LinksGridProps) {
                 layout={layout}
                 selected={props.selectedId === node.id}
                 onSelect={() => props.onSelect(node.id)}
+                onInspect={() => props.onInspect(node.id)}
                 onToggleFavorite={props.onToggleFavorite}
                 onOpen={(event) => props.onOpen(node, event)}
                 onEdit={() => props.onEdit(node)}
                 onDelete={() => props.onDelete(node)}
                 onTagClick={props.onTagClick}
+                metadataAvailable={props.metadataAvailable}
               />
             ))}
           </ul>
@@ -219,26 +223,31 @@ function LinkCard({
   layout,
   selected,
   onSelect,
+  onInspect,
   onToggleFavorite,
   onOpen,
   onEdit,
   onDelete,
   onTagClick,
+  metadataAvailable = true,
 }: {
   node: BookmarkNode;
   meta?: BookmarkMetadata;
   layout: LinksLayout;
   selected: boolean;
   onSelect: () => void;
+  onInspect: () => void;
   onToggleFavorite: (id: string, current: boolean) => void;
   onOpen: (event?: MouseEvent) => void;
   onEdit: () => void;
   onDelete: () => void;
   onTagClick: (tag: string) => void;
+  metadataAvailable?: boolean;
 }) {
   const favorite = meta?.favorites === true;
   const name = node.title || hostname(node.url) || "Untitled bookmark";
   const tags = meta?.tags ?? [];
+  const description = meta?.description?.trim();
   const grid = layout === "grid";
   return (
     <li
@@ -280,6 +289,21 @@ function LinkCard({
           )}
         </div>
       </div>
+      {description && (
+        <div className={`pointer-events-none relative mt-3 ${grid ? "" : "pr-28"}`}>
+          <p className="line-clamp-2 wrap-break-word text-sm text-muted">
+            {description}
+          </p>
+          <button
+            type="button"
+            onClick={onInspect}
+            aria-label={`Read more about ${name}`}
+            className="pointer-events-auto mt-1 rounded text-xs text-accent hover:underline focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            Read more…
+          </button>
+        </div>
+      )}
       <div
         className={`absolute right-2 flex items-center ${grid ? "top-2" : "top-1/2 -translate-y-1/2"}`}
       >
@@ -296,6 +320,7 @@ function LinkCard({
         <button
           type="button"
           onClick={() => onToggleFavorite(node.id, favorite)}
+          disabled={!metadataAvailable}
           aria-pressed={favorite}
           aria-label={
             favorite

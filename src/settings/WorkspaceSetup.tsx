@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useConfig } from "../hooks/useConfig";
 import type { WorkspaceRef } from "../hooks/useConfig";
 import { useWorkspace } from "../hooks/useWorkspace";
+import { WebsiteAccess } from "./components/website-access";
 
 // ---------------------------------------------------------------------------
 // WorkspaceSetupPrompt
@@ -76,6 +77,9 @@ export function WorkspaceSetupPrompt() {
           does not upload or share your files — everything stays on your
           computer.
         </p>
+        <div className="mt-4 border-t border-border pt-4 text-left">
+          <WebsiteAccess />
+        </div>
       </div>
     </div>
   );

@@ -160,21 +160,22 @@ The project is a TypeScript + React + Tailwind CSS browser extension built with 
 - Styling via Tailwind CSS with a shared `tailwind.config.ts`.
 - Markdown rendering via `marked` where note content is rendered in the UI.
 - Data and storage: browser bookmarks via the Bookmark API; workspace notes,
-  folders, and `tasks.json`; config and bookmark-linked metadata in extension
-  storage.
+  folders, and `.startspace` JSON for tasks and metadata; device config in
+  extension storage.
 - Build tooling and configuration (Vite, TypeScript, Bun scripts).
 - Testing: Vitest for unit tests, Playwright for browser/extension-page tests.
 - Documentation (`.doc/`, `docs/`, `.rule/`, `.plan/`, `AGENTS.md`).
 
 ## First Launch: Choosing Your Workspace
 
-On first launch, StartSpace asks you to choose a workspace folder using the File System Access API.
+Choose or reconnect a workspace in Settings using the File System Access API.
 
 **What happens:**
 - You pick a folder on your computer.
 - That folder becomes your workspace.
-- StartSpace stores your notes (Markdown files), folders, and `tasks.json` there.
-  Small app settings and bookmark-linked metadata stay in extension storage.
+- StartSpace stores your notes and folders there. Its workspace-owned JSON lives
+  under `.startspace`: `tasks.json`, `note-identities.json`, `note-metadata.json`,
+  and `bookmark-metadata.json`. Small device settings remain in browser storage.
 - The extension itself is managed by the browser; the workspace is yours and does not depend on a server.
 
 **Things to know:**
@@ -182,6 +183,11 @@ On first launch, StartSpace asks you to choose a workspace folder using the File
 - You can edit notes with any Markdown editor (VS Code, Obsidian, etc.) — StartSpace reads and writes ordinary `.md` files.
 - StartSpace keeps note relationship IDs in `.startspace/note-identities.json` inside the workspace. Keep this file with the Markdown files when moving a workspace; Settings backups include it automatically. App-managed note and folder moves keep task and bookmark relationships connected.
 - You can change or reconnect your workspace from Settings.
+- If upgrading from root-level `tasks.json`, move it into `.startspace` before
+  using Tasks. A legacy root-only file shows a move warning, not an empty board.
+- Existing extension-stored bookmark metadata is not imported. Favorites, tags,
+  descriptions, recent links and bookmark relationships require a connected
+  workspace. Browser bookmark browsing and creation do not.
 
 ## Quick Tour
 
@@ -205,6 +211,25 @@ Once installed and your workspace is chosen:
    **View all in Links** under bookmark search
    results opens All Links filtered by your query. Outside the extension, or with `#links?demo=1`,
    **Preview the layout** shows synthetic bookmarks that are never saved.
+   Descriptions remain manually editable. **Fetch description** in the details
+   panel replaces the current description directly, without an extra apply step.
+   Bookmark cards show a two-line description preview in both grid and list
+   views. **Read more** opens the inspector without opening the website.
+   Automatic fetching after saving a new bookmark and one missing-description
+   bookmark per New Tab are enabled by default. They skip every existing
+   description, including failure text. Failed attempts leave an editable
+   `Description fetch failed: ...` message; clear it to make the bookmark eligible
+   again, or use Fetch description to retry manually.
+   During initial workspace setup, optionally choose **Allow HTTP(S) website
+   access**, or grant it later in **Settings > Links**. Fetching contacts the
+   website directly, without cookies, and only runs with website permission and
+   a connected workspace. Disable either automatic behavior separately in
+   Settings > Links, or revoke website access there.
+   The Settings sidebar's Browser Integration card shows **Fetch bookmarks
+   description** availability; it requires website permission and a connected
+   workspace.
+   Redirect-only, login-required, JavaScript-only, local/private-address or metadata-free sites may not be
+   enriched. Each request is limited to 10 seconds and 1 MiB of HTML.
 3. **Notes** — browse the folder explorer (closed by default except the opened note's path). Use a folder's three-dot menu to create notes/folders or delete an empty folder. Toggle preview/edit from the note header; edits save after 1 second of inactivity. Rename, move and import services remain available where exposed in the UI.
    In Preview, each Markdown code block has a Copy code button; clipboard access must be available in the browser.
    PNG, JPEG, GIF, WebP and AVIF files in the selected folder show thumbnails and can be viewed in the document pane. Markdown can display workspace-relative images from nested asset folders; remote images remain blocked.
@@ -225,11 +250,15 @@ Once installed and your workspace is chosen:
 
 - **Import Markdown notes:** bring existing Markdown notes/folders into your workspace.
 - **Export backup:** in Settings, choose **Export backup**. The downloaded,
-  versioned JSON includes every workspace file, StartSpace settings, theme, and
-  bookmark-linked metadata. Browser bookmarks themselves remain in the browser.
+  version-2 JSON includes every workspace file (including bookmark metadata),
+  StartSpace device preferences and theme. Browser bookmarks themselves remain
+  in the browser. Directory handles and unsaved recovery drafts are not exported.
 - **Restore backup:** connect the destination workspace, then choose **Restore
   backup** and select the exported JSON. Matching files are overwritten; files
   not represented by the backup are preserved.
+  Version-1 backups remain readable: root-level task paths and legacy bookmark
+  metadata are converted to `.startspace` files during explicit restore.
+  Conflicting old/new representations are rejected before any files are written.
 - **Migration:** move the JSON backup to the new computer, install StartSpace,
   choose an empty or existing destination workspace, and restore. Browser
   bookmark sync/export remains the browser's responsibility; linked metadata

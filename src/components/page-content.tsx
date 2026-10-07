@@ -213,7 +213,14 @@ export function PageContent() {
           href="#links?view=favorites"
           className="min-h-0 min-[1500px]:col-start-2 min-[1500px]:row-start-1 min-[1500px]:row-span-2"
         >
-          {bookmarkTree.loading || bookmarkData.loading ? (
+          {!bookmarkData.available ? (
+            <p className="py-4 text-sm text-muted">Connect a workspace to see favorites.</p>
+          ) : bookmarkData.error ? (
+            <div role="alert" className="py-4 text-sm">
+              <p>{bookmarkData.error}</p>
+              <button type="button" className="notes-button" onClick={() => void bookmarkData.reload()}>Retry</button>
+            </div>
+          ) : bookmarkTree.loading || bookmarkData.loading ? (
             <p className="py-4 text-sm text-muted">Loading favorites…</p>
           ) : (
             <div className="grid grid-cols-2 gap-2 min-[768px]:grid-cols-4">
@@ -246,7 +253,7 @@ export function PageContent() {
               ))}
             </div>
           )}
-          {!bookmarkTree.loading && favorites.length === 0 && (
+          {bookmarkData.available && !bookmarkData.error && !bookmarkData.loading && !bookmarkTree.loading && favorites.length === 0 && (
             <p className="mt-2 text-xs text-muted">Add your first favorite.</p>
           )}
         </DashboardPanel>

@@ -61,6 +61,11 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 - Uses the browser's Bookmark API.
 - Browser is source of truth for: URL, Name, Folder structure, Bookmark ID.
 - StartSpace metadata is linked by Bookmark ID: Favorites, Tags, Description, Date added to StartSpace, Last opened through StartSpace, Metadata updated, Related notes/tasks.
+- Metadata is a versioned workspace document at
+  `.startspace/bookmark-metadata.json`, validated and reread before mutation,
+  with workspace-scoped browser locks and cross-tab refresh signals. There is no
+  extension-storage fallback or cache; disconnected metadata is unavailable.
+  Browser Bookmark IDs remain profile-specific.
 - Provides the Links page for managing bookmarks from within StartSpace.
 - Derives Links views (All, Favorites, Recent, folder with descendants),
   counts, sorting and text/favorite/tag filters from the in-memory bookmark
@@ -69,6 +74,12 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 - Favorites are displayed on the homepage, backed by bookmark IDs. Users add or
   remove favorites from the Links page; Home is display-only and has no
   favorite-picker action.
+- Published descriptions are fetched directly from HTTP(S) sites with optional
+  host permission. Automatic on-save and one-per-New-Tab triggers default to on
+  and skip all nonempty descriptions; manual fetch replaces the field directly.
+  Completed failed attempts write an editable failure message. Requests omit
+  credentials, reject redirects, and have time/response limits; no third-party
+  proxy, script execution, or background batch worker is used. See ADR 0026.
 - Creates, updates, moves, and deletes links and folders through a dedicated
   Bookmark API service; the Links UI never becomes a second bookmark store.
 - Subscribes to bookmark mutation events and refreshes the displayed tree when
@@ -96,19 +107,23 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 
 - Local Kanban board.
 - Tasks stored in the workspace.
+- The board document is `.startspace/tasks.json`. A legacy root-only file
+  produces a manual-move warning instead of silently creating an empty board.
 - Tasks can be linked to Notes and Bookmarks (e.g., a task → related notes → related bookmarks).
 
 ### Workspace (User Data Layer)
 
 - A folder chosen by the user on first launch (File System Access API).
 - Contains the user's actual workspace data: notes (Markdown), folders, and
-  `tasks.json`. Configuration and bookmark-linked metadata remain in extension
-  storage.
+  `.startspace/tasks.json`, note sidecars and `.startspace/bookmark-metadata.json`.
+  Configuration and device-only preferences remain in browser storage.
 - Does not depend on a server; the extension references it by reference, not by owning it.
 - IndexedDB retains the current File System Access handle and a random, device-local registration ID per directory. Reselecting the same directory reuses its ID; directory names are not identities. A versioned relative path per registration remembers the last opened note, without storing document text.
 - Separately, a versioned IndexedDB draft record per workspace registration stores unsaved Markdown content and its disk baseline for crash recovery. It is not included in portable backups and is cleared after confirmed save or discard.
 - Backup/restore spans workspace files and extension-owned state in one
-  versioned local JSON export.
+  version-2 local JSON export. Explicit version-1 restores normalize legacy
+  tasks and bookmark metadata into workspace files; conflicting representations
+  are rejected before writing.
 
 ### Import / Export / Backup
 
@@ -191,7 +206,7 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 |            | dropdown with keyboard selection, exact note/task routing, and a       |
 |            | predefined web-engine catalog stored in extension config.              |
 | 2026-09-02 | Added a versioned, binary-safe JSON backup spanning workspace files and |
-|            | extension-owned settings/metadata, with non-destructive restore.        |
+|            | device settings plus workspace metadata, with non-destructive restore. |
 | 2026-09-02 | Added shared, accessible top-right notifications for transient operation |
 |            | feedback while preserving inline validation and persistent blockers.    |
 | 2026-09-03 | Added GitHub Actions CI and protected, tag-driven Chrome Web Store API    |

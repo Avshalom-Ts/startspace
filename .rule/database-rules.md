@@ -1,11 +1,16 @@
 # Data and Persistence Rules
 
-StartSpace has no traditional database in scope initially. "Persistent data" means three things:
+StartSpace has no traditional database in scope initially. Persistent data has these boundaries:
 
 1. **Browser bookmarks** — stored by the browser, read via the Bookmark API. The browser is the source of truth for URL, name, folder structure, and bookmark ID.
 2. **Notes** — real Markdown (`.md`) files in the user's workspace folder, read/written via the File System Access API.
 3. **Tasks** — workspace-stored data for the local Kanban board, linked to notes and bookmarks where relevant.
-4. **StartSpace metadata and config** — StartSpace-specific data linked to bookmarks by Bookmark ID (favorites, tags, date added, related notes/tasks), plus extension configuration (e.g., workspace reference). Stored in extension storage or workspace files as decided during implementation.
+4. **Workspace metadata** — `.startspace/bookmark-metadata.json` holds bookmark
+   metadata keyed by profile-specific browser IDs; note sidecars and
+   `.startspace/tasks.json` hold the remaining workspace-owned StartSpace data.
+5. **Device state** — extension config stays in chrome.storage.local; theme and
+   layout preferences use localStorage; directory handles, last-note selection,
+   and unsaved draft recovery use IndexedDB.
 
 ## Rules
 
@@ -14,6 +19,14 @@ StartSpace has no traditional database in scope initially. "Persistent data" mea
 - Keep notes as ordinary Markdown files. Do not introduce a proprietary note format.
 - Stable Note IDs and historical path aliases live in the versioned `.startspace/note-identities.json` workspace sidecar. Keep note bodies in Markdown, migrate legacy path-based task/bookmark edges without discarding missing targets, and preserve the sidecar in portable backups. Reject malformed or colliding identity metadata rather than overwriting it.
 - Keep task storage in the workspace, aligned with the notes/workspace model, so the data stays local and portable.
+- Use `.startspace` for workspace-owned StartSpace JSON. Do not duplicate
+  bookmark metadata into extension storage or silently import old storage keys.
+  Missing workspace permission means metadata is unavailable, not empty.
+- Validate bookmark sidecars, reread before mutations, coordinate participating
+  tabs with workspace-scoped locks, and signal refresh without sharing contents.
+- Description fetches must not automatically overwrite any nonempty description.
+  A completed fetch failure is visible, editable description text; permission
+  denial or a disconnected workspace must not create failure entries.
 - For StartSpace metadata and config, prefer reversible, serializable storage and document the chosen shape (extension storage vs workspace files) once selected.
 - Treat migrations and schema changes to StartSpace metadata/config as the source of truth for those changes; prefer additive, reversible changes and test them against representative data.
 - The browser's `startspace.workspace` IndexedDB store retains registered directory handles and random IDs plus a versioned last-opened relative note path per registration. A legacy current handle is assigned an ID on first load. Do not key note selection by folder name; unsaved note bodies are retained only in the separate device-local draft recovery record described in ADR 0014.

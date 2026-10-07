@@ -52,7 +52,7 @@ MVP: hero, greeting, search with chips, Favorites, Recent, Tasks, and Notes summ
 
 | Design point | Existing ADR | Outcome |
 | --- | --- | --- |
-| Favorites shown only when workspace metadata is available | ADR 0002 stores bookmark metadata in extension storage | Rejected. Favorites work without a workspace. |
+| Favorites shown only when workspace metadata is available | ADR 0002 originally stored bookmark metadata in extension storage | Accepted by ADR 0025. Favorites now require a connected workspace. |
 | Enter behavior in the hero search | ADR 0020 Enter rule | Follows ADR 0020. |
 
 ## Acceptance

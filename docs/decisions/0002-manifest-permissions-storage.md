@@ -4,6 +4,10 @@
 
 **Date:** 2026-08-25
 
+**Update:** Bookmark metadata storage is superseded by
+[ADR 0025](0025-workspace-owned-startspace-data.md). Optional website access for
+description fetching is defined in [ADR 0026](0026-link-description-fetching.md).
+
 **Related:** none (see subsections below for manifest sketch, export/import/backup/migration, and open questions).
 
 ## Context

@@ -24,7 +24,6 @@ function backupFixture(): StartSpaceBackup {
         version: 1,
         currentWorkspace: { id: "ws-fixture", name: "Fixture" },
       },
-      bookmarkMetadata: {},
       theme: "dark",
     },
     workspace: {
@@ -37,7 +36,7 @@ function backupFixture(): StartSpaceBackup {
 }
 
 describe("backup parsing", () => {
-  it("accepts a complete version-one backup", () => {
+  it("accepts a complete version-two backup", () => {
     expect(parseBackupJson(JSON.stringify(backupFixture()))).toEqual(
       backupFixture(),
     );
@@ -57,7 +56,7 @@ describe("backup parsing", () => {
         }),
       ),
     });
-    fixture.extension.bookmarkMetadata = {
+    const bookmarks = {
       synthetic: {
         favorites: false,
         tags: [],
@@ -66,6 +65,10 @@ describe("backup parsing", () => {
         relatedTasks: [],
       },
     };
+    fixture.workspace.files.push({
+      path: ".startspace/bookmark-metadata.json", encoding: "base64",
+      content: btoa(JSON.stringify({ version: 1, bookmarks })),
+    });
     expect(parseBackupJson(JSON.stringify(fixture))).toEqual(fixture);
     expect(
       parseNoteIdentities(JSON.parse(atob(fixture.workspace.files[1]!.content)))
@@ -83,19 +86,20 @@ describe("backup parsing", () => {
 
   it("rejects a backup created by an unsupported schema version", () => {
     const fixture = backupFixture() as unknown as Record<string, unknown>;
-    fixture.version = 2;
+    fixture.version = 3;
     expect(() => parseBackupJson(JSON.stringify(fixture))).toThrow(
-      "version 2 backup is not supported",
+      "version 3 backup is not supported",
     );
   });
 
   it("rejects malformed bookmark metadata before restoring files", () => {
     const fixture = backupFixture();
-    fixture.extension.bookmarkMetadata = {
-      synthetic: { favorites: true } as never,
-    };
+    fixture.workspace.files.push({
+      path: ".startspace/bookmark-metadata.json", encoding: "base64",
+      content: btoa(JSON.stringify({ version: 1, bookmarks: { synthetic: { favorites: true } } })),
+    });
     expect(() => parseBackupJson(JSON.stringify(fixture))).toThrow(
-      "invalid bookmark metadata",
+      "Invalid bookmark metadata",
     );
   });
 });

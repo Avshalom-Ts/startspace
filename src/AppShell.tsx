@@ -17,7 +17,7 @@ import { useNotifications } from "./notifications/notification-context";
 import { orchestrateSearch, type SearchScope } from "./search/search";
 import { SearchResults } from "./search/SearchResults";
 import { collectBookmarkNodeIds } from "./bookmarks/bookmark-tree";
-import { useFavoritesWrite } from "./links/favorites-list";
+import { useDescriptionFetching } from "./links/use-description-fetching";
 
 // ---------------------------------------------------------------------------
 // AppShell â€” hash-based page routing
@@ -141,7 +141,10 @@ export function AppShell() {
   const { tree, loading: treeLoading } = bookmarkTree;
   const bookmarkMetadata = useBookmarkMetadata();
   const { metadata, loading: metaLoading } = bookmarkMetadata;
-  const { toggle: toggleFavorite } = useFavoritesWrite();
+  const descriptionFetching = useDescriptionFetching(
+    bookmarkMetadata.available && !metaLoading && !bookmarkMetadata.error,
+    page === "home",
+  );
 
   const isLinks = page === "links";
   const isNotes = page === "notes";
@@ -308,13 +311,23 @@ export function AppShell() {
           <LinksPage
             tree={tree}
             metadata={metadata}
+            metadataAvailable={bookmarkMetadata.available && !bookmarkMetadata.error}
+            metadataError={bookmarkMetadata.error}
+            onFetchDescription={descriptionFetching.fetch}
+            fetchingId={descriptionFetching.fetchingId}
             notes={searchData.notes}
             tasks={searchData.tasks}
             onToggleFavorite={(id, current) => {
-              void toggleFavorite(id, current).then(bookmarkMetadata.reload);
+              void bookmarkMetadata.update(id, { favorites: !current }).catch((error: unknown) =>
+                notifications.error(error instanceof Error ? error.message : "Favorite could not be saved."),
+              );
             }}
             onUpdateMetadata={bookmarkMetadata.update}
-            onCreate={bookmarkTree.create}
+            onCreate={async (input) => {
+              const node = await bookmarkTree.create(input);
+              if (node.url) descriptionFetching.afterCreate(node.id);
+              return node;
+            }}
             onUpdate={bookmarkTree.update}
             onMove={bookmarkTree.move}
             onDelete={async (node) => {
@@ -326,7 +339,10 @@ export function AppShell() {
             mutating={bookmarkTree.mutating}
             error={bookmarkTree.error}
             onClearError={bookmarkTree.clearError}
-            onRetry={() => void bookmarkTree.reload()}
+            onRetry={() => {
+              void bookmarkTree.reload();
+              void bookmarkMetadata.reload();
+            }}
           />
         ) : isSettings ? (
           <SettingsPage />

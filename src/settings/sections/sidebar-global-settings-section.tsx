@@ -1,6 +1,7 @@
 import { Download, Folder, Link2, Upload } from "lucide-react";
 import SettingsCard from "../components/settings-card";
 import CapabilityRow from "../components/capability-row";
+import { useWebsitePermission } from "../../links/use-website-permission";
 
 export default function SidebarGlobalSettingsSection({
   workspace,
@@ -29,6 +30,16 @@ export default function SidebarGlobalSettingsSection({
   searchInfo: any;
   fileSystemStatus: string;
 }) {
+  const websitePermission = useWebsitePermission();
+  const descriptionFetchStatus = !websitePermission.available
+    ? "Unavailable"
+    : websitePermission.error
+      ? "Check failed"
+      : websitePermission.granted === null
+        ? "Checking"
+        : !websitePermission.granted || !workspaceReady
+          ? "Permission required"
+          : "Available";
   return (
     <aside className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 min-[1024px]:col-start-2 min-[1600px]:col-start-3 min-[1600px]:row-start-1 min-[1600px]:flex min-[1600px]:min-h-0 min-[1600px]:flex-col min-[1600px]:overflow-y-auto">
       <SettingsCard
@@ -142,6 +153,10 @@ export default function SidebarGlobalSettingsSection({
           }
         />
         <CapabilityRow label="File System Access" status={fileSystemStatus} />
+        <CapabilityRow
+          label="Fetch bookmarks description"
+          status={descriptionFetchStatus}
+        />
       </SettingsCard>
     </aside>
   );

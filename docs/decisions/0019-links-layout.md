@@ -1,6 +1,9 @@
 # ADR 0019: Links three-region layout
 
 Status: Accepted
+Storage and manual-only description rules are superseded by
+[ADR 0025](0025-workspace-owned-startspace-data.md) and
+[ADR 0026](0026-link-description-fetching.md).
 Date: 2026-09-30 (extended 2026-10-01 with the full Links design)
 Related: [ADR 0005](0005-browser-bookmark-crud.md), [ADR 0002](0002-manifest-permissions-storage.md), [ADR 0020](0020-shared-ui-search-and-data.md). Visual: [Links-Page.png](../references/Links-Page.png). Backlog: [links-layout-tasks.md](../pages-tasks/links-layout-tasks.md).
 
@@ -27,7 +30,7 @@ This adds on top of ADR 0005: the sidebar tree replaces folder-chip navigation. 
 | Folder tree | Browser parent IDs, names and order; native roots protected |
 | Smart counts | All = bookmark leaves; Favorites = marked leaves; Recent = opened through StartSpace in the past 30 days |
 | Folder badges | Descendant bookmark count; a folder view includes descendants |
-| Card | 48 px local/browser icon, name, URL, up to two tag rows, separate favorite toggle |
+| Card | 48 px local/browser icon, name, URL, up to two tag rows, separate favorite toggle, and a two-line description preview with Read more opening the inspector |
 | Selected card | Amber border/wash; the card's info (!) icon toggles the inspector. The inspector appears only while a bookmark is selected; its X (or Escape) closes it and clears the selection (owner decision 2026-10-01) |
 | Name/URL/folder | Resolved from the live browser tree on every refresh |
 | Description/tags/favorite | User-written metadata; no fetched site summary |

@@ -12,10 +12,10 @@ import {
   type StartSpaceBackup,
 } from "./backup-format";
 import type { Config } from "../hooks/useConfig";
-import type { BookmarkMetadata } from "../hooks/useFavorites";
+import { readBookmarkMetadata } from "../links/bookmark-workspace";
+import { signalBookmarkMetadata } from "../links/bookmark-workspace";
 
 const CONFIG_KEY = "startspace.config";
-const METADATA_KEY = "startspace.bookmarkMetadata";
 const THEME_KEY = "startspace.theme";
 
 interface ExtensionStorage {
@@ -82,8 +82,12 @@ function extensionStorage(): ExtensionStorage {
 /** Reads StartSpace-owned extension data without exporting browser bookmarks. */
 function readExtensionData(): Promise<Record<string, unknown>> {
   const storage = extensionStorage();
-  return new Promise((resolve) => {
-    storage.get([CONFIG_KEY, METADATA_KEY], resolve);
+  return new Promise((resolve, reject) => {
+    storage.get([CONFIG_KEY], (data) => {
+      const error = globalThis.chrome?.runtime?.lastError;
+      if (error) reject(new Error(error.message ?? "Backup settings could not be read."));
+      else resolve(data);
+    });
   });
 }
 
@@ -93,7 +97,7 @@ function writeExtensionData(
   destinationConfig: Config,
 ): Promise<void> {
   const storage = extensionStorage();
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     storage.set(
       {
         [CONFIG_KEY]: {
@@ -103,22 +107,24 @@ function writeExtensionData(
             name: backup.workspace.name,
           },
         },
-        [METADATA_KEY]: backup.extension.bookmarkMetadata,
       },
-      resolve,
+      () => {
+        const error = globalThis.chrome?.runtime?.lastError;
+        if (error) reject(new Error(error.message ?? "Backup settings could not be restored."));
+        else resolve();
+      },
     );
   });
 }
 
-/** Creates a version-one backup from the selected workspace and local settings. */
+/** Creates a version-two backup with bookmark metadata in workspace files. */
 export async function createBackup(
   workspace: FileSystemDirectoryHandle,
   fallbackConfig: Config,
 ): Promise<StartSpaceBackup> {
   const stored = await readExtensionData();
   const config = (stored[CONFIG_KEY] as Config | undefined) ?? fallbackConfig;
-  const bookmarkMetadata =
-    (stored[METADATA_KEY] as Record<string, BookmarkMetadata> | undefined) ?? {};
+  await readBookmarkMetadata(workspace);
   const theme = localStorage.getItem(THEME_KEY);
   return {
     kind: BACKUP_KIND,
@@ -126,8 +132,7 @@ export async function createBackup(
     createdAt: new Date().toISOString(),
     appVersion: __APP_VERSION__,
     extension: {
-      config: { version: 1, currentWorkspace: config.currentWorkspace },
-      bookmarkMetadata,
+      config: { version: 1, currentWorkspace: config.currentWorkspace, preferences: config.preferences },
       theme: theme === "light" || theme === "dark" ? theme : null,
     },
     workspace: {
@@ -199,8 +204,12 @@ export async function restoreBackup(
   }
   window.dispatchEvent(new Event("startspace:config-changed"));
   window.dispatchEvent(new Event("startspace:workspace-changed"));
+  const metadata = await readBookmarkMetadata(workspace);
+  if (destinationConfig.currentWorkspace?.id)
+    signalBookmarkMetadata(destinationConfig.currentWorkspace.id);
+  else window.dispatchEvent(new Event("startspace:bookmark-metadata-changed"));
   return {
     filesRestored: backup.workspace.files.length,
-    bookmarkMetadataEntries: Object.keys(backup.extension.bookmarkMetadata).length,
+    bookmarkMetadataEntries: Object.keys(metadata.bookmarks).length,
   };
 }

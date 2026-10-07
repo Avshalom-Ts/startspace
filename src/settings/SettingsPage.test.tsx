@@ -10,7 +10,10 @@ const { save, error } = vi.hoisted(() => ({
 }));
 
 vi.mock("../hooks/useConfig", () => ({
-  DEFAULT_PREFERENCES: { showGreeting: true, openLinksInNewTab: false },
+  DEFAULT_PREFERENCES: {
+    showGreeting: true, openLinksInNewTab: false,
+    fetchDescriptionOnSave: true, fetchDescriptionOnNewTab: true,
+  },
   useConfig: () => ({
     config: { version: 1, currentWorkspace: null },
     save,
@@ -86,6 +89,22 @@ it("restarts the timer when the same confirmation is shown for another layout sa
   expect(container.querySelector('[role="status"]')).not.toBeNull();
   await advance(1);
   expect(container.querySelector('[role="status"]')).toBeNull();
+});
+
+it("shows both fetching switches enabled by default and saves disabling each", async () => {
+  localStorage.setItem("startspace.settings.category", "links");
+  await act(async () => root.render(<SettingsPage />));
+  const switches = container.querySelectorAll<HTMLButtonElement>('[role="switch"]');
+  expect(switches).toHaveLength(2);
+  expect([...switches].every((button) => button.getAttribute("aria-checked") === "true")).toBe(true);
+  await act(async () => switches[0]!.click());
+  expect(save).toHaveBeenLastCalledWith(expect.objectContaining({
+    preferences: expect.objectContaining({ fetchDescriptionOnSave: false }),
+  }));
+  await act(async () => switches[1]!.click());
+  expect(save).toHaveBeenLastCalledWith(expect.objectContaining({
+    preferences: expect.objectContaining({ fetchDescriptionOnNewTab: false }),
+  }));
 });
 
 it("does not show a success confirmation when saving fails", async () => {

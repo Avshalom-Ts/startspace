@@ -48,6 +48,10 @@ import { useDrawerFocusTrap } from "./links-ui";
 interface LinksPageProps {
   tree: BookmarkNode[];
   metadata: Record<string, BookmarkMetadata>;
+  metadataAvailable?: boolean;
+  metadataError?: string | null;
+  fetchingId?: string | null;
+  onFetchDescription?: (id: string) => Promise<void>;
   notes: NoteEntry[];
   tasks: Task[];
   onToggleFavorite: (id: string, current: boolean) => void;
@@ -119,6 +123,7 @@ export function LinksPage(props: LinksPageProps) {
 
   const tree = demo ? demoLinksTree : props.tree;
   const metadata = demo ? demoMetadata : props.metadata;
+  const metadataAvailable = demo || props.metadataAvailable !== false;
   const notes = demo ? demoLinksNotes : props.notes;
   const tasks = demo ? demoLinksTasks : props.tasks;
   const roots = useMemo(() => unwrapBookmarkRoots(tree), [tree]);
@@ -254,9 +259,9 @@ export function LinksPage(props: LinksPageProps) {
       return;
     }
     const url = node.url;
-    const recorded = updateMetadata(node.id, {
+    const recorded = metadataAvailable ? updateMetadata(node.id, {
       lastOpenedAt: new Date().toISOString(),
-    }).catch(() => undefined);
+    }).catch(() => undefined) : Promise.resolve();
     if (
       event &&
       (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
@@ -358,6 +363,12 @@ export function LinksPage(props: LinksPageProps) {
           </button>
         </div>
       )}
+      {!demo && (!metadataAvailable || props.metadataError) && (
+        <div role={props.metadataError ? "alert" : "status"} className="mb-2 rounded border border-border p-3 text-sm">
+          {props.metadataError ?? "Connect a workspace to use favorites, descriptions, tags, and recent links."}
+          {props.metadataError && <button type="button" className="notes-button ml-2" onClick={props.onRetry}>Retry metadata</button>}
+        </div>
+      )}
       {props.error && !demo && (
         <div
           role="alert"
@@ -423,7 +434,10 @@ export function LinksPage(props: LinksPageProps) {
           allowBrowserOrder={view.kind === "folder"}
           recentView={view.kind === "recent"}
           filters={filters}
-          emptyMessage={EMPTY_MESSAGES[view.kind]}
+          emptyMessage={!metadataAvailable && (view.kind === "favorites" || view.kind === "recent")
+            ? "Workspace metadata is unavailable. Connect the workspace or retry reading its metadata."
+            : EMPTY_MESSAGES[view.kind]}
+          metadataAvailable={metadataAvailable}
           showAddOnEmpty={view.kind === "all" || view.kind === "folder"}
           foldersHidden={foldersHidden}
           onShowFolders={showFolders}
@@ -434,6 +448,7 @@ export function LinksPage(props: LinksPageProps) {
           onSelect={(id) =>
             setSelectedId((current) => (current === id ? null : id))
           }
+          onInspect={setSelectedId}
           onToggleFavorite={toggleFavorite}
           onOpen={openLink}
           onEdit={(node) => setEditor({ mode: "edit", node })}
@@ -470,6 +485,9 @@ export function LinksPage(props: LinksPageProps) {
             onEdit={(node) => setEditor({ mode: "edit", node })}
             onDelete={setDeleting}
             onTagClick={filterByTag}
+            metadataAvailable={metadataAvailable}
+            fetching={props.fetchingId === selectedNode?.id}
+            onFetchDescription={!demo ? props.onFetchDescription : undefined}
           />
         </div>
       </div>

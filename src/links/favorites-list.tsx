@@ -1,7 +1,6 @@
-import { useState, useCallback } from "react";
 
 // ---------------------------------------------------------------------------
-// FavoritesList — render favorites from bookmarks + extension metadata.
+// FavoritesList — render favorites from bookmarks + workspace metadata.
 // ---------------------------------------------------------------------------
 
 export { useFavorites } from "../hooks/useFavorites";
@@ -52,95 +51,4 @@ export function FavoritesList({
       )}
     </section>
   );
-}
-
-// ---------------------------------------------------------------------------
-// useFavoritesWrite — toggle favorites in extension storage (shared with LinksPage).
-// ---------------------------------------------------------------------------
-
-export function useFavoritesWrite() {
-  const [loading, setLoading] = useState(false);
-
-  const toggle = useCallback(async (id: string, current: boolean) => {
-    setLoading(true);
-    try {
-      const chromeExt = (
-        globalThis as {
-          chrome?: {
-            storage?: {
-              local: {
-                get: (
-                  keys: string[],
-                  cb: (result: Record<string, unknown>) => void,
-                ) => void;
-                set: (items: Record<string, unknown>, cb?: () => void) => void;
-              };
-            };
-          };
-        }
-      ).chrome;
-
-      if (!chromeExt?.storage?.local) {
-        setLoading(false);
-        return;
-      }
-
-      const local = chromeExt.storage.local;
-      const META_KEY = "startspace.bookmarkMetadata";
-
-      const existing = await new Promise<Record<string, unknown>>((resolve) => {
-        local.get([META_KEY], (result: Record<string, unknown>) => {
-          resolve(result);
-        });
-      });
-
-      const raw = existing[META_KEY];
-      const meta: Record<
-        string,
-        {
-          favorites: boolean;
-          tags: string[];
-          dateAdded: string;
-          relatedNotes: string[];
-          relatedTasks: string[];
-        }
-      > =
-        raw && typeof raw === "object"
-          ? (raw as Record<
-              string,
-              {
-                favorites: boolean;
-                tags: string[];
-                dateAdded: string;
-                relatedNotes: string[];
-                relatedTasks: string[];
-              }
-            >)
-          : {};
-
-      const entry = meta[id] ?? {
-        favorites: false,
-        tags: [],
-        dateAdded: new Date().toISOString(),
-        relatedNotes: [],
-        relatedTasks: [],
-      };
-
-      entry.favorites = !current;
-      meta[id] = entry;
-
-      await new Promise<void>((resolve) => {
-        local.set({ [META_KEY]: meta }, () => {
-          resolve();
-        });
-      });
-
-      setLoading(false);
-    } catch (err) {
-      console.warn("[StartSpace] failed to toggle favorite:", err);
-      setLoading(false);
-    }
-  }, []);
-
-  return { toggle, loading };
 }

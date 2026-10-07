@@ -79,7 +79,7 @@ Web execution follows ADR 0008 (browser default search, no provider URLs or over
 | Note name/body/hierarchy | `.md` filenames, contents and directories |
 | Note ID, favorite, tags, last-opened | `.startspace/note-identities.json` and `.startspace/note-metadata.json` (ADR 0015/0016) |
 | Note/bookmark relation | Canonical edge in bookmark metadata; reverse views derived |
-| Task data/relations | `tasks.json`; reverse views derived |
+| Task data/relations | `.startspace/tasks.json` (ADR 0025); reverse views derived |
 | UI settings | Extension storage (ADR 0002) |
 | Directory handles, drafts, last selected note | Device-local browser storage |
 
@@ -102,10 +102,10 @@ MVP: shell, navigation/New, global search, Ctrl/Cmd+K, workspace recovery and sa
 | Design point | Existing ADR | Outcome |
 | --- | --- | --- |
 | MVP ships dark only and omits the theme control | ADR 0009 retains light/dark; ADR 0006 backs it up | Rejected. Light/dark toggle stays. |
-| Bookmark metadata in `.startspace/bookmarks.json` | ADR 0002 keeps bookmark metadata in extension storage and rejects “everything in the workspace” | Rejected. Extension storage remains. |
+| Workspace bookmark metadata | ADR 0002 originally kept metadata in extension storage | Superseded by ADR 0025: `.startspace/bookmark-metadata.json` is authoritative. |
 | Portable UI settings in `.startspace/config.json` | ADR 0002 keeps config in extension storage | Rejected. Extension storage remains; backups per ADR 0006. |
 | `.startspace/notes-index.json` | ADR 0015/0016 sidecars | Replaced by the existing sidecars. |
-| `.startspace/tasks.json` | Existing `tasks.json` at the workspace root | Deferred; moving it needs its own migration ADR. |
+| `.startspace/tasks.json` | Existing `tasks.json` at the workspace root | Accepted by ADR 0025; manual relocation, with a warning for a root-only legacy file. |
 | Chrome-only search adapter | ADR 0008 supports chrome and browser namespaces | ADR 0008 stands. |
 | Enter with no selection opens first local match | ADR 0004/0008 submit web search | **Adopted on top** of 0004/0008 by explicit decision. |
 

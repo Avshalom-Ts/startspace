@@ -16,6 +16,7 @@ import {
 import { convertNoteEdges, migrateNoteEdges } from "./note-link-migration";
 import type { TasksDocument } from "../tasks/tasks-model";
 import type { BookmarkMetadata } from "../hooks/useFavorites";
+import { workspaceFixture } from "../test/workspace-fixture";
 
 const firstId = "note-00000000-0000-4000-8000-000000000001";
 const secondId = "note-00000000-0000-4000-8000-000000000002";
@@ -280,51 +281,25 @@ describe("legacy relationship migration", () => {
     ).toEqual(converted);
   });
 
-  it("restores the original task document if browser metadata write fails", async () => {
-    let content = JSON.stringify(tasks);
-    const workspace = {
-      getFileHandle: async () => ({
-        getFile: async () => ({ text: async () => content }),
-        createWritable: async () => {
-          let next = "";
-          return {
-            write: async (text: string) => {
-              next = text;
-            },
-            close: async () => {
-              content = next;
-            },
-            abort: async () => undefined,
-          };
-        },
-      }),
-    } as unknown as FileSystemDirectoryHandle;
-    const storage = {
-      get: async () => ({ "startspace.bookmarkMetadata": bookmarks }),
-      set: async () => {
-        throw new Error("Storage failed");
-      },
-    } as unknown as Pick<chrome.storage.StorageArea, "get" | "set">;
+  it("restores tasks if bookmark sidecar write fails and migrates both files idempotently", async () => {
+    const fixture = workspaceFixture({
+      ".startspace/tasks.json": JSON.stringify(tasks),
+      ".startspace/bookmark-metadata.json": JSON.stringify({ version: 1, bookmarks }),
+    });
+    fixture.failWrites.add(".startspace/bookmark-metadata.json");
     await expect(
-      migrateNoteEdges(workspace, identities, storage),
-    ).rejects.toThrow("Storage failed");
-    expect(JSON.parse(content)).toEqual(tasks);
-    let savedBookmarks = bookmarks;
-    let writes = 0;
-    const workingStorage = {
-      get: async () => ({ "startspace.bookmarkMetadata": savedBookmarks }),
-      set: async (value: Record<string, Record<string, BookmarkMetadata>>) => {
-        savedBookmarks = value["startspace.bookmarkMetadata"]!;
-        writes++;
-      },
-    } as unknown as Pick<chrome.storage.StorageArea, "get" | "set">;
-    await migrateNoteEdges(workspace, identities, workingStorage);
-    expect((JSON.parse(content) as TasksDocument).tasks[0]?.noteIds).toEqual([
+      migrateNoteEdges(fixture.handle, identities),
+    ).rejects.toThrow("Synthetic disk failure");
+    expect(JSON.parse(fixture.files.get(".startspace/tasks.json")!)).toEqual(tasks);
+    fixture.failWrites.clear();
+    await migrateNoteEdges(fixture.handle, identities);
+    expect((JSON.parse(fixture.files.get(".startspace/tasks.json")!) as TasksDocument).tasks[0]?.noteIds).toEqual([
       firstId,
       "missing.md",
     ]);
-    expect(savedBookmarks.b?.relatedNotes).toEqual([firstId]);
-    await migrateNoteEdges(workspace, identities, workingStorage);
-    expect(writes).toBe(1);
+    const saved = fixture.files.get(".startspace/bookmark-metadata.json")!;
+    expect(JSON.parse(saved).bookmarks.b.relatedNotes).toEqual([firstId]);
+    await migrateNoteEdges(fixture.handle, identities);
+    expect(fixture.files.get(".startspace/bookmark-metadata.json")).toBe(saved);
   });
 });

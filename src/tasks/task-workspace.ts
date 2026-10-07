@@ -1,7 +1,7 @@
 // task-workspace.ts
 //
 // Owns persistence for the local Kanban board. Tasks are stored as a versioned
-// tasks.json file in the user's granted workspace; browser bookmark and note
+// .startspace/tasks.json file in the user's granted workspace; browser bookmark and note
 // contents are not copied into this file, only their stable IDs are linked.
 
 import { DEFAULT_COLUMNS, type Task, type TaskColumn, type TasksDocument } from './tasks-model';
@@ -15,10 +15,26 @@ function isNotFound(error: unknown): boolean {
 /** Reads tasks.json, returning an empty version-one document when absent. */
 export async function readTasks(workspace: FileSystemDirectoryHandle): Promise<TasksDocument> {
   try {
-    const handle = await workspace.getFileHandle(TASKS_FILE);
+    let handle: FileSystemFileHandle;
+    try {
+      const folder = await workspace.getDirectoryHandle('.startspace');
+      handle = await folder.getFileHandle(TASKS_FILE);
+    } catch (error) {
+      if (!isNotFound(error)) throw error;
+      try {
+        await workspace.getFileHandle(TASKS_FILE);
+      } catch (legacyError) {
+        if (isNotFound(legacyError))
+          return { version: 1, columns: DEFAULT_COLUMNS.map((column) => ({ ...column })), tasks: [] };
+        throw legacyError;
+      }
+      throw new Error('Move tasks.json from the workspace root into .startspace, then refresh.');
+    }
     const raw = await (await handle.getFile()).text();
     const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as { tasks?: unknown }).tasks)) {
+    if (!parsed || typeof parsed !== 'object' ||
+      ((parsed as { version?: unknown }).version !== undefined && (parsed as { version?: unknown }).version !== 1) ||
+      !Array.isArray((parsed as { tasks?: unknown }).tasks)) {
       throw new Error('Invalid tasks.json format.');
     }
     return {
@@ -36,7 +52,9 @@ export async function readTasks(workspace: FileSystemDirectoryHandle): Promise<T
 
 /** Atomically replaces tasks.json with the supplied task document. */
 export async function writeTasks(workspace: FileSystemDirectoryHandle, document: TasksDocument): Promise<void> {
-  const handle = await workspace.getFileHandle(TASKS_FILE, { create: true });
+  await readTasks(workspace);
+  const folder = await workspace.getDirectoryHandle('.startspace', { create: true });
+  const handle = await folder.getFileHandle(TASKS_FILE, { create: true });
   const writable = await handle.createWritable();
   try {
     await writable.write(`${JSON.stringify(document, null, 2)}\n`);

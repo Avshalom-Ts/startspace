@@ -3,6 +3,11 @@
 **Status:** Accepted  
 **Date:** 2026-09-02
 
+**Update:** [ADR 0025](0025-workspace-owned-startspace-data.md) supersedes the
+version-one export representation below. New exports use version 2, with bookmark
+metadata in workspace files and device preferences in extension config. Explicit
+version-one restores normalize legacy paths and metadata into the workspace.
+
 ## Context
 
 StartSpace stores notes and tasks in a user-selected workspace, while settings

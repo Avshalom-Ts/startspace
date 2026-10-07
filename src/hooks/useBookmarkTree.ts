@@ -2,9 +2,12 @@
 //
 // Owns the live bookmark tree and StartSpace bookmark metadata used by Links.
 // It reads and mutates Chrome's Bookmark API and stores metadata separately in
-// chrome.storage.local under the browser-assigned Bookmark ID.
+// the connected workspace under the browser-assigned Bookmark ID.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useWorkspace } from "./useWorkspace";
+import { emptyBookmarkMetadata } from "../links/bookmark-metadata-model";
+import { readBookmarkMetadata, updateBookmarkMetadata, signalBookmarkMetadata } from "../links/bookmark-workspace";
 import {
   createBookmark,
   moveBookmark,
@@ -15,8 +18,6 @@ import {
   type UpdateBookmarkInput,
 } from "../bookmarks/bookmark-service";
 import type { BookmarkMetadata, BookmarkNode } from "./useBookmarks";
-
-const META_KEY = "startspace.bookmarkMetadata";
 
 /** Reads the full browser bookmark tree, returning null outside an extension. */
 async function readBookmarkTree(): Promise<BookmarkNode[] | null> {
@@ -49,19 +50,6 @@ export function useBookmarkTree() {
   }, []);
 
   useEffect(() => void reload(), [reload]);
-
-  useEffect(() => {
-    const storage = (globalThis as { chrome?: typeof chrome }).chrome?.storage;
-    if (!storage?.onChanged) return;
-    const refreshMetadata = (
-      changes: Record<string, unknown>,
-      areaName: string,
-    ) => {
-      if (areaName === "local" && changes[META_KEY]) void reload();
-    };
-    storage.onChanged.addListener(refreshMetadata);
-    return () => storage.onChanged.removeListener(refreshMetadata);
-  }, [reload]);
 
   useEffect(() => {
     const api = (globalThis as { chrome?: typeof chrome }).chrome?.bookmarks;
@@ -123,78 +111,101 @@ export function useBookmarkTree() {
 
 /** Reads and updates StartSpace metadata linked to browser Bookmark IDs. */
 export function useBookmarkMetadata() {
+  const { grant } = useWorkspace();
   const [metadata, setMetadata] = useState<Record<string, BookmarkMetadata>>(
     {},
   );
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const available = !!grant.handle && !!grant.id && grant.permission === "granted";
+  const requestId = useRef(0);
+  const current = useRef(grant);
+  current.current = grant;
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    const storage = (globalThis as { chrome?: typeof chrome }).chrome?.storage
-      ?.local;
-    if (!storage) {
+    const request = ++requestId.current;
+    if (!grant.handle || !available) {
       setMetadata({});
       setLoading(false);
+      setLoadedFor(null);
+      setError(null);
       return;
     }
-    const result = await storage.get([META_KEY]);
-    const raw = result[META_KEY];
-    setMetadata(
-      raw && typeof raw === "object"
-        ? (raw as Record<string, BookmarkMetadata>)
-        : {},
-    );
-    setLoading(false);
-  }, []);
+    try {
+      const next = await readBookmarkMetadata(grant.handle);
+      if (request !== requestId.current) return;
+      setMetadata(next.bookmarks);
+      setLoadedFor(grant.id);
+      setError(null);
+    } catch (cause) {
+      if (request !== requestId.current) return;
+      setMetadata({});
+      setError(cause instanceof Error ? cause.message : "Could not read bookmark metadata.");
+    } finally {
+      if (request === requestId.current) setLoading(false);
+    }
+  }, [grant.handle, grant.id, available]);
 
-  useEffect(() => void reload(), [reload]);
+  useEffect(() => {
+    setLoading(available);
+    void reload();
+    const refresh = () => void reload();
+    window.addEventListener("focus", refresh);
+    window.addEventListener("startspace:bookmark-metadata-changed", refresh);
+    window.addEventListener("startspace:workspace-changed", refresh);
+    const channel = grant.id && typeof BroadcastChannel !== "undefined"
+      ? new BroadcastChannel(`startspace:bookmark-metadata:${grant.id}`) : null;
+    if (channel) channel.onmessage = refresh;
+    return () => {
+      requestId.current++;
+      channel?.close();
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("startspace:bookmark-metadata-changed", refresh);
+      window.removeEventListener("startspace:workspace-changed", refresh);
+    };
+  }, [reload, available, grant.id]);
+
+  const mutate = useCallback(async (
+    change: Parameters<typeof updateBookmarkMetadata>[2],
+  ) => {
+    if (!available || !grant.handle || !grant.id)
+      throw new Error("Connect a workspace to save bookmark metadata.");
+    const next = await updateBookmarkMetadata(grant.handle, grant.id, change);
+    if (current.current.id === grant.id && current.current.handle === grant.handle) {
+      setMetadata(next.bookmarks);
+      setLoadedFor(grant.id);
+      setError(null);
+    }
+    signalBookmarkMetadata(grant.id);
+  }, [available, grant.handle, grant.id]);
 
   const removeIds = useCallback(async (ids: string[]) => {
-    const storage = (globalThis as { chrome?: typeof chrome }).chrome?.storage
-      ?.local;
-    if (!storage) return;
-    const result = await storage.get([META_KEY]);
-    const raw = result[META_KEY];
-    const next =
-      raw && typeof raw === "object"
-        ? { ...(raw as Record<string, BookmarkMetadata>) }
-        : {};
-    for (const id of ids) delete next[id];
-    await storage.set({ [META_KEY]: next });
-    setMetadata(next);
-  }, []);
+    if (!available) return;
+    await mutate((document) => ({
+      ...document,
+      bookmarks: Object.fromEntries(Object.entries(document.bookmarks).filter(([id]) => !ids.includes(id))),
+    }));
+  }, [available, mutate]);
 
   /** Merges a patch into one bookmark's metadata, creating the entry on first use. */
   const update = useCallback(
     async (id: string, patch: Partial<BookmarkMetadata>) => {
-      const storage = (globalThis as { chrome?: typeof chrome }).chrome?.storage
-        ?.local;
-      if (!storage)
-        throw new Error("Bookmark details can only be saved in the extension.");
-      const result = await storage.get([META_KEY]);
-      const raw = result[META_KEY];
-      const next =
-        raw && typeof raw === "object"
-          ? { ...(raw as Record<string, BookmarkMetadata>) }
-          : {};
       const now = new Date().toISOString();
-      const current = next[id] ?? {
-        favorites: false,
-        tags: [],
-        dateAdded: now,
-        relatedNotes: [],
-        relatedTasks: [],
-      };
       const edited = Object.keys(patch).some((key) => key !== "lastOpenedAt");
-      next[id] = {
-        ...current,
-        ...patch,
-        ...(edited ? { updatedAt: now } : {}),
-      };
-      await storage.set({ [META_KEY]: next });
-      setMetadata(next);
+      await mutate((document) => ({
+        ...document,
+        bookmarks: {
+          ...document.bookmarks,
+          [id]: { ...(document.bookmarks[id] ?? emptyBookmarkMetadata()), ...patch, ...(edited ? { updatedAt: now } : {}) },
+        },
+      }));
     },
-    [],
+    [mutate],
   );
 
-  return { metadata, loading, reload, removeIds, update };
+  return {
+    metadata: available && loadedFor === grant.id ? metadata : {},
+    loading, available, error, reload, removeIds, update,
+  };
 }

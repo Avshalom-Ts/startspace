@@ -4,9 +4,8 @@ import type { BookmarkMetadata } from "../hooks/useFavorites";
 import { readTasks, writeTasks } from "../tasks/task-workspace";
 import type { TasksDocument } from "../tasks/tasks-model";
 import { migrateNoteReferences, type NoteIdentities } from "./note-identity";
-
-type BookmarkStorage = Pick<chrome.storage.StorageArea, "get" | "set">;
-const bookmarkKey = "startspace.bookmarkMetadata";
+import { readBookmarkMetadata, updateBookmarkMetadata, signalBookmarkMetadata } from "../links/bookmark-workspace";
+import { registerHandle } from "../hooks/useWorkspace";
 
 /** Creates new documents without changing existing values in place. */
 export function convertNoteEdges(
@@ -42,24 +41,13 @@ export function convertNoteEdges(
   return { nextTasks, nextBookmarks };
 }
 
-/** Migrates both stores after the identity file is durable; rolls tasks back if browser storage fails. */
+/** Migrates both workspace documents after the identity file is durable. */
 export async function migrateNoteEdges(
   workspace: FileSystemDirectoryHandle,
   identities: NoteIdentities,
-  storage: BookmarkStorage | undefined = globalThis.chrome?.storage?.local,
 ): Promise<void> {
   const tasks = await readTasks(workspace);
-  const raw = storage
-    ? (await storage.get([bookmarkKey]))[bookmarkKey]
-    : undefined;
-  if (
-    raw !== undefined &&
-    (!raw || typeof raw !== "object" || Array.isArray(raw))
-  )
-    throw new Error(
-      "Invalid bookmark metadata. Relationships were not migrated.",
-    );
-  const bookmarks = (raw ?? {}) as Record<string, BookmarkMetadata>;
+  const { bookmarks } = await readBookmarkMetadata(workspace);
   const { nextTasks, nextBookmarks } = convertNoteEdges(
     identities,
     tasks,
@@ -71,8 +59,14 @@ export async function migrateNoteEdges(
     JSON.stringify(nextBookmarks) !== JSON.stringify(bookmarks);
   if (tasksChanged) await writeTasks(workspace, nextTasks);
   try {
-    if (storage && bookmarksChanged)
-      await storage.set({ [bookmarkKey]: nextBookmarks });
+    if (bookmarksChanged) {
+      const { id } = await registerHandle(workspace);
+      await updateBookmarkMetadata(workspace, id, (document) => ({
+        ...document,
+        bookmarks: convertNoteEdges(identities, tasks, document.bookmarks).nextBookmarks,
+      }));
+      signalBookmarkMetadata(id);
+    }
   } catch (error) {
     if (tasksChanged) {
       try {

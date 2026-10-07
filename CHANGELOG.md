@@ -14,6 +14,14 @@ Unreleased ready for the next changes. See the
 
 ### Added
 
+- Bookmark cards show a two-line description preview in grid and list views.
+  Read more opens the bookmark inspector without navigating to the website.
+- Editable website descriptions for bookmarks: Fetch description replaces the
+  current text directly. Automatic fetching after creation and one missing
+  description per New Tab are enabled by default, require optional HTTP(S)
+  website access, and can be disabled separately in Settings > Links.
+  Failed attempts leave an editable failure message and are skipped on later
+  automatic passes. Existing descriptions are never overwritten automatically.
 - Search scopes for bookmarks, notes, tasks, and web.
 - Notes image browsing and management for local PNG, JPEG, GIF, WebP, and AVIF
   files, plus workspace-relative images in Markdown.
@@ -29,6 +37,18 @@ Unreleased ready for the next changes. See the
 
 ### Changed
 
+- Settings now shows bookmark-description fetching availability in the Browser
+  Integration sidebar instead of website-access controls in the Workspace card.
+  Grant and revoke controls remain in Settings > Links.
+- Workspace-owned task and bookmark data now live in `.startspace/tasks.json`
+  and `.startspace/bookmark-metadata.json`. Move an existing root-level
+  `tasks.json` into `.startspace` before using Tasks. Existing extension-stored
+  bookmark metadata is not imported. Favorites, tags, descriptions, and recent
+  links require a connected workspace; browser bookmark browsing remains available.
+- Backups now use format version 2, storing bookmark metadata as a workspace file.
+  Explicit version-1 restores normalize legacy task and metadata locations;
+  ambiguous duplicate representations are rejected. Bookmark IDs remain
+  browser-profile-specific.
 - Bookmark favorites are managed from the Links page; Home displays favorites
   without an add-favorite button or picker.
 - Notes now use an explorer/document layout with contextual controls,

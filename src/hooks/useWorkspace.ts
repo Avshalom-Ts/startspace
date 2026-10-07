@@ -29,6 +29,15 @@ const WORKSPACE_DB = "startspace.workspace";
 const WORKSPACE_STORE = "handles";
 type RegisteredHandle = { id: string; handle: FileSystemDirectoryHandle };
 
+function signalWorkspaceSelection() {
+  window.dispatchEvent(new Event("startspace:workspace-selected"));
+  if (typeof BroadcastChannel !== "undefined") {
+    const channel = new BroadcastChannel("startspace:workspace-selection");
+    channel.postMessage("changed");
+    channel.close();
+  }
+}
+
 export function loadPersistedHandle(): Promise<RegisteredHandle | null> {
   return new Promise((resolve) => {
     if (typeof indexedDB === "undefined") {
@@ -161,12 +170,37 @@ export function useWorkspace() {
   }, []);
 
   useEffect(() => {
+    let active = true;
     const update = async () => {
       const registration = await loadPersistedHandle();
-      if (registration) setGrant({ ...registration, name: registration.handle.name, permission: "granted" });
+      if (!active) return;
+      if (!registration) {
+        setGrant({ handle: null, id: null, name: "", permission: "denied" });
+        return;
+      }
+      const handle = registration.handle as FileSystemDirectoryHandle & {
+        queryPermission?: (descriptor: { mode: "readwrite" }) => Promise<PermissionState>;
+      };
+      try {
+        const permission = await handle.queryPermission?.({ mode: "readwrite" }) ?? "granted";
+        if (active) setGrant({ ...registration, name: handle.name, permission });
+      } catch {
+        if (active) {
+          setGrant({ handle: null, id: null, name: "", permission: "denied" });
+          setError("Workspace permission could not be checked. Reconnect the folder.");
+        }
+      }
     };
-    window.addEventListener("startspace:workspace-selected", update);
-    return () => window.removeEventListener("startspace:workspace-selected", update);
+    const refresh = () => void update();
+    window.addEventListener("startspace:workspace-selected", refresh);
+    const channel = typeof BroadcastChannel !== "undefined"
+      ? new BroadcastChannel("startspace:workspace-selection") : null;
+    if (channel) channel.onmessage = refresh;
+    return () => {
+      active = false;
+      channel?.close();
+      window.removeEventListener("startspace:workspace-selected", refresh);
+    };
   }, []);
 
   const chooseWorkspace =
@@ -202,7 +236,7 @@ export function useWorkspace() {
             return null;
           }
           await persistHandle(registration);
-          window.dispatchEvent(new Event("startspace:workspace-selected"));
+          signalWorkspaceSelection();
           return grant.handle;
         }
 
@@ -221,7 +255,7 @@ export function useWorkspace() {
         const registration = await registerHandle(picked);
         await persistHandle(registration);
         setGrant({ ...registration, name: picked.name, permission: "granted" });
-        window.dispatchEvent(new Event("startspace:workspace-selected"));
+        signalWorkspaceSelection();
         return picked;
       } catch (err: unknown) {
         if (
@@ -243,7 +277,7 @@ export function useWorkspace() {
   const reset = useCallback(() => {
     setGrant({ handle: null, id: null, name: "", permission: "denied" });
     setError(null);
-    void persistHandle(null);
+    void persistHandle(null).then(signalWorkspaceSelection);
   }, []);
 
   return { grant, error, chooseWorkspace, reset };

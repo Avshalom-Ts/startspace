@@ -922,6 +922,12 @@ export function NotesPage() {
       className="flex min-h-0 flex-1 flex-col"
       aria-label="Notes workspace"
     >
+      {bookmarkMeta.error && !demo && (
+        <div role="alert" className="mb-2 rounded border border-red-400 p-3 text-sm">
+          Bookmark relationships are unavailable: {bookmarkMeta.error}
+          <button type="button" className="notes-button ml-2" onClick={() => void bookmarkMeta.reload()}>Retry</button>
+        </div>
+      )}
       {demo && (
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded border border-accent/30 bg-accent/10 px-4 py-2 text-xs">
           <span>

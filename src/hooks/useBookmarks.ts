@@ -22,7 +22,7 @@ export interface BookmarkNode {
   dateAdded?: number;
 }
 
-/** StartSpace metadata stored in extension storage, keyed by browser Bookmark ID. */
+/** Workspace metadata keyed by browser Bookmark ID (profile-specific). */
 export interface BookmarkMetadata {
   /** Whether this bookmark is a favorite — shown on the homepage. */
   favorites: boolean;
@@ -34,7 +34,7 @@ export interface BookmarkMetadata {
   relatedNotes: string[];
   /** Task IDs linked to this bookmark. */
   relatedTasks: string[];
-  /** User-written description; never fetched from the site. */
+  /** Editable description, optionally fetched from the site. */
   description?: string;
   /** Last time the bookmark was opened through StartSpace (ISO). */
   lastOpenedAt?: string;

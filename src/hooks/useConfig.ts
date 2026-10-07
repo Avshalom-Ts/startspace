@@ -24,11 +24,15 @@ export interface Config {
 export interface UserPreferences {
   showGreeting: boolean;
   openLinksInNewTab: boolean;
+  fetchDescriptionOnSave: boolean;
+  fetchDescriptionOnNewTab: boolean;
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
   showGreeting: true,
   openLinksInNewTab: false,
+  fetchDescriptionOnSave: true,
+  fetchDescriptionOnNewTab: true,
 };
 
 // ---------------------------------------------------------------------------
@@ -152,8 +156,15 @@ export function useConfig() {
       });
     };
     load();
+    const storageChanged = (changes: Record<string, unknown>, area: string) => {
+      if (area === "local" && changes[CONFIG_KEY]) load();
+    };
+    globalThis.chrome?.storage?.onChanged?.addListener(storageChanged);
     window.addEventListener("startspace:config-changed", load);
-    return () => window.removeEventListener("startspace:config-changed", load);
+    return () => {
+      window.removeEventListener("startspace:config-changed", load);
+      globalThis.chrome?.storage?.onChanged?.removeListener(storageChanged);
+    };
   }, []);
 
   const save = useCallback(async (next: Config) => {

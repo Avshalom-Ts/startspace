@@ -48,6 +48,12 @@ The product outcome: a browser homepage that feels like the user's own workspace
     details inspector.
   - Browse All Links, Favorites, Recent (opened through StartSpace) or a folder,
     sort by name, and filter by text, favorites and tags.
+  - Favorites, tags, descriptions and relationships are workspace-owned metadata
+    in `.startspace/bookmark-metadata.json` and require a connected workspace.
+  - Descriptions can be entered manually or fetched directly from published site
+    metadata. Automatic fetching after creation and one missing description per
+    New Tab default to on, require optional website access, and have separate
+    Settings switches. Any existing description is skipped automatically.
 - **Notes:**
   - Normal Markdown (`.md`) files stored in the user's workspace.
   - Persistent two-pane workspace: recursive folder explorer beside the active editor or Markdown preview.
@@ -98,11 +104,15 @@ _To be refined once the project has users or a release._
 - **Browser extension model:** the product is a WebExtensions browser extension replacing the New Tab/Home page, built with Manifest V3. It depends on browser APIs (Bookmark API, File System Access API, extension manifest and permissions). Browser support and API availability shape what is possible.
 - **Tech stack:** TypeScript, React, Tailwind CSS, Vite, `marked` for Markdown rendering, JSON for local metadata, Vitest + Playwright for testing, Bun as the package manager, GitHub Actions for CI/CD. No backend.
 - **Local-first, no backend:** all user data lives in the browser or extension
-  storage (bookmarks, config, bookmark-linked metadata) and the user's chosen
-  workspace folder (notes and tasks). No server is involved.
+  storage (bookmarks and device configuration) and the user's chosen workspace
+  folder (notes, tasks and bookmark metadata). There is no StartSpace server.
+  Description fetching contacts the linked website directly, without credentials.
 - **Source of truth:** browser bookmarks are the source of truth for bookmark data. StartSpace metadata is derived/linked, not a replacement for the browser's bookmark store.
 - **Markdown-first notes:** notes are real `.md` files, not a proprietary format. They must remain usable outside StartSpace. Markdown rendering in the UI uses `marked`.
-- **Local metadata:** StartSpace configuration and bookmark-linked metadata are stored in extension storage. Notes and tasks remain workspace-owned data; note contents are never duplicated into a database or extension storage.
+- **Local metadata:** device configuration stays in extension storage. Tasks,
+  note identities, note preferences and bookmark metadata live under the
+  workspace's `.startspace` folder. Unsaved note recovery remains device-local
+  in IndexedDB; it is not part of portable backups.
 - **Workspace is user-chosen:** the user picks the workspace folder via the File System Access API on first launch; StartSpace does not create or move the user's existing files without consent.
 - **Stateless extension, stateful workspace:** the extension itself is managed by the browser (install/uninstall/update by the browser); the workspace is the durable data location the user controls.
 - **Initial simplicity:** the first version intentionally keeps scope narrow. Future features (command palette, shortcuts, widgets, themes, PWA, more browsers) are explicitly deferred.
