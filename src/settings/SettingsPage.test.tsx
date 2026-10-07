@@ -97,9 +97,19 @@ it("does not show a success confirmation when saving fails", async () => {
 });
 
 it("clears the pending timer when the settings page unmounts", async () => {
-  await act(async () => root.render(<SettingsPage />));
-  await click('[aria-label="Show greeting on Home page"]');
-  expect(vi.getTimerCount()).toBe(1);
-  await act(async () => root.unmount());
-  expect(vi.getTimerCount()).toBe(0);
+  const setTimeoutSpy = vi.spyOn(window, "setTimeout");
+  const clearTimeoutSpy = vi.spyOn(window, "clearTimeout");
+  try {
+    await act(async () => root.render(<SettingsPage />));
+    await click('[aria-label="Show greeting on Home page"]');
+    const timerIndex = setTimeoutSpy.mock.calls.findIndex(([, delay]) => delay === 3000);
+    expect(timerIndex).toBeGreaterThanOrEqual(0);
+    const timerId = setTimeoutSpy.mock.results[timerIndex]!.value;
+    expect(clearTimeoutSpy).not.toHaveBeenCalledWith(timerId);
+    await act(async () => root.unmount());
+    expect(clearTimeoutSpy).toHaveBeenCalledWith(timerId);
+  } finally {
+    setTimeoutSpy.mockRestore();
+    clearTimeoutSpy.mockRestore();
+  }
 });

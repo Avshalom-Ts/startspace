@@ -1,16 +1,4 @@
 ﻿import { useEffect, useRef, useState } from "react";
-import {
-  Check,
-  Download,
-  FileText,
-  Folder,
-  Info,
-  Link2,
-  Search,
-  Settings2,
-  Upload,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { useConfig, DEFAULT_PREFERENCES } from "../hooks/useConfig";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useTheme } from "../hooks/useTheme";
@@ -23,67 +11,17 @@ import {
 } from "../backup/backup-service";
 import { BackupValidationError } from "../backup/backup-format";
 import { getBrowserSearchInfo } from "../search/browser-search";
-import CapabilityRow from "./components/capability-row";
-import SettingsCard from "./components/settings-card";
 import GeneralSettingsSection from "./sections/general-settings-section";
 import SearchSettingsSection from "./sections/search-settings-section";
 import NotesSettingsSection from "./sections/notes-settings-section";
 import LinksSettingsSection from "./sections/links-settings-section";
 import TasksSettingsSection from "./sections/tasks-settings-section";
 import AboutSettingsSection from "./sections/about-settings-section";
-
-type Category =
-  | "general"
-  | "search"
-  | "workspace"
-  | "notes"
-  | "links"
-  | "tasks"
-  | "about";
-
-const CATEGORIES: {
-  id: Category;
-  title: string;
-  description: string;
-  icon: LucideIcon;
-}[] = [
-  {
-    id: "general",
-    title: "General",
-    description: "Appearance, startup, behavior",
-    icon: Settings2,
-  },
-  {
-    id: "search",
-    title: "Search",
-    description: "Local search, web search",
-    icon: Search,
-  },
-  {
-    id: "notes",
-    title: "Notes",
-    description: "Editor and Markdown",
-    icon: FileText,
-  },
-  {
-    id: "links",
-    title: "Links",
-    description: "Bookmarks and display",
-    icon: Link2,
-  },
-  {
-    id: "tasks",
-    title: "Tasks",
-    description: "Statuses and defaults",
-    icon: Check,
-  },
-  {
-    id: "about",
-    title: "About",
-    description: "Version and open source",
-    icon: Info,
-  },
-];
+import type { Category } from "./sections/sidebar-menu-settings-section";
+import SidebarMenuSettingsSection, {
+  CATEGORIES,
+} from "./sections/sidebar-menu-settings-section";
+import SidebarGlobalSettingsSection from "./sections/sidebar-global-settings-section";
 
 /** Category-based settings workspace with a persistent status/action rail. */
 export function SettingsPage() {
@@ -271,30 +209,11 @@ export function SettingsPage() {
 
   return (
     <section className="grid min-h-0 flex-1 grid-cols-1 gap-3 min-[1024px]:grid-cols-[15rem_minmax(0,1fr)] min-[1600px]:grid-cols-[22rem_minmax(0,1fr)_30.625rem]">
-      {/* Sidebar menu */}
-      <aside className="hidden min-h-0 overflow-y-auto rounded-lg border border-border bg-surface/30 p-3 min-[1024px]:block">
-        <h2 className="mb-3 px-2 text-base font-semibold text-fg">Settings</h2>
-        <nav aria-label="Settings categories" className="space-y-1">
-          {CATEGORIES.map(({ id, title, description, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => chooseCategory(id)}
-              aria-current={category === id ? "page" : undefined}
-              className={`flex min-h-12 w-full items-center gap-3 rounded-md border-l-2 px-2 text-left ${category === id ? "border-accent bg-accent/15 text-fg" : "border-transparent text-muted hover:bg-page hover:text-fg"}`}
-            >
-              <Icon size={18} aria-hidden="true" className="shrink-0" />
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold">{title}</span>
-                <span className="block truncate text-xs text-muted">
-                  {description}
-                </span>
-              </span>
-            </button>
-          ))}
-        </nav>
-      </aside>
-
+      <SidebarMenuSettingsSection
+        category={category}
+        chooseCategory={chooseCategory}
+      />
+      {/* Mobile menu for selecting settings category */}
       <div className="flex min-h-0 min-w-0 flex-col gap-3">
         <label className="md:hidden">
           <span className="sr-only">Settings category</span>
@@ -358,120 +277,20 @@ export function SettingsPage() {
         </main>
       </div>
 
-      <aside className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 min-[1024px]:col-start-2 min-[1600px]:col-start-3 min-[1600px]:row-start-1 min-[1600px]:flex min-[1600px]:min-h-0 min-[1600px]:flex-col min-[1600px]:overflow-y-auto">
-        <SettingsCard
-          title="Workspace"
-          subtitle="Current workspace location"
-          icon={Folder}
-        >
-          <p
-            className="truncate text-sm text-fg"
-            title={
-              workspace.grant.handle
-                ? workspace.grant.name
-                : (config?.currentWorkspace?.name ?? "No workspace selected")
-            }
-          >
-            {workspace.grant.handle
-              ? workspace.grant.name
-              : (config?.currentWorkspace?.name ?? "No workspace selected")}
-          </p>
-          <p className="mt-1 text-xs text-muted">
-            {workspaceReady
-              ? "Connected"
-              : workspace.grant.handle || config?.currentWorkspace
-                ? "Permission required"
-                : "Not selected"}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void chooseWorkspace()}
-              className="min-h-9 flex-1 rounded-md border border-border px-2 text-xs text-fg hover:bg-page"
-            >
-              {workspaceReady
-                ? "Change location"
-                : workspace.grant.handle || config?.currentWorkspace
-                  ? "Reconnect"
-                  : "Choose workspace"}
-            </button>
-          </div>
-          {workspaceReady && (
-            <button
-              type="button"
-              onClick={disconnectWorkspace}
-              className="mt-2 text-xs text-muted underline hover:text-red-500"
-            >
-              Disconnect
-            </button>
-          )}
-        </SettingsCard>
-
-        <SettingsCard
-          title="Data Management"
-          subtitle="Backup and restore your StartSpace data"
-          icon={Download}
-        >
-          {!workspaceReady && (
-            <p className="mb-2 text-xs text-muted">
-              Connect a workspace before exporting or restoring.
-            </p>
-          )}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => void exportBackup()}
-              disabled={!workspaceReady || !config || backupBusy}
-              className="inline-flex min-h-9 items-center justify-center gap-1 rounded-md border border-border px-2 text-xs text-fg hover:bg-page disabled:opacity-50"
-            >
-              <Download size={14} aria-hidden="true" /> Export
-            </button>
-            <button
-              type="button"
-              onClick={() => restoreInputRef.current?.click()}
-              disabled={!workspaceReady || backupBusy}
-              className="inline-flex min-h-9 items-center justify-center gap-1 rounded-md border border-border px-2 text-xs text-fg hover:bg-page disabled:opacity-50"
-            >
-              <Upload size={14} aria-hidden="true" /> Restore
-            </button>
-          </div>
-          <input
-            ref={restoreInputRef}
-            type="file"
-            accept="application/json,.json"
-            className="sr-only"
-            disabled={!workspaceReady || backupBusy}
-            onChange={(event) => {
-              const input = event.currentTarget;
-              void importBackup(input.files?.[0]).finally(() => {
-                input.value = "";
-              });
-            }}
-          />
-        </SettingsCard>
-
-        <SettingsCard
-          title="Browser Integration"
-          subtitle="Capabilities available to StartSpace"
-          icon={Link2}
-        >
-          <CapabilityRow
-            label="Bookmarks API"
-            status={bookmarkApiAvailable ? "Available" : "Unavailable"}
-          />
-          <CapabilityRow
-            label="Search API"
-            status={
-              searchInfo === null
-                ? "Checking"
-                : searchInfo.available
-                  ? "Available"
-                  : "Unavailable"
-            }
-          />
-          <CapabilityRow label="File System Access" status={fileSystemStatus} />
-        </SettingsCard>
-      </aside>
+      <SidebarGlobalSettingsSection
+        workspace={workspace}
+        config={config}
+        workspaceReady={workspaceReady}
+        chooseWorkspace={chooseWorkspace}
+        disconnectWorkspace={disconnectWorkspace}
+        exportBackup={exportBackup}
+        restoreInputRef={restoreInputRef}
+        importBackup={importBackup}
+        backupBusy={backupBusy}
+        bookmarkApiAvailable={bookmarkApiAvailable}
+        searchInfo={searchInfo}
+        fileSystemStatus={fileSystemStatus}
+      />
     </section>
   );
 }

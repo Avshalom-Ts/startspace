@@ -1,6 +1,6 @@
 import SettingsCard from "../components/settings-card";
 import { Search, ExternalLink } from "lucide-react";
-import { BrowserSearchSettings } from "../browser-search-settings";
+import { BrowserSearchSettings } from "../components/browser-search-settings";
 
 export default function SearchSettingsSection({
   searchInfo,

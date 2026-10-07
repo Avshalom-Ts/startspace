@@ -4,8 +4,8 @@ import {
   getBrowserSearchInfo,
   openSearchSettings,
   searchSettingsUrl,
-} from "../search/browser-search";
-import { useNotifications } from "../notifications/notification-context";
+} from "../../search/browser-search";
+import { useNotifications } from "../../notifications/notification-context";
 
 /** Displays browser-owned search configuration and an action to change it in browser settings. */
 export function BrowserSearchSettings() {
