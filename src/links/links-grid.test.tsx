@@ -22,9 +22,15 @@ beforeEach(() => {
 });
 afterEach(async () => { await act(async () => root.unmount()); });
 
-async function render(layout: LinksLayout, description?: string, selected = false) {
+async function render(
+  layout: LinksLayout,
+  description?: string,
+  selected = false,
+  folderPath?: string,
+  showFolderPaths = false,
+) {
   await act(async () => root.render(<LinksGrid
-    title="All Links" items={[{ node, folderTitle: "" }]} totalBeforeFilters={1}
+    title="All Links" items={[{ node, folderTitle: "", folderPath }]} showFolderPaths={showFolderPaths} totalBeforeFilters={1}
     metadata={{ [node.id]: { ...emptyBookmarkMetadata(), description } }}
     selectedId={selected ? node.id : null} layout={layout} sort="name-asc"
     allowBrowserOrder={false} recentView={false} filters={EMPTY_FILTERS}
@@ -68,4 +74,12 @@ it("preserves the card link and info-button behavior", async () => {
   expect(link.getAttribute("href")).toBe(node.url);
   await act(async () => link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));
   expect(open).toHaveBeenCalledWith(node, expect.anything());
+});
+
+it("shows a descendant folder path only in folder views", async () => {
+  await render("grid", undefined, false, "Projects / Infrastructure", true);
+  expect(container.textContent).toContain("Projects / Infrastructure");
+
+  await render("grid", undefined, false, "Projects / Infrastructure");
+  expect(container.textContent).not.toContain("Projects / Infrastructure");
 });

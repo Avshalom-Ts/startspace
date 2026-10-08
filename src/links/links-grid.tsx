@@ -21,6 +21,7 @@ export type LinksLayout = "grid" | "list";
 interface LinksGridProps {
   title: string;
   items: LinkSearchItem[];
+  showFolderPaths?: boolean;
   totalBeforeFilters: number;
   metadata: Record<string, BookmarkMetadata>;
   metadataAvailable?: boolean;
@@ -164,10 +165,11 @@ export function LinksGrid(props: LinksGridProps) {
                 : "flex flex-col gap-2"
             }
           >
-            {items.map(({ node }) => (
+            {items.map(({ node, folderPath }) => (
               <LinkCard
                 key={node.id}
                 node={node}
+                folderPath={props.showFolderPaths ? folderPath : undefined}
                 meta={props.metadata[node.id]}
                 layout={layout}
                 selected={props.selectedId === node.id}
@@ -219,6 +221,7 @@ export function LinksGrid(props: LinksGridProps) {
 /** One bookmark card: the card opens the link; the info icon shows details. */
 function LinkCard({
   node,
+  folderPath,
   meta,
   layout,
   selected,
@@ -232,6 +235,7 @@ function LinkCard({
   metadataAvailable = true,
 }: {
   node: BookmarkNode;
+  folderPath?: string;
   meta?: BookmarkMetadata;
   layout: LinksLayout;
   selected: boolean;
@@ -260,6 +264,13 @@ function LinkCard({
         onClick={onOpen}
         className="absolute inset-0 cursor-pointer rounded-[10px]"
       />
+      <div className="flex items-center justify-start pb-2 h-6">
+        {folderPath && (
+          <p className="truncate text-xs text-accent" title={folderPath}>
+            {folderPath}
+          </p>
+        )}
+      </div>
       <div
         className={`pointer-events-none relative flex gap-4 pr-28 ${grid ? "items-start" : "items-center"}`}
       >
@@ -276,6 +287,7 @@ function LinkCard({
           >
             {node.url}
           </p>
+
           {tags.length > 0 && (
             <div
               className={`flex flex-wrap gap-1.5 overflow-hidden ${grid ? "mt-2 max-h-15" : "max-h-7 shrink-0"}`}
@@ -290,7 +302,9 @@ function LinkCard({
         </div>
       </div>
       {description && (
-        <div className={`pointer-events-none relative mt-3 ${grid ? "" : "pr-28"}`}>
+        <div
+          className={`pointer-events-none relative mt-3 ${grid ? "" : "pr-28"}`}
+        >
           <p className="line-clamp-2 wrap-break-word text-sm text-muted">
             {description}
           </p>

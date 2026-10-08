@@ -29,21 +29,6 @@ implementation notes.
 
 ## Links
 
-- **LINKS-03 (P2):** Add browser-provided favicons using the `favicon`
-  permission and `_favicon` API; update ADR 0002 and retain the local fallback.
-- **LINKS-05 (P3):** Add folder-tree typeahead and focus restoration after
-  dialogs close. Arrow-key navigation and drawer focus handling are already
-  implemented.
-- **LINKS-06 (P2):** Show each card's folder path in folder views for
-  descendant links.
-- **LINKS-10 (P3):** Consider a center More menu, bulk actions, drag ordering,
-  custom folder colors, and cross-profile metadata remapping.
-- **LINKS-11 (P3):** Add Trash with real recovery semantics.
-- **LINKS-12 (P3):** Add Playwright coverage for the acceptance list in ADR
-  0019, including native CRUD in both directions, select vs. open, copy,
-  responsive inspector, and keyboard flow. Replace or remove the synthetic
-  preview data once the fixtures cover the same states.
-
 See [Links implementation tasks](pages-tasks/links-layout-tasks.md) for more
 context and current UI behavior.
 

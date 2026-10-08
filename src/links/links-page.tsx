@@ -467,6 +467,7 @@ export function LinksPage(props: LinksPageProps) {
         <LinksGrid
           title={title}
           items={items}
+          showFolderPaths={view.kind === "folder"}
           totalBeforeFilters={viewLinks.length}
           metadata={metadata}
           selectedId={selectedId}

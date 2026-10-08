@@ -30,6 +30,8 @@ Unreleased ready for the next changes. See the
 - Persistent note stars, tags, recent notes, and last-opened-note context.
 - Save as new file for retaining drafts without replacing an existing note.
 - Browser-managed favicons for HTTP(S) bookmarks, with local fallbacks.
+- Folder views show the relative folder path on cards for bookmarks inside
+  descendant folders.
 - Link and unlink existing tasks from a bookmark's Links inspector.
 - Categorized Settings with browser capability information, About details,
   repository/issue links, and save confirmation.

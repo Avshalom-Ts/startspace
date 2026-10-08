@@ -111,12 +111,26 @@ export function isRecentlyOpened(
   );
 }
 
-/** Collects links below a folder with each link's immediate parent title. */
-function collectDescendantLinks(folder: BookmarkNode): LinkSearchItem[] {
+/** Collects links below a folder with their paths relative to that folder. */
+function collectDescendantLinks(
+  folder: BookmarkNode,
+  folderPath: string[] = [],
+): LinkSearchItem[] {
   const items: LinkSearchItem[] = [];
   for (const child of folder.children ?? []) {
-    if (child.url) items.push({ node: child, folderTitle: folder.title });
-    else items.push(...collectDescendantLinks(child));
+    if (child.url)
+      items.push({
+        node: child,
+        folderTitle: folder.title,
+        folderPath: folderPath.join(" / "),
+      });
+    else
+      items.push(
+        ...collectDescendantLinks(child, [
+          ...folderPath,
+          child.title || "Untitled folder",
+        ]),
+      );
   }
   return items;
 }

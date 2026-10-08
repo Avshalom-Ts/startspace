@@ -11,6 +11,7 @@ import type { BookmarkMetadata } from "../hooks/useBookmarks";
 export interface LinkSearchItem {
   node: BookmarkNode;
   folderTitle: string;
+  folderPath?: string;
 }
 
 /**

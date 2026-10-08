@@ -101,9 +101,12 @@ describe("links view", () => {
     ).toEqual(["b", "a", "c"]);
     expect(
       selectViewLinks(roots, { kind: "folder", id: "work" }, metadata, now).map(
-        (i) => i.node.id,
+        (i) => [i.node.id, i.folderPath],
       ),
-    ).toEqual(["a", "c"]);
+    ).toEqual([
+      ["a", "Infrastructure"],
+      ["c", ""],
+    ]);
     expect(
       selectViewLinks(roots, { kind: "favorites" }, metadata, now).map(
         (i) => i.node.id,
