@@ -178,6 +178,7 @@ export function useBookmarkMetadata() {
       setError(null);
     }
     signalBookmarkMetadata(grant.id);
+    return next;
   }, [available, grant.handle, grant.id]);
 
   const removeIds = useCallback(async (ids: string[]) => {
@@ -206,6 +207,6 @@ export function useBookmarkMetadata() {
 
   return {
     metadata: available && loadedFor === grant.id ? metadata : {},
-    loading, available, error, reload, removeIds, update,
+    loading, available, error, reload, removeIds, update, updateDocument: mutate,
   };
 }

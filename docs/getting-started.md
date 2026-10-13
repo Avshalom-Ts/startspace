@@ -183,9 +183,12 @@ Choose or reconnect a workspace in Settings using the File System Access API.
 - You can change or reconnect your workspace from Settings.
 - If upgrading from root-level `tasks.json`, move it into `.startspace` before
   using Tasks. A legacy root-only file shows a move warning, not an empty board.
-- Existing extension-stored bookmark metadata is not imported. Favorites, tags,
-  descriptions, recent links and bookmark relationships require a connected
-  workspace. Browser bookmark browsing and creation do not.
+- Favorites, tags, descriptions, recent links and bookmark relationships require
+  a connected workspace. Browser bookmark browsing and creation do not. If an
+  older StartSpace install saved bookmark-to-note links in extension storage,
+  open a note's **Links** tab and choose **Import saved bookmark links** to move
+  those relationships into this workspace. Other old extension metadata is not
+  imported.
 
 ## Quick Tour
 

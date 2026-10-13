@@ -28,6 +28,12 @@ import { deleteImage, moveImage, readNote } from "./notes-workspace";
 import { readLastNote, writeLastNote } from "./last-note";
 import { readDraft, writeDraft, type SavedDraft } from "./draft-recovery";
 import { matchesNoteReference } from "./note-identity";
+import {
+  clearImportedLegacyBookmarkLinks,
+  hasLegacyBookmarkLinks,
+  mergeLegacyBookmarkLinks,
+  readLegacyBookmarkMetadata,
+} from "./legacy-bookmark-links";
 import { useNotePreferences } from "./use-note-preferences";
 import { demoIndex } from "./notes-demo";
 import { fileTitle, visibleNotes, type NotesView } from "./notes-model";
@@ -88,6 +94,7 @@ export function NotesPage() {
   const [recovery, setRecovery] = useState<SavedDraft | null>(null);
   const [recoveryChecked, setRecoveryChecked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [legacyBookmarkMetadata, setLegacyBookmarkMetadata] = useState<Record<string, unknown> | null>(null);
   const [action, setAction] = useState<
     | "note"
     | "folder"
@@ -118,6 +125,15 @@ export function NotesPage() {
   const failedSaveRef = useRef<string | null>(null);
   const draftRef = useRef(draft);
   draftRef.current = draft;
+  useEffect(() => {
+    let active = true;
+    void readLegacyBookmarkMetadata().then((legacy) => {
+      if (active) setLegacyBookmarkMetadata(legacy);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   const index = demo ? demoNotes : (notes.index ?? emptyIndex);
   const realFavorites = index.notes
     .filter(
@@ -1506,10 +1522,14 @@ export function NotesPage() {
                 });
             }}
             links={linkedBookmarks}
+            availableBookmarks={bookmarkLeaves(bookmarks.tree)}
             tasks={linkedTasks}
             availableTasks={taskData.tasks}
             taskError={taskData.error}
             bookmarkError={bookmarks.error}
+            bookmarkMetadataEnabled={
+              bookmarkMeta.available && !bookmarkMeta.error
+            }
             busy={busy}
             onClose={() => setPanel("document")}
             onLinkTask={async (id) => {
@@ -1540,6 +1560,57 @@ export function NotesPage() {
               } finally {
                 setBusy(false);
               }
+            }}
+            onSetBookmarkLink={async (bookmarkId, linked) => {
+              if (!activeNote) return;
+              setBusy(true);
+              try {
+                const reference = activeNote.stableId ?? activeNote.id;
+                const existing = bookmarkMeta.metadata[bookmarkId]?.relatedNotes ?? [];
+                const relatedNotes = linked
+                  ? [...new Set([...existing, reference])]
+                  : existing.filter((item) => !matchesNoteReference(
+                    item,
+                    activeNote.id,
+                    activeNote.stableId,
+                    index.noteAliases,
+                  ));
+                await bookmarkMeta.update(bookmarkId, { relatedNotes });
+                notifications.success(linked ? "Bookmark linked." : "Bookmark unlinked.");
+              } catch (error) {
+                notifications.error(
+                  error instanceof Error ? error.message : "Could not update the bookmark link.",
+                );
+              } finally {
+                setBusy(false);
+              }
+            }}
+            legacyBookmarkLinksAvailable={hasLegacyBookmarkLinks(
+              legacyBookmarkMetadata,
+              new Set(bookmarkLeaves(bookmarks.tree).map((bookmark) => bookmark.id)),
+            )}
+            onMigrateLegacyBookmarkLinks={() => {
+              if (!legacyBookmarkMetadata) return;
+              setBusy(true);
+              void bookmarkMeta.updateDocument((document) =>
+                mergeLegacyBookmarkLinks(
+                  document,
+                  legacyBookmarkMetadata,
+                  index.notes,
+                  new Set(bookmarkLeaves(bookmarks.tree).map((bookmark) => bookmark.id)),
+                ).document,
+              ).then(async () => {
+                await clearImportedLegacyBookmarkLinks(
+                  legacyBookmarkMetadata,
+                  new Set(bookmarkLeaves(bookmarks.tree).map((bookmark) => bookmark.id)),
+                );
+                setLegacyBookmarkMetadata(null);
+                notifications.success("Saved bookmark links were imported into this workspace.");
+              }).catch((error: unknown) => {
+                notifications.error(
+                  error instanceof Error ? error.message : "Could not import saved bookmark links.",
+                );
+              }).finally(() => setBusy(false));
             }}
           />
         </div>

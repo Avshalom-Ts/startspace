@@ -14,6 +14,9 @@ Unreleased ready for the next changes. See the
 
 ### Added
 
+- Notes can link and unlink current browser bookmarks from the note information
+  pane. An explicit importer moves saved legacy bookmark-to-note relationships
+  into the connected workspace without importing other extension metadata.
 - Bookmark cards show a two-line description preview in grid and list views.
   Read more opens the bookmark inspector without navigating to the website.
 - Editable website descriptions for bookmarks: Fetch description replaces the

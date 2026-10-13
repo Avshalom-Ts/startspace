@@ -6,6 +6,12 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   test: {
     environment: 'jsdom',
+    environmentOptions: {
+      jsdom: {
+        url: 'https://startspace.test/',
+      },
+    },
+    setupFiles: ['./src/test/setup.ts'],
     globals: true,
   },
 });

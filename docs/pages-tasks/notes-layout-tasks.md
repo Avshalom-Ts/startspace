@@ -26,7 +26,6 @@ This is the implementation backlog, not a claim that all design requirements shi
 
 | ID | Priority | Task / acceptance criteria | Current UI |
 | --- | --- | --- | --- |
-| NOTES-06 | P2 | Add bookmark relationship picker using current browser IDs; migrate extension-local relation metadata to workspace deliberately. | Existing relations displayed, Add link marked soon. |
 | NOTES-07 | P2 | Add a Notes-page setting for explicit consent to load remote images; do not ask inside individual notes. Add relative note links with URL encoding/anchors. | Safe code blocks support Copy code; remote images remain placeholders; simple relative .md links work. Local images are tracked in NOTES-15. |
 | NOTES-08 | P2 | Full keyboard tree arrow navigation, resizable panes, modal inspector drawers and remembered scroll. Last-note restoration is tracked separately in NOTES-12. | Native disclosure/buttons; responsive single-region stages. |
 | NOTES-09 | P2 | Add a global New dropdown for bookmark/note/task and complete combobox ARIA across shared search. | Notes-specific New note; existing shared search reused. |

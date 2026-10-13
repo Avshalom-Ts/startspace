@@ -7,14 +7,6 @@ implementation notes.
 
 ## Notes
 
-- **NOTES-06 (P2):** Let people choose which bookmarks belong to a note. Use
-  the browser's current bookmark IDs, and move the saved note-to-bookmark links
-  from extension-only storage into the user's workspace. See [Notes implementation tasks](pages-tasks/notes-layout-tasks.md).
-
-  _Example: While reading a “Trip planning” note, someone can attach their
-  saved airline and hotel bookmarks, then see and manage those links from the
-  note._
-
 - **NOTES-07 (P2):** Add a setting on the Notes page where people can choose
   whether notes may load images from the internet. Do not show this choice
   inside individual notes. Also make links between notes work when their paths
