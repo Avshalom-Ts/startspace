@@ -28,6 +28,11 @@ Unreleased ready for the next changes. See the
 - Search scopes for bookmarks, notes, tasks, and web.
 - Notes image browsing and management for local PNG, JPEG, GIF, WebP, and AVIF
   files, plus workspace-relative images in Markdown.
+- Notes settings can explicitly enable remote HTTP(S) Markdown images for all
+  note previews. Relative note links now support URL-encoded paths and heading
+  fragments.
+- A note’s Information tab warns in red when it contains remote Markdown images
+  that are blocked by the shared Notes setting.
 - Device-local recovery of unsaved note drafts, with explicit Recover or
   Discard actions. Draft recovery copies are not included in portable backups.
 - Persistent note stars, tags, recent notes, and last-opened-note context.
@@ -43,6 +48,9 @@ Unreleased ready for the next changes. See the
 
 ### Changed
 
+- The Notes information pane now separates its table of contents, tags, links,
+  and tasks into dedicated tabs. Compact file details and any blocked-remote-image
+  warning remain visible at the bottom.
 - Settings now shows bookmark-description fetching availability in the Browser
   Integration sidebar instead of website-access controls in the Workspace card.
   Grant and revoke controls remain in Settings > Links.

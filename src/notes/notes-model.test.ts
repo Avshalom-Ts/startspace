@@ -7,6 +7,11 @@ import { vi } from "vitest";
 import { visibleNotes, fileTitle } from "./notes-model";
 import {
   MarkdownPreview,
+  extractMarkdownHeadings,
+  hasRemoteMarkdownImage,
+  normalizeHeading,
+  resolveMarkdownNoteLink,
+  resolveRemoteImageUrl,
   renderSafeMarkdown,
   resolveImagePath,
   resolveNoteLink,
@@ -45,6 +50,15 @@ describe("Notes layout data", () => {
   });
 });
 describe("safe Markdown preview", () => {
+  it("extracts Markdown headings in document order for the note table of contents", () => {
+    expect(
+      extractMarkdownHeadings("# Overview\n\n## Install\n\n### Advanced setup"),
+    ).toEqual([
+      { depth: 1, text: "Overview" },
+      { depth: 2, text: "Install" },
+      { depth: 3, text: "Advanced setup" },
+    ]);
+  });
   it("resolves nested encoded local image paths but blocks remote and escaping sources", () => {
     expect(resolveImagePath("notes/daily", "../../assets/My%20Photo.png")).toBe(
       "assets/My Photo.png",
@@ -62,6 +76,19 @@ describe("safe Markdown preview", () => {
     expect(html).toContain('data-image-path="assets/pic.png"');
     expect(html).not.toContain("https://example.com");
     expect(html).toContain("[Image: Remote]");
+  });
+  it("keeps remote images as placeholders until the Notes setting allows public URLs", () => {
+    const content = "![Remote](https://images.example.com/cover.png)";
+    expect(renderSafeMarkdown(content, "auto", "notes")).toContain(
+      "[Image: Remote]",
+    );
+    expect(renderSafeMarkdown(content, "auto", "notes", true)).toContain(
+      'data-remote-image-url="https://images.example.com/cover.png"',
+    );
+    expect(resolveRemoteImageUrl("http://127.0.0.1/image.png")).toBeNull();
+    expect(hasRemoteMarkdownImage(content)).toBe(true);
+    expect(hasRemoteMarkdownImage("![Local](cover.png)")).toBe(false);
+    expect(hasRemoteMarkdownImage("![Private](http://127.0.0.1/image.png)")).toBe(false);
   });
 
   it("releases image object URLs when a preview changes or unmounts", async () => {
@@ -115,7 +142,7 @@ describe("safe Markdown preview", () => {
     const html = renderSafeMarkdown(
       "# Hello\n\n**Bold** [site](https://example.com)",
     );
-    expect(html).toContain("<h1>Hello</h1>");
+    expect(html).toContain('<h1 data-note-heading="hello">Hello</h1>');
     expect(html).toContain('rel="noopener noreferrer"');
     expect(html).toContain("<strong>Bold</strong>");
   });
@@ -140,7 +167,7 @@ describe("safe Markdown preview", () => {
       }),
     );
     expect(html).toContain('<article dir="rtl"');
-    expect(html).toContain('<h1 dir="rtl">שלום</h1>');
+    expect(html).toContain('<h1 dir="rtl" data-note-heading="שלום">שלום</h1>');
     expect(html).toContain('<p dir="rtl">English text</p>');
     expect(html).toContain('<ul dir="rtl">');
     expect(html).toContain('<blockquote dir="rtl">');
@@ -247,6 +274,37 @@ describe("safe Markdown preview", () => {
     });
     expect(onOpenNote).toHaveBeenCalledWith("Work/Next.md");
     act(() => root.unmount());
+  });
+  it("opens decoded note paths and passes a decoded heading fragment", async () => {
+    const onOpenNote = vi.fn();
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        createElement(MarkdownPreview, {
+          content: "[Launch](../Projects/Next%20steps.md#Launch%20plan)",
+          folder: "Work/Daily",
+          direction: "auto",
+          onOpenNote,
+        }),
+      );
+    });
+    const link = container.querySelector("a[data-note-path]");
+    expect(link?.getAttribute("data-note-path")).toBe("Work/Projects/Next steps.md");
+    expect(link?.getAttribute("data-note-heading-target")).toBe("Launch plan");
+    act(() => {
+      link?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    });
+    expect(onOpenNote).toHaveBeenCalledWith("Work/Projects/Next steps.md", "Launch plan");
+    act(() => root.unmount());
+  });
+  it("normalizes decoded heading fragments and rejects unsafe note targets", () => {
+    expect(
+      resolveMarkdownNoteLink("Work", "Projects/Next%20steps.md#Launch%20plan"),
+    ).toEqual({ path: "Work/Projects/Next steps.md", heading: "Launch plan" });
+    expect(normalizeHeading(" Launch   PLAN ")).toBe("launch plan");
+    expect(resolveMarkdownNoteLink("", "../outside.md#Heading")).toBeNull();
+    expect(resolveMarkdownNoteLink("", "https://example.com/note.md#Heading")).toBeNull();
   });
   it("resolves local note links without escaping the workspace", () => {
     expect(resolveNoteLink("Work/Lab", "../Notes.md")).toBe("Work/Notes.md");

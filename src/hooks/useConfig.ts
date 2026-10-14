@@ -26,6 +26,7 @@ export interface UserPreferences {
   openLinksInNewTab: boolean;
   fetchDescriptionOnSave: boolean;
   fetchDescriptionOnNewTab: boolean;
+  loadRemoteNoteImages: boolean;
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -33,6 +34,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   openLinksInNewTab: false,
   fetchDescriptionOnSave: true,
   fetchDescriptionOnNewTab: true,
+  loadRemoteNoteImages: false,
 };
 
 // ---------------------------------------------------------------------------

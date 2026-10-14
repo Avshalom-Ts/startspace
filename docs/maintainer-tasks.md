@@ -7,17 +7,6 @@ implementation notes.
 
 ## Notes
 
-- **NOTES-07 (P2):** Add a setting on the Notes page where people can choose
-  whether notes may load images from the internet. Do not show this choice
-  inside individual notes. Also make links between notes work when their paths
-  contain special characters or point to a heading in a note. Simple `.md`
-  links and local image previews already work. See [Notes implementation tasks](pages-tasks/notes-layout-tasks.md).
-
-  _Example: In Notes settings, someone turns on “Load remote images.” Notes can
-  then show images hosted online without displaying an in-note prompt; a link
-  such as `Projects/Next steps.md#Launch plan` opens the right note at the
-  right section._
-
 - **NOTES-08 (P2):** Make the Notes page easier to use: support full keyboard
   navigation in the folder tree, allow resizing panels, show details in pop-up
   side panels, and remember where each page was scrolled to. See [Notes implementation tasks](pages-tasks/notes-layout-tasks.md).

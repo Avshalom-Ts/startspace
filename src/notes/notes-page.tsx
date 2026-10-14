@@ -18,6 +18,7 @@ import {
   Star,
 } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
+import { useConfig } from "../hooks/useConfig";
 import { useBookmarkTree, useBookmarkMetadata } from "../hooks/useBookmarkTree";
 import type { BookmarkNode } from "../hooks/useBookmarks";
 import { useNotifications } from "../notifications/notification-context";
@@ -40,7 +41,11 @@ import { fileTitle, visibleNotes, type NotesView } from "./notes-model";
 import { NotesNavigator } from "./notes-navigator";
 import { NotesInspector } from "./notes-inspector";
 import { NotesDialog } from "./notes-dialog";
-import { LocalImage, MarkdownPreview } from "./markdown-preview";
+import {
+  hasRemoteMarkdownImage,
+  LocalImage,
+  MarkdownPreview,
+} from "./markdown-preview";
 import type { NoteDirection } from "./markdown-preview";
 
 const emptyIndex: NotesIndex = {
@@ -58,6 +63,7 @@ function bookmarkLeaves(tree: BookmarkNode[]): BookmarkNode[] {
 /** Coordinates real file editing and progressive layout panels without data migration. */
 export function NotesPage() {
   const workspace = useWorkspace();
+  const { config } = useConfig();
   const notes = useNotes(workspace);
   const taskData = useTasks();
   const bookmarks = useBookmarkTree();
@@ -85,6 +91,10 @@ export function NotesPage() {
   const [sort, setSort] = useState<"modified" | "name">("modified");
   const [mode, setMode] = useState<"edit" | "preview">("preview");
   const [direction, setDirection] = useState<NoteDirection>("auto");
+  const [headingTarget, setHeadingTarget] = useState<{
+    noteId: string;
+    heading: string;
+  } | null>(null);
   const [panel, setPanel] = useState<"list" | "folders" | "document" | "info">(
     "list",
   );
@@ -343,7 +353,7 @@ export function NotesPage() {
 
   /** Opens a note after the dirty-buffer guard and records a workspace recent time. */
   const openNote = useCallback(
-    (id: string) => {
+    (id: string, heading?: string) => {
       openAttemptRef.current++;
       guard(() => {
         setImageId(null);
@@ -369,6 +379,7 @@ export function NotesPage() {
           ]);
         setMode("preview");
         setPanel("document");
+        setHeadingTarget(heading ? { noteId: id, heading } : null);
       });
     },
     [demo, guard, notes.selectNote],
@@ -1459,6 +1470,15 @@ export function NotesPage() {
                     direction={direction}
                     workspace={demo ? null : workspace.grant.handle}
                     onOpenNote={openNote}
+                    allowRemoteImages={
+                      config?.preferences?.loadRemoteNoteImages ?? false
+                    }
+                    headingTarget={
+                      headingTarget?.noteId === activeNote.id
+                        ? headingTarget.heading
+                        : null
+                    }
+                    onHeadingRevealed={() => setHeadingTarget(null)}
                     onCopyResult={(success) =>
                       success
                         ? notifications.success("Code copied.")
@@ -1491,6 +1511,11 @@ export function NotesPage() {
             note={activeNote}
             demo={demo}
             tags={activeTags}
+            remoteImagesBlocked={
+              !!activeNote &&
+              !config?.preferences?.loadRemoteNoteImages &&
+              hasRemoteMarkdownImage(activeNote.content)
+            }
             metadataEnabled={
               !!activeNote?.stableId &&
               !!preferences.document &&

@@ -11,6 +11,9 @@
   },
   "permissions": ["bookmarks", "storage", "search", "favicon"],
   "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' blob: https: http:"
+  },
   "icons": {
     "16": "icons/favicon-16x16.png",
     "48": "icons/favicon-32x32.png"

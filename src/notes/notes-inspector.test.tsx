@@ -19,7 +19,7 @@ async function render(onSetBookmarkLink = vi.fn()) {
   await act(async () => root.render(
     <NotesInspector
       note={{ id: "Plans/release.md", stableId: "note-1", title: "Release", content: "", folder: "Plans", modifiedAt: "2026-10-13T00:00:00.000Z" }}
-      demo={false} tags={[]} metadataEnabled={true}
+      demo={false} tags={[]} metadataEnabled={true} remoteImagesBlocked={false}
       onAddTag={vi.fn().mockResolvedValue(true)} onRemoveTag={vi.fn()}
       links={[]}
       availableBookmarks={[
@@ -40,6 +40,11 @@ it("links a current browser bookmark from the Notes pane", async () => {
   const onSetBookmarkLink = await render();
   await act(async () => {
     [...container.querySelectorAll("button")].find((button) =>
+      button.textContent?.startsWith("links"),
+    )?.click();
+  });
+  await act(async () => {
+    [...container.querySelectorAll("button")].find((button) =>
       button.textContent?.includes("Link existing bookmark"),
     )?.click();
   });
@@ -51,8 +56,57 @@ it("links a current browser bookmark from the Notes pane", async () => {
   expect(onSetBookmarkLink).toHaveBeenCalledWith("bookmark-1", true);
 });
 
+it("warns in the information tab when this note has blocked remote images", async () => {
+  await act(async () => root.render(
+    <NotesInspector
+      note={{ id: "Plans/release.md", title: "Release", content: "", folder: "Plans", modifiedAt: "2026-10-13T00:00:00.000Z" }}
+      demo={false} tags={[]} metadataEnabled={true} remoteImagesBlocked
+      onAddTag={vi.fn().mockResolvedValue(true)} onRemoveTag={vi.fn()}
+      links={[]} availableBookmarks={[]} tasks={[]} availableTasks={[]}
+      taskError={null} bookmarkError={null} bookmarkMetadataEnabled={true}
+      busy={false} onLinkTask={vi.fn()} onSetBookmarkLink={vi.fn()}
+      legacyBookmarkLinksAvailable={false} onMigrateLegacyBookmarkLinks={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  ));
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+    "Remote images blocked",
+  );
+  expect(container.textContent).toContain("Settings > Notes");
+});
+
+it("keeps the table of contents in Info and moves tags to their own tab", async () => {
+  await act(async () => root.render(
+    <NotesInspector
+      note={{ id: "Plans/release.md", title: "Release", content: "# Overview\n\n## Timeline", folder: "Plans", modifiedAt: "2026-10-13T00:00:00.000Z" }}
+      demo={false} tags={["release"]} metadataEnabled={true} remoteImagesBlocked={false}
+      onAddTag={vi.fn().mockResolvedValue(true)} onRemoveTag={vi.fn()}
+      links={[]} availableBookmarks={[]} tasks={[]} availableTasks={[]}
+      taskError={null} bookmarkError={null} bookmarkMetadataEnabled={true}
+      busy={false} onLinkTask={vi.fn()} onSetBookmarkLink={vi.fn()}
+      legacyBookmarkLinksAvailable={false} onMigrateLegacyBookmarkLinks={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  ));
+  expect(container.querySelector('[aria-label="Note headings"]')?.textContent).toContain(
+    "Timeline",
+  );
+  await act(async () => {
+    [...container.querySelectorAll("button")].find((button) =>
+      button.textContent?.startsWith("tags"),
+    )?.click();
+  });
+  expect(container.textContent).toContain("release");
+  expect(container.querySelector('[aria-label="Note headings"]')).toBeNull();
+});
+
 it("filters the bookmark dropdown by title and URL", async () => {
   await render();
+  await act(async () => {
+    [...container.querySelectorAll("button")].find((button) =>
+      button.textContent?.startsWith("links"),
+    )?.click();
+  });
   await act(async () => {
     [...container.querySelectorAll("button")].find((button) =>
       button.textContent?.includes("Link existing bookmark"),

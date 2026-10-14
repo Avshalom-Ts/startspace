@@ -264,6 +264,10 @@ export function SettingsPage() {
             <NotesSettingsSection
               notes={notes}
               workspaceReady={workspaceReady}
+              loadRemoteNoteImages={preferences.loadRemoteNoteImages}
+              updatePreference={(value) =>
+                void updatePreference("loadRemoteNoteImages", value)
+              }
             />
           )}
 

@@ -1,12 +1,17 @@
 import SettingsCard from "../components/settings-card";
 import { FileText } from "lucide-react";
+import SwitchRow from "../components/switch-row";
 
 export default function NotesSettingsSection({
   notes,
   workspaceReady,
+  loadRemoteNoteImages,
+  updatePreference,
 }: {
   notes: any;
   workspaceReady: boolean;
+  loadRemoteNoteImages: boolean;
+  updatePreference: (value: boolean) => void;
 }) {
   return (
     <div className="space-y-3">
@@ -20,7 +25,7 @@ export default function NotesSettingsSection({
           <li>
             Edits autosave after a short pause; conflicts preserve your draft.
           </li>
-          <li>Markdown preview avoids loading remote images.</li>
+          <li>Markdown preview loads workspace images without a network request.</li>
         </ul>
         <button
           type="button"
@@ -30,6 +35,18 @@ export default function NotesSettingsSection({
         >
           <span aria-hidden="true">â†»</span> Refresh workspace
         </button>
+      </SettingsCard>
+      <SettingsCard
+        title="Markdown privacy"
+        subtitle="Control external content in note previews"
+        icon={FileText}
+      >
+        <SwitchRow
+          label="Load remote images"
+          detail="When enabled, previews may contact the public HTTP(S) image hosts named in a note. This setting applies to all Notes previews."
+          checked={loadRemoteNoteImages}
+          onChange={updatePreference}
+        />
       </SettingsCard>
     </div>
   );

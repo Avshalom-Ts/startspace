@@ -13,6 +13,7 @@ vi.mock("../hooks/useConfig", () => ({
   DEFAULT_PREFERENCES: {
     showGreeting: true, openLinksInNewTab: false,
     fetchDescriptionOnSave: true, fetchDescriptionOnNewTab: true,
+    loadRemoteNoteImages: false,
   },
   useConfig: () => ({
     config: { version: 1, currentWorkspace: null },
@@ -104,6 +105,19 @@ it("shows both fetching switches enabled by default and saves disabling each", a
   await act(async () => switches[1]!.click());
   expect(save).toHaveBeenLastCalledWith(expect.objectContaining({
     preferences: expect.objectContaining({ fetchDescriptionOnNewTab: false }),
+  }));
+});
+
+it("keeps remote note images off by default and saves explicit consent", async () => {
+  localStorage.setItem("startspace.settings.category", "notes");
+  await act(async () => root.render(<SettingsPage />));
+  const remoteImages = container.querySelector<HTMLButtonElement>(
+    '[aria-label="Load remote images"]',
+  );
+  expect(remoteImages?.getAttribute("aria-checked")).toBe("false");
+  await act(async () => remoteImages?.click());
+  expect(save).toHaveBeenLastCalledWith(expect.objectContaining({
+    preferences: expect.objectContaining({ loadRemoteNoteImages: true }),
   }));
 });
 

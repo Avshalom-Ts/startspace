@@ -21,12 +21,12 @@ This is the implementation backlog, not a claim that all design requirements shi
 - [x] NOTES-03: device-local draft recovery with explicit Recover / Discard and guarded saves. See [ADR 0014](../decisions/0014-notes-draft-recovery.md).
 - [x] NOTES-04: browser-locked note saves, conflict-preserving drafts and collision-safe Save as new file. See [ADR 0017](../decisions/0017-notes-save-conflicts.md).
 - [x] NOTES-05: verified note moves/renames and recursive folder rename with original files preserved on copy mismatch; stable Note IDs and historical paths follow app-managed moves. See [ADR 0018](../decisions/0018-verified-folder-moves.md).
+- [x] NOTES-07: Notes settings now explicitly controls remote Markdown images; encoded relative Markdown links and heading fragments open the linked note and section.
 
 ## Remaining work
 
 | ID | Priority | Task / acceptance criteria | Current UI |
 | --- | --- | --- | --- |
-| NOTES-07 | P2 | Add a Notes-page setting for explicit consent to load remote images; do not ask inside individual notes. Add relative note links with URL encoding/anchors. | Safe code blocks support Copy code; remote images remain placeholders; simple relative .md links work. Local images are tracked in NOTES-15. |
 | NOTES-08 | P2 | Full keyboard tree arrow navigation, resizable panes, modal inspector drawers and remembered scroll. Last-note restoration is tracked separately in NOTES-12. | Native disclosure/buttons; responsive single-region stages. |
 | NOTES-09 | P2 | Add a global New dropdown for bookmark/note/task and complete combobox ARIA across shared search. | Notes-specific New note; existing shared search reused. |
 | NOTES-10 | P2 | Restore directory import UI and test real browser permission revocation, recovery, very large workspaces and disk encoding edge cases. | Existing import services unchanged; new Notes UI does not expose import. |

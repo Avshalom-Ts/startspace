@@ -25,6 +25,7 @@ The product outcome: a browser homepage that feels like the user's own workspace
 - Local-first, no backend: everything runs on the user's computer. No account, no cloud database, no server dependency.
 - **Themes:** light and dark mode, switchable from the header. Preference persisted in browser storage. (v1 — moved out of the deferred list.)
 - **Your data, your tooling:** bookmarks come from the browser's Bookmark API (browser is source of truth); notes are real Markdown files the user can edit anywhere (VS Code, Obsidian, etc.); tasks are local and linkable.
+- **Private Markdown previews by default:** workspace images load locally. Remote HTTP(S) note images remain blocked unless the person explicitly enables them in Notes settings.
 - **Unified local search:** one homepage search bar covers Bookmarks → Notes → Tasks → Web. Results appear in a keyboard-navigable dropdown; Enter opens the selected result or uses the browser’s default web search.
 - **Open source and transparent:** users can audit, build from source, load unpacked, and migrate their workspace easily.
 - **Private by default:** no telemetry, no account, no vendor lock-in. "Your browser. Your workspace. Your data."

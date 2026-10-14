@@ -1,15 +1,26 @@
 // Note information, portable tags and current task/bookmark relationships.
 import { useEffect, useState } from "react";
-import { Check, Link, ListTodo, Plus, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  Link,
+  ListTodo,
+  ListTree,
+  Plus,
+  Tag,
+  X,
+} from "lucide-react";
 import type { NoteEntry } from "../types/notes";
 import type { Task } from "../tasks/tasks-model";
 import type { BookmarkNode } from "../hooks/useBookmarks";
+import { extractMarkdownHeadings } from "./markdown-preview";
 
 type Props = {
   note: NoteEntry | null;
   demo: boolean;
   tags: string[];
   metadataEnabled: boolean;
+  remoteImagesBlocked: boolean;
   onAddTag: (tag: string) => Promise<boolean>;
   onRemoveTag: (tag: string) => void;
   links: BookmarkNode[];
@@ -26,12 +37,13 @@ type Props = {
   onMigrateLegacyBookmarkLinks: () => void;
   onClose: () => void;
 };
-/** Shows honest file properties and live relation counts, plus an existing-task picker. */
+/** Shows a note table of contents, tags, relationships, and fixed file details. */
 export function NotesInspector({
   note,
   demo,
   tags,
   metadataEnabled,
+  remoteImagesBlocked,
   onAddTag,
   onRemoveTag,
   links,
@@ -48,7 +60,9 @@ export function NotesInspector({
   onMigrateLegacyBookmarkLinks,
   onClose,
 }: Props) {
-  const [tab, setTab] = useState<"info" | "links" | "tasks">("info");
+  const [tab, setTab] = useState<"info" | "tags" | "links" | "tasks">(
+    "info",
+  );
   const [picker, setPicker] = useState(false);
   const [bookmarkPicker, setBookmarkPicker] = useState(false);
   const [bookmarkSearch, setBookmarkSearch] = useState("");
@@ -65,15 +79,19 @@ export function NotesInspector({
   );
   const matchingBookmarks = linkableBookmarks.filter((bookmark) => {
     const query = bookmarkSearch.trim().toLowerCase();
-    return !query || `${bookmark.title}\n${bookmark.url ?? ""}`.toLowerCase().includes(query);
+    return (
+      !query ||
+      `${bookmark.title}\n${bookmark.url ?? ""}`.toLowerCase().includes(query)
+    );
   });
+  const headings = note ? extractMarkdownHeadings(note.content) : [];
   return (
     <aside
       aria-label="Note information"
       className="flex h-full min-h-0 flex-col"
     >
       <div className="flex border-b border-border px-3">
-        {(["info", "links", "tasks"] as const).map((name) => (
+        {(["info", "tags", "links", "tasks"] as const).map((name) => (
           <button
             key={name}
             className={
@@ -87,7 +105,13 @@ export function NotesInspector({
           >
             {name}
             {name !== "info" &&
-              " (" + (name === "links" ? links.length : tasks.length) + ")"}
+              " (" +
+                (name === "tags"
+                  ? tags.length
+                  : name === "links"
+                    ? links.length
+                    : tasks.length) +
+                ")"}
           </button>
         ))}
         <button
@@ -104,108 +128,106 @@ export function NotesInspector({
           Select a note to see its information.
         </p>
       ) : (
-        <div className="app-scrollbar flex-1 space-y-6 overflow-auto p-5 text-sm">
+        <>
+          <div className="app-scrollbar flex-1 space-y-6 overflow-auto p-5 text-sm">
           {tab === "info" && (
-            <>
-              <section>
-                <h3 className="mb-3 font-semibold">Tags</h3>
-                {tags.length ? (
-                  <div className="flex flex-wrap gap-2">
-                    {tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="notes-tag inline-flex items-center gap-1"
-                      >
-                        {tag}
-                        {!demo && (
-                          <button
-                            type="button"
-                            disabled={!metadataEnabled}
-                            aria-label={`Remove tag ${tag}`}
-                            title={`Remove tag ${tag}`}
-                            onClick={() => onRemoveTag(tag)}
-                          >
-                            <X size={14} aria-hidden="true" />
-                          </button>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted">No tags.</p>
-                )}
-                {!demo && (
-                  <form
-                    className="mt-3 flex gap-2"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      const tag = tagInput.trim();
-                      if (!tag || tag.length > 64 || tags.includes(tag)) {
-                        setTagError("Enter a new tag (1-64 characters).");
-                        return;
-                      }
-                      void onAddTag(tag).then((ok) => {
-                        if (ok) {
-                          setTagInput("");
-                          setTagError("");
-                        }
-                      });
-                    }}
-                  >
-                    <input
-                      className="notes-input min-w-0 flex-1"
-                      aria-label="New note tag"
-                      placeholder="Tag"
-                      maxLength={64}
-                      disabled={!metadataEnabled}
-                      value={tagInput}
-                      onChange={(event) => {
-                        setTagInput(event.target.value);
-                        setTagError("");
-                      }}
-                    />
-                    <button
-                      type="submit"
-                      className="notes-icon-button"
-                      aria-label="Add tag"
-                      title="Add tag"
-                      disabled={!metadataEnabled || !tagInput.trim()}
+            <section aria-labelledby="note-contents-title">
+              <h3
+                id="note-contents-title"
+                className="mb-3 flex items-center gap-2 font-medium"
+              >
+                <ListTree size={20} aria-hidden="true" /> Table of contents
+              </h3>
+              {headings.length ? (
+                <ol className="space-y-1" aria-label="Note headings">
+                  {headings.map((heading, index) => (
+                    <li
+                      key={`${heading.depth}-${heading.text}-${index}`}
+                      className="truncate rounded px-2 py-1 text-fg hover:bg-page"
+                      style={{ marginInlineStart: `${(heading.depth - 1) * 0.75}rem` }}
+                      title={heading.text}
                     >
-                      <Plus size={18} aria-hidden="true" />
-                    </button>
-                  </form>
-                )}
-                {tagError && (
-                  <p role="alert" className="mt-2 text-red-400">
-                    {tagError}
-                  </p>
-                )}
-              </section>
-              <dl className="space-y-4 border-y border-border py-5">
-                <div>
-                  <dt className="text-muted">Modified</dt>
-                  <dd className="mt-1">
-                    {new Date(note.modifiedAt).toLocaleString()}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted">Content size (UTF-8)</dt>
-                  <dd>
-                    {new TextEncoder()
-                      .encode(note.content)
-                      .byteLength.toLocaleString()}{" "}
-                    bytes
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted">File</dt>
-                  <dd className="mt-1 break-all">{note.id}</dd>
-                </div>
-              </dl>
-              <h3 className="font-semibold">Related</h3>
-            </>
+                      {heading.text}
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="text-muted">This note has no Markdown headings.</p>
+              )}
+            </section>
           )}
-          {(tab === "info" || tab === "links") && (
+          {tab === "tags" && (
+            <section aria-labelledby="note-tags-title">
+              <h3 id="note-tags-title" className="mb-3 flex items-center gap-2 font-medium">
+                <Tag size={20} aria-hidden="true" /> Tags ({tags.length})
+              </h3>
+              {tags.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((tag) => (
+                    <span key={tag} className="notes-tag inline-flex items-center gap-1">
+                      {tag}
+                      {!demo && (
+                        <button
+                          type="button"
+                          disabled={!metadataEnabled}
+                          aria-label={`Remove tag ${tag}`}
+                          title={`Remove tag ${tag}`}
+                          onClick={() => onRemoveTag(tag)}
+                        >
+                          <X size={14} aria-hidden="true" />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted">No tags.</p>
+              )}
+              {!demo && (
+                <form
+                  className="mt-3 flex gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const tag = tagInput.trim();
+                    if (!tag || tag.length > 64 || tags.includes(tag)) {
+                      setTagError("Enter a new tag (1-64 characters).");
+                      return;
+                    }
+                    void onAddTag(tag).then((ok) => {
+                      if (ok) {
+                        setTagInput("");
+                        setTagError("");
+                      }
+                    });
+                  }}
+                >
+                  <input
+                    className="notes-input min-w-0 flex-1"
+                    aria-label="New note tag"
+                    placeholder="Tag"
+                    maxLength={64}
+                    disabled={!metadataEnabled}
+                    value={tagInput}
+                    onChange={(event) => {
+                      setTagInput(event.target.value);
+                      setTagError("");
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    className="notes-icon-button"
+                    aria-label="Add tag"
+                    title="Add tag"
+                    disabled={!metadataEnabled || !tagInput.trim()}
+                  >
+                    <Plus size={18} aria-hidden="true" />
+                  </button>
+                </form>
+              )}
+              {tagError && <p role="alert" className="mt-2 text-red-400">{tagError}</p>}
+            </section>
+          )}
+          {tab === "links" && (
             <section>
               <h3 className="mb-3 flex items-center gap-2 font-medium">
                 <Link size={20} aria-hidden="true" /> Links ({links.length})
@@ -225,13 +247,19 @@ export function NotesInspector({
                   className="mb-2 flex items-center gap-2 rounded-md border border-border p-3"
                 >
                   <a
-                    href={/^https?:\/\//i.test(link.url ?? "") ? link.url : undefined}
+                    href={
+                      /^https?:\/\//i.test(link.url ?? "")
+                        ? link.url
+                        : undefined
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="min-w-0 flex-1 hover:border-accent"
                   >
                     <span>{link.title}</span>
-                    <span className="mt-1 block truncate text-xs text-muted">{link.url}</span>
+                    <span className="mt-1 block truncate text-xs text-muted">
+                      {link.url}
+                    </span>
                   </a>
                   {!demo && (
                     <button
@@ -254,14 +282,17 @@ export function NotesInspector({
                       type="button"
                       aria-expanded={bookmarkPicker}
                       aria-controls="note-bookmark-picker"
-                      disabled={!bookmarkMetadataEnabled || !!bookmarkError || busy}
+                      disabled={
+                        !bookmarkMetadataEnabled || !!bookmarkError || busy
+                      }
                       className="notes-button"
                       onClick={() => {
                         setBookmarkPicker(!bookmarkPicker);
                         if (bookmarkPicker) setBookmarkSearch("");
                       }}
                     >
-                      <Plus size={16} aria-hidden="true" /> Link existing bookmark
+                      <Plus size={16} aria-hidden="true" /> Link existing
+                      bookmark
                     </button>
                     {bookmarkPicker && (
                       <div
@@ -277,7 +308,9 @@ export function NotesInspector({
                           aria-label="Search bookmarks to link"
                           placeholder="Search bookmarks"
                           value={bookmarkSearch}
-                          onChange={(event) => setBookmarkSearch(event.target.value)}
+                          onChange={(event) =>
+                            setBookmarkSearch(event.target.value)
+                          }
                         />
                         <div
                           role="listbox"
@@ -299,14 +332,20 @@ export function NotesInspector({
                               }}
                             >
                               <span>{bookmark.title || bookmark.url}</span>
-                              <span className="truncate text-xs text-muted">{bookmark.url}</span>
+                              <span className="truncate text-xs text-muted">
+                                {bookmark.url}
+                              </span>
                             </button>
                           ))}
                         </div>
                         {!linkableBookmarks.length ? (
-                          <p className="p-2 text-muted">Every current bookmark is already linked.</p>
+                          <p className="p-2 text-muted">
+                            Every current bookmark is already linked.
+                          </p>
                         ) : !matchingBookmarks.length ? (
-                          <p className="p-2 text-muted">No bookmarks match that search.</p>
+                          <p className="p-2 text-muted">
+                            No bookmarks match that search.
+                          </p>
                         ) : null}
                       </div>
                     )}
@@ -325,7 +364,7 @@ export function NotesInspector({
               )}
             </section>
           )}
-          {(tab === "info" || tab === "tasks") && (
+          {tab === "tasks" && (
             <section>
               <h3 className="mb-3 flex items-center gap-2 font-medium">
                 <ListTodo size={20} aria-hidden="true" /> Tasks ({tasks.length})
@@ -396,7 +435,49 @@ export function NotesInspector({
               )}
             </section>
           )}
-        </div>
+          </div>
+          <footer className="shrink-0 space-y-3 border-t border-border p-4 text-sm">
+          {remoteImagesBlocked && (
+            <section
+              role="alert"
+              className="rounded-md border border-red-500/70 bg-red-500/10 p-3 text-red-600 dark:text-red-300"
+            >
+              <div className="flex items-start gap-2">
+                <AlertTriangle
+                  size={18}
+                  aria-hidden="true"
+                  className="mt-0.5 shrink-0"
+                />
+                <div>
+                  <h3 className="font-semibold">Remote images blocked</h3>
+                  <p className="mt-1 text-xs">
+                    Enable Load remote images in Settings &gt; Notes to display
+                    this note&apos;s remote images.
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+            <div className="col-span-2">
+              <dt className="text-xs text-muted">Modified</dt>
+              <dd className="mt-0.5 truncate">
+                {new Date(note.modifiedAt).toLocaleString()}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted">Content size (UTF-8)</dt>
+              <dd className="mt-0.5">
+                {new TextEncoder().encode(note.content).byteLength.toLocaleString()} bytes
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted">File</dt>
+              <dd className="mt-0.5 truncate" title={note.id}>{note.id}</dd>
+            </div>
+          </dl>
+          </footer>
+        </>
       )}
     </aside>
   );
