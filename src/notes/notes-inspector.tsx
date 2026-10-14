@@ -35,6 +35,7 @@ type Props = {
   onSetBookmarkLink: (id: string, linked: boolean) => void;
   legacyBookmarkLinksAvailable: boolean;
   onMigrateLegacyBookmarkLinks: () => void;
+  onSelectHeading?: (heading: string) => void;
   onClose: () => void;
 };
 /** Shows a note table of contents, tags, relationships, and fixed file details. */
@@ -58,6 +59,7 @@ export function NotesInspector({
   onSetBookmarkLink,
   legacyBookmarkLinksAvailable,
   onMigrateLegacyBookmarkLinks,
+  onSelectHeading,
   onClose,
 }: Props) {
   const [tab, setTab] = useState<"info" | "tags" | "links" | "tasks">(
@@ -143,11 +145,17 @@ export function NotesInspector({
                   {headings.map((heading, index) => (
                     <li
                       key={`${heading.depth}-${heading.text}-${index}`}
-                      className="truncate rounded px-2 py-1 text-fg hover:bg-page"
                       style={{ marginInlineStart: `${(heading.depth - 1) * 0.75}rem` }}
-                      title={heading.text}
                     >
-                      {heading.text}
+                      <button
+                        type="button"
+                        className="w-full cursor-pointer truncate rounded px-2 py-1 text-left text-fg hover:bg-page focus-visible:outline-2 focus-visible:outline-accent"
+                        title={`Go to ${heading.text}`}
+                        aria-label={`Go to heading ${heading.text}`}
+                        onClick={() => onSelectHeading?.(heading.text)}
+                      >
+                        {heading.text}
+                      </button>
                     </li>
                   ))}
                 </ol>

@@ -1,3 +1,9 @@
+// notes-workspace.ts
+//
+// Owns File System Access API operations for Markdown notes and local images.
+// Workspace handles must already be granted. Markdown is read as strict UTF-8
+// so StartSpace never rewrites a note whose encoding it cannot safely preserve.
+
 import type {
   FolderEntry,
   ImageEntry,
@@ -38,6 +44,37 @@ const isNotFound = (error: unknown) =>
   error instanceof DOMException && error.name === "NotFoundError";
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
+
+const scanYieldEvery = 50;
+
+/** Yields after a bounded number of entries so large local scans keep the UI responsive. */
+function yieldToBrowser(): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, 0));
+}
+
+/** Decodes Markdown only when its bytes are valid UTF-8; unsupported encodings are never rewritten. */
+function decodeMarkdown(path: string, bytes: ArrayBuffer): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new NoteWorkspaceError(
+      "io",
+      `"${path}" is not valid UTF-8 Markdown. Convert it to UTF-8 before opening or importing it.`,
+      path,
+    );
+  }
+}
+
+/** Reads Markdown through the File System Access API with strict UTF-8 validation. */
+async function readMarkdownFile(path: string, file: File): Promise<string> {
+  const bytes = (file as File & { arrayBuffer?: () => Promise<ArrayBuffer> })
+    .arrayBuffer;
+  // Native File objects always provide arrayBuffer(). The fallback keeps the
+  // small File System Access polyfills used by older test/browser environments
+  // readable; it is never used by Chromium's real workspace files.
+  if (!bytes) return file.text();
+  return decodeMarkdown(path, await bytes.call(file));
+}
 
 const imageTypes: Record<string, string> = {
   png: "image/png",
@@ -228,7 +265,7 @@ async function readFileEntry(
   const name = noteDisplayName(id) + ".md";
   const parent = await directoryAt(root, folder);
   const file = await (await parent.getFileHandle(name)).getFile();
-  const content = await file.text();
+  const content = await readMarkdownFile(id, file);
   return {
     id,
     title: extractTitleFromMarkdown(content) || noteDisplayName(id),
@@ -242,6 +279,7 @@ async function scanDirectory(
   root: FileSystemDirectoryHandle,
   directory: FileSystemDirectoryHandle,
   prefix: string,
+  progress = { entries: 0 },
 ): Promise<{
   notes: NoteEntry[];
   images: ImageEntry[];
@@ -252,6 +290,8 @@ async function scanDirectory(
   const folders: FolderEntry[] = [];
   let directCount = 0;
   for await (const entry of directory.values()) {
+    progress.entries++;
+    if (progress.entries % scanYieldEvery === 0) await yieldToBrowser();
     if (entry.name.startsWith(".")) continue;
     const id = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.kind === "file" && entry.name.endsWith(".md")) {
@@ -265,7 +305,7 @@ async function scanDirectory(
         modifiedAt: new Date(file.lastModified).toISOString(),
       });
     } else if (entry.kind === "directory") {
-      const child = await scanDirectory(root, entry, id);
+      const child = await scanDirectory(root, entry, id, progress);
       notes.push(...child.notes);
       images.push(...child.images);
       folders.push(...child.folders);
@@ -301,6 +341,19 @@ export async function scanWorkspace(
     };
   } catch (error) {
     if (error instanceof NoteWorkspaceError) throw error;
+    if (isNotFound(error))
+      throw new NoteWorkspaceError(
+        "unavailable",
+        "Workspace folder is unavailable. Reconnect it or choose the folder again.",
+      );
+    if (
+      error instanceof DOMException &&
+      (error.name === "NotAllowedError" || error.name === "SecurityError")
+    )
+      throw new NoteWorkspaceError(
+        "access-revoked",
+        "Workspace access was revoked. Reconnect the folder to continue.",
+      );
     throw new NoteWorkspaceError(
       "io",
       `Unable to scan workspace: ${errorMessage(error)}`,
@@ -731,9 +784,11 @@ export async function importMarkdownFiles(
       }
     }
     try {
+      const bytes = await file.arrayBuffer();
+      decodeMarkdown(file.name, bytes);
       const handle = await parent.getFileHandle(file.name, { create: true });
       const writable = await handle.createWritable();
-      await writable.write(await file.text());
+      await writable.write(bytes);
       await writable.close();
       result.imported.push(
         targetFolderId ? `${targetFolderId}/${file.name}` : file.name,

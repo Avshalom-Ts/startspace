@@ -15,14 +15,6 @@ implementation notes.
   _Example: Someone keeps a project plan open beside a meeting note, compares
   sections while editing, and returns to both notes at the same positions.
 
-- **NOTES-10 (P2):** Bring back the folder-import screen. Test what happens
-  when browser access is removed and restored, when workspaces are very large,
-  and when files use unusual text encodings. See [Notes implementation tasks](pages-tasks/notes-layout-tasks.md).
-
-  _Example: If browser permission to a notes folder expires, the app explains
-  how to reconnect it without losing work; importing a folder with thousands
-  of files still remains dependable._
-
 ## Links
 
 See [Links implementation tasks](pages-tasks/links-layout-tasks.md) for more

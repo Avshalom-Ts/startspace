@@ -37,6 +37,8 @@ Unreleased ready for the next changes. See the
 - Persistent top-center decision prompts for actions that need a choice. A
   changed-on-disk note can now keep its draft or explicitly use the disk
   version without interrupting editing.
+- Import selected Markdown files into the current Notes folder. Existing files
+  are never replaced; non-UTF-8 Markdown is reported and left unchanged.
 - Device-local recovery of unsaved note drafts, with explicit Recover or
   Discard actions. Draft recovery copies are not included in portable backups.
 - Persistent note stars, tags, recent notes, and last-opened-note context.
@@ -60,6 +62,8 @@ Unreleased ready for the next changes. See the
 - Ordinary success, information, warning, and error notifications now time out;
   messages that require a decision stay visible separately until dismissed or
   acted on.
+- Notes now explains how to reconnect when workspace access is revoked or the
+  selected folder is unavailable. Large workspace scans yield between batches.
 - The Notes information pane now separates its table of contents, tags, links,
   and tasks into dedicated tabs. Compact file details and any blocked-remote-image
   warning remain visible at the bottom.
@@ -96,6 +100,8 @@ Unreleased ready for the next changes. See the
 
 ### Fixed
 
+- Autosaving a note no longer mistakes its own in-progress write for an
+  external disk change and repeatedly shows a conflict choice.
 - Note saves detect external edits and coordinate participating tabs without
   discarding conflicting drafts. See
   [ADR 0017](docs/decisions/0017-notes-save-conflicts.md).

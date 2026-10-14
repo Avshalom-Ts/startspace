@@ -4,9 +4,11 @@
 // of the File System Access API surface used by the Notes feature.
 
 import { describe, expect, it, vi } from "vitest";
+import { workspaceFixture } from "../test/workspace-fixture";
 import {
   deleteImage,
   deleteFolder,
+  importMarkdownFiles,
   moveImage,
   moveNote,
   readWorkspaceImage,
@@ -256,6 +258,83 @@ describe("workspace scanning", () => {
       "visible.md",
     ]);
     expect(index.folders.map((folder) => folder.id)).toEqual(["projects"]);
+  });
+
+  it("rejects non-UTF-8 Markdown and gives a reconnectable permission error", async () => {
+    const invalidEncoding = {
+      name: "Workspace",
+      getFileHandle: async () => ({
+        getFile: async () => ({
+          lastModified: 0,
+          arrayBuffer: async () => new Uint8Array([0xff]).buffer,
+        }),
+      }),
+      values: async function* () {
+        yield {
+          kind: "file" as const,
+          name: "legacy.md",
+          getFile: async () => ({
+            lastModified: 0,
+            arrayBuffer: async () => new Uint8Array([0xff]).buffer,
+          }),
+        } as unknown as FileSystemFileHandle;
+      },
+    } as unknown as FileSystemDirectoryHandle;
+    await expect(scanWorkspace(invalidEncoding)).rejects.toThrow(
+      "not valid UTF-8",
+    );
+
+    const revoked = {
+      name: "Workspace",
+      values: async function* () {
+        throw new DOMException("Denied", "NotAllowedError");
+      },
+    } as unknown as FileSystemDirectoryHandle;
+    await expect(scanWorkspace(revoked)).rejects.toMatchObject({
+      kind: "access-revoked",
+      message: expect.stringContaining("Reconnect"),
+    });
+  });
+
+  it("indexes large folders in full while yielding between bounded batches", async () => {
+    const workspace = directoryHandle({
+      kind: "directory",
+      name: "Workspace",
+      children: Array.from({ length: 120 }, (_, index) => ({
+        kind: "file" as const,
+        name: `note-${index}.md`,
+        content: `# Note ${index}`,
+      })),
+    });
+    const index = await scanWorkspace(workspace);
+    expect(index.notes).toHaveLength(120);
+  });
+});
+
+describe("Markdown import", () => {
+  it("imports valid UTF-8 files without rewriting bytes and skips unsupported encodings", async () => {
+    const fixture = workspaceFixture();
+    const valid = new File(["# Imported\n"], "imported.md", {
+      type: "text/markdown",
+    });
+    const invalid = new File([new Uint8Array([0xff])], "legacy.md", {
+      type: "text/markdown",
+    });
+
+    const result = await importMarkdownFiles(fixture.handle, "", [
+      valid,
+      invalid,
+    ]);
+
+    expect(result.imported).toEqual(["imported.md"]);
+    expect(result.failed).toEqual([
+      expect.objectContaining({
+        name: "legacy.md",
+        error: expect.stringContaining("not valid UTF-8"),
+      }),
+    ]);
+    expect(fixture.files.get("imported.md")).toBe("# Imported\n");
+    expect(fixture.files.has("legacy.md")).toBe(false);
   });
 });
 

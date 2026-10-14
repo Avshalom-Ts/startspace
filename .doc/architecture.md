@@ -108,6 +108,9 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 - Folder rename copies all entries to a new sibling directory, then removes the original because the File System Access API has no native rename operation.
 - Note moves verify copied Markdown and unchanged source content; folder renames compare every copied file and folder tree before deleting the source. Partial failures leave paths for manual recovery. App-managed moves update stable Note ID paths and aliases after filesystem success.
 - Import existing Markdown notes/folders; optionally use an existing Markdown folder directly as the workspace.
+- Notes scanning reads Markdown as strict UTF-8 and yields between bounded
+  batches of filesystem entries. Invalidly encoded files are reported without
+  rewriting them; inaccessible or missing workspace roots offer reconnection.
 - Notes remain usable with external tools (VS Code, Obsidian, etc.).
 - Search indexes both note titles and content.
 
@@ -222,6 +225,8 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 |            | v2 delivery with matching GitHub release artifacts.                      |
 | 2026-10-14 | Added persistent top-center decision messages for user choices while      |
 |            | retaining short-lived, top-right operation feedback.                     |
+| 2026-10-14 | Restored current-folder Markdown import with collision protection, strict |
+|            | UTF-8 handling, reconnectable workspace errors, and cooperative scans.   |
 
 Browser-default search and the removal of stored engine preferences are defined in [ADR 0008](../docs/decisions/0008-browser-default-search.md). Settings displays engine metadata only where exposed and links to browser settings.
 

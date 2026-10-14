@@ -117,6 +117,8 @@ do not discard them just to update. After a successful build, click the
 extension's **Reload** button on `chrome://extensions` or `edge://extensions`
 and open a fresh New Tab page. Rebuilding alone does not reload the extension.
 If workspace access needs permission again, use **Reconnect** in Settings.
+If the Notes page reports that the folder is unavailable or access was revoked,
+use its **Reconnect workspace** action to choose or re-authorize the folder.
 
 ### Development Workflow and UI Preview
 
@@ -139,6 +141,10 @@ If workspace access needs permission again, use **Reconnect** in Settings.
   extension controls New Tab; check browser prompts and managed policies.
 - **Workspace is disconnected:** choose or reconnect the folder in Settings
   and approve the browser permission prompt.
+- **Importing notes:** open the target folder in Notes, select the import
+  button beside Refresh, and choose one or more UTF-8 `.md` files. Existing
+  files are skipped; files in another text encoding must be converted to UTF-8
+  before import.
 - **Bookmarks or web search are unavailable:** test the installed extension
   rather than the Vite preview, and check its permissions/errors on the
   extension management page.

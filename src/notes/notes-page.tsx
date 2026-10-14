@@ -22,6 +22,7 @@ import {
   PenLine,
   RefreshCw,
   Star,
+  Upload,
 } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useConfig } from "../hooks/useConfig";
@@ -162,8 +163,44 @@ export function NotesPage() {
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const documentScrollRef = useRef<HTMLDivElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   const noteScrollPositions = useRef(new Map<string, number>());
   const activeNoteIdRef = useRef<string | null>(null);
+
+  /** Imports user-selected UTF-8 Markdown files into the visible folder without replacing collisions. */
+  const importNotes = useCallback(
+    async (files: File[]) => {
+      if (!files.length || busy || demo) return;
+      setBusy(true);
+      try {
+        const targetFolder = view === "folder" ? folder : "";
+        const result = await notes.importFiles(files, targetFolder);
+        if (!result.ok) {
+          notifications.error("Notes could not be imported. Reconnect the workspace and try again.");
+          return;
+        }
+        const { imported, skipped, failed } = result.value;
+        if (!imported.length) {
+          notifications.warning(
+            failed.length
+              ? "No notes were imported. Check that the selected files are valid UTF-8 Markdown."
+              : "No notes were imported because those files already exist or are not Markdown.",
+          );
+          return;
+        }
+        notifications.success(
+          `Imported ${imported.length} note${imported.length === 1 ? "" : "s"}${targetFolder ? ` into ${targetFolder}` : ""}.`,
+        );
+        if (skipped.length || failed.length)
+          notifications.warning(
+            `${skipped.length + failed.length} selected file${skipped.length + failed.length === 1 ? " was" : "s were"} not imported.`,
+          );
+      } finally {
+        setBusy(false);
+      }
+    },
+    [busy, demo, folder, notes, notifications, view],
+  );
   useEffect(() => {
     let active = true;
     void readLegacyBookmarkMetadata().then((legacy) => {
@@ -347,6 +384,7 @@ export function NotesPage() {
       ? (preferences.document?.notes[activeNote.stableId]?.tags ?? [])
       : [];
   const externalConflict =
+    !busy &&
     !!selected &&
     selected.id === editingId &&
     dirty &&
@@ -1104,9 +1142,19 @@ export function NotesPage() {
           {notes.error.message}
           <button
             className="ml-3 underline"
-            onClick={() => void notes.refresh()}
+            onClick={() => {
+              if (
+                notes.error?.kind === "workspace-missing" ||
+                notes.error?.kind === "access-revoked"
+              )
+                void workspace.chooseWorkspace();
+              else void notes.refresh();
+            }}
           >
-            Retry
+            {notes.error.kind === "workspace-missing" ||
+            notes.error.kind === "access-revoked"
+              ? "Reconnect workspace"
+              : "Retry"}
           </button>
         </div>
       )}
@@ -1231,6 +1279,30 @@ export function NotesPage() {
               >
                 <RefreshCw size={20} aria-hidden="true" />
               </button>
+              <button
+                type="button"
+                title="Import Markdown files into this folder"
+                aria-label="Import Markdown files into the current folder"
+                className="notes-button gap-1 px-2 py-1 text-xs"
+                disabled={demo || busy}
+                onClick={() => importInputRef.current?.click()}
+              >
+                <Upload size={16} aria-hidden="true" />
+                Import
+              </button>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".md,text/markdown"
+                multiple
+                className="sr-only"
+                onChange={(event) => {
+                  const input = event.currentTarget;
+                  void importNotes(Array.from(input.files ?? [])).finally(() => {
+                    input.value = "";
+                  });
+                }}
+              />
             </div>
             <input
               type="search"
@@ -1777,6 +1849,12 @@ export function NotesPage() {
                   error instanceof Error ? error.message : "Could not import saved bookmark links.",
                 );
               }).finally(() => setBusy(false));
+            }}
+            onSelectHeading={(heading) => {
+              if (!activeNote) return;
+              setMode("preview");
+              setPanel("document");
+              setHeadingTarget({ noteId: activeNote.id, heading });
             }}
           />
         </div>

@@ -76,6 +76,7 @@ it("warns in the information tab when this note has blocked remote images", asyn
 });
 
 it("keeps the table of contents in Info and moves tags to their own tab", async () => {
+  const onSelectHeading = vi.fn();
   await act(async () => root.render(
     <NotesInspector
       note={{ id: "Plans/release.md", title: "Release", content: "# Overview\n\n## Timeline", folder: "Plans", modifiedAt: "2026-10-13T00:00:00.000Z" }}
@@ -85,12 +86,19 @@ it("keeps the table of contents in Info and moves tags to their own tab", async 
       taskError={null} bookmarkError={null} bookmarkMetadataEnabled={true}
       busy={false} onLinkTask={vi.fn()} onSetBookmarkLink={vi.fn()}
       legacyBookmarkLinksAvailable={false} onMigrateLegacyBookmarkLinks={vi.fn()}
+      onSelectHeading={onSelectHeading}
       onClose={vi.fn()}
     />,
   ));
   expect(container.querySelector('[aria-label="Note headings"]')?.textContent).toContain(
     "Timeline",
   );
+  await act(async () => {
+    container
+      .querySelector<HTMLButtonElement>('[aria-label="Go to heading Timeline"]')
+      ?.click();
+  });
+  expect(onSelectHeading).toHaveBeenCalledWith("Timeline");
   await act(async () => {
     [...container.querySelectorAll("button")].find((button) =>
       button.textContent?.startsWith("tags"),
