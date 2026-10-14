@@ -24,13 +24,13 @@ This is the implementation backlog, not a claim that all design requirements shi
 - [x] NOTES-07: Notes settings now explicitly controls remote Markdown images; encoded relative Markdown links and heading fragments open the linked note and section.
 - [x] NOTES-08: The folder tree supports standard keyboard navigation; desktop panes resize and retain their widths; note scroll positions are restored during the visit. The persistent inspector is collapsible rather than a pop-up drawer.
 - [x] NOTES-09: A global top-navigation New menu opens existing bookmark, note, and task creation flows. Shared search now provides combobox/listbox semantics and announces result counts and keyboard selection.
+- [x] NOTES-16: A top-center decision prompt remains available until it is dismissed or an explicit action is chosen. Changed-on-disk notes offer Keep mine and Use disk version without interrupting typing; ordinary notifications remain transient. See [ADR 0030](../decisions/0030-persistent-decision-messages.md).
 
 ## Remaining work
 
 | ID | Priority | Task / acceptance criteria | Current UI |
 | --- | --- | --- | --- |
 | NOTES-10 | P2 | Restore directory import UI and test real browser permission revocation, recovery, very large workspaces and disk encoding edge cases. | Existing import services unchanged; new Notes UI does not expose import. |
-| NOTES-16 | P2 | Implement a persistent top-center global interactive message for cases that need a user decision: provide accessible explicit actions and dismiss, remain visible until acted on or dismissed, and deduplicate updates so it never reappears on every keystroke. Preserve the existing transient notification behavior for ordinary feedback; keep messages outside page work areas. | Existing global notification stack is transient/top-right; no persistent top-center interactive message exists yet. |
 
 ## Newly accepted requirements (2026-09-29)
 

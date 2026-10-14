@@ -34,6 +34,9 @@ Unreleased ready for the next changes. See the
   fragments.
 - A note’s Information tab warns in red when it contains remote Markdown images
   that are blocked by the shared Notes setting.
+- Persistent top-center decision prompts for actions that need a choice. A
+  changed-on-disk note can now keep its draft or explicitly use the disk
+  version without interrupting editing.
 - Device-local recovery of unsaved note drafts, with explicit Recover or
   Discard actions. Draft recovery copies are not included in portable backups.
 - Persistent note stars, tags, recent notes, and last-opened-note context.
@@ -54,6 +57,9 @@ Unreleased ready for the next changes. See the
 - Notes now supports keyboard folder-tree navigation, resizable desktop panes,
   a collapsible information inspector, and in-session scroll restoration per
   note.
+- Ordinary success, information, warning, and error notifications now time out;
+  messages that require a decision stay visible separately until dismissed or
+  acted on.
 - The Notes information pane now separates its table of contents, tags, links,
   and tasks into dedicated tabs. Compact file details and any blocked-remote-image
   warning remain visible at the bottom.

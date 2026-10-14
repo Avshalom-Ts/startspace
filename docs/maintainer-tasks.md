@@ -23,15 +23,6 @@ implementation notes.
   how to reconnect it without losing work; importing a folder with thousands
   of files still remains dependable._
 
-- **NOTES-16 (P2):** Show important questions in a clear message at the top
-  center of the app. The message must stay until the person chooses an action
-  or dismisses it, work with assistive technology, and not repeat while they
-  type. Keep ordinary success and error messages short-lived. See [Notes implementation tasks](pages-tasks/notes-layout-tasks.md).
-
-  _Example: Before replacing a changed-on-disk note, the app keeps a visible
-  “Keep mine” or “Use disk version” choice on screen, while a normal “Saved”
-  message still disappears on its own._
-
 ## Links
 
 See [Links implementation tasks](pages-tasks/links-layout-tasks.md) for more

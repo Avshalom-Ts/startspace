@@ -40,8 +40,12 @@ StartSpace is an open-source, local-first browser extension that replaces the br
   and renders them in a fixed stack at the top-right of the viewport.
 - Notes, Tasks, Links, and Settings use the same typed success, information,
   warning, and error API for transient operation outcomes.
-- Success and informational messages dismiss automatically; errors remain until
-  dismissed. Timers pause while a message is hovered or keyboard-focused.
+- Ordinary messages dismiss automatically; timers pause while a message is
+  hovered or keyboard-focused.
+- A separate, single top-center decision message presents an accessible title,
+  explanation, explicit actions, and dismissal. It remains until acted on or
+  dismissed and is deduplicated by its stable decision ID, so reactive state
+  updates do not repeat it while a person types.
 - Field validation and persistent blockers remain inline beside the relevant
   control or page. Destructive actions continue to use confirmation dialogs.
 - Notifications use accessible live-region roles, do not take focus, respect
@@ -216,6 +220,8 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 |            | feedback while preserving inline validation and persistent blockers.    |
 | 2026-09-03 | Added GitHub Actions CI and protected, tag-driven Chrome Web Store API    |
 |            | v2 delivery with matching GitHub release artifacts.                      |
+| 2026-10-14 | Added persistent top-center decision messages for user choices while      |
+|            | retaining short-lived, top-right operation feedback.                     |
 
 Browser-default search and the removal of stored engine preferences are defined in [ADR 0008](../docs/decisions/0008-browser-default-search.md). Settings displays engine metadata only where exposed and links to browser settings.
 

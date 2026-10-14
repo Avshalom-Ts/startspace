@@ -21,7 +21,6 @@ import {
   Languages,
   PenLine,
   RefreshCw,
-  RotateCcw,
   Star,
 } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
@@ -352,6 +351,26 @@ export function NotesPage() {
     selected.id === editingId &&
     dirty &&
     selected.content !== baseline;
+
+  useEffect(() => {
+    if (!externalConflict || !activeNote || !selected) return;
+    notifications.decide({
+      id: `note-disk-conflict:${activeNote.id}:${baseline}:${selected.content}`,
+      title: "This note changed on disk",
+      message:
+        "Choose which version to keep. Your draft is not replaced unless you choose the disk version.",
+      actions: [
+        { label: "Keep mine", onClick: () => {} },
+        {
+          label: "Use disk version",
+          onClick: () => {
+            setDraft(selected.content);
+            setBaseline(selected.content);
+          },
+        },
+      ],
+    });
+  }, [activeNote, baseline, externalConflict, notifications, selected]);
 
   useEffect(() => {
     const previous = activeNoteIdRef.current;
@@ -1486,23 +1505,6 @@ export function NotesPage() {
                     >
                       <Info size={20} aria-hidden="true" />
                     </button>
-                    {externalConflict && !busy && (
-                      <button
-                        className="notes-icon-button shrink-0"
-                        aria-label="Reload disk version"
-                        title="Reload disk version"
-                        onClick={() =>
-                          guard(() => {
-                            if (selected) {
-                              setDraft(selected.content);
-                              setBaseline(selected.content);
-                            }
-                          })
-                        }
-                      >
-                        <RotateCcw size={20} aria-hidden="true" />
-                      </button>
-                    )}
                     <details className="relative shrink-0">
                       <summary
                         className="notes-icon-button cursor-pointer list-none"

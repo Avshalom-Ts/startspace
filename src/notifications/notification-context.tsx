@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { NotificationViewport } from "./notification-viewport";
+import { DecisionViewport } from "./decision-viewport";
 
 export type NotificationKind = "success" | "error" | "info" | "warning";
 
@@ -26,6 +27,13 @@ export interface Notification {
   message: string;
   duration: number | null;
   action?: NotificationAction;
+}
+
+export interface DecisionMessage {
+  id: string;
+  title: string;
+  message: string;
+  actions: NotificationAction[];
 }
 
 interface NotificationOptions {
@@ -44,6 +52,8 @@ interface NotificationApi {
   info: (message: string, options?: NotificationOptions) => void;
   warning: (message: string, options?: NotificationOptions) => void;
   dismiss: (id: number) => void;
+  decide: (decision: DecisionMessage) => void;
+  dismissDecision: () => void;
 }
 
 const NotificationContext = createContext<NotificationApi | null>(null);
@@ -52,9 +62,16 @@ let nextNotificationId = 1;
 /** Provides a bounded, deduplicated notification queue to the extension UI. */
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [decision, setDecision] = useState<DecisionMessage | null>(null);
 
   const dismiss = useCallback((id: number) => {
     setNotifications((current) => current.filter((item) => item.id !== id));
+  }, []);
+  const dismissDecision = useCallback(() => setDecision(null), []);
+  const decide = useCallback((next: DecisionMessage) => {
+    if (!next.title.trim() || !next.message.trim() || !next.actions.length)
+      return;
+    setDecision((current) => (current?.id === next.id ? current : next));
   }, []);
 
   const notify = useCallback(
@@ -71,9 +88,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         message: trimmed,
         duration:
           options.duration === undefined
-            ? kind === "error"
-              ? null
-              : kind === "warning"
+            ? kind === "error" || kind === "warning"
                 ? 6000
                 : 4000
             : options.duration,
@@ -97,8 +112,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       info: (message, options) => notify("info", message, options),
       warning: (message, options) => notify("warning", message, options),
       dismiss,
+      decide,
+      dismissDecision,
     }),
-    [dismiss, notify],
+    [decide, dismiss, dismissDecision, notify],
   );
 
   return (
@@ -108,6 +125,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         notifications={notifications}
         onDismiss={dismiss}
       />
+      <DecisionViewport decision={decision} onDismiss={dismissDecision} />
     </NotificationContext.Provider>
   );
 }

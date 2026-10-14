@@ -1,7 +1,8 @@
 // notification-viewport.tsx
 //
 // Renders the accessible top-right notification stack. Timed messages pause
-// while hovered or keyboard-focused; errors remain until dismissed by default.
+// while hovered or keyboard-focused. Persistent choices are rendered separately
+// by DecisionViewport so ordinary feedback can stay short-lived.
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
