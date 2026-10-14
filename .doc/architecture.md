@@ -170,6 +170,7 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 5. **Notes flow**
    - Notes are read/written as Markdown files in the workspace via the File System Access API.
    - The Notes page keeps the recursive explorer visible while editing or previewing the active note. It refreshes when the page regains focus and has a manual refresh action.
+- The Notes explorer follows treeview keyboard conventions. On wide screens its folder, list, and collapsible information panes can be resized with widths stored locally; each note's document scroll position is retained for the current visit without storing note content.
    - The New folder action creates a real directory via `getDirectoryHandle(name, { create: true })`; nested folders are supported. Folders are ordinary directories on disk.
    - Folders organize notes; renaming and moving update the file system. Folder rename uses copy-and-remove; notes are copied to their destination before their source is removed.
    - Import can bring in existing Markdown notes/folders; an existing folder can optionally serve directly as the workspace.

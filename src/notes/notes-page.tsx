@@ -1,6 +1,13 @@
 // Four-pane Notes workspace. Reuses existing path-based filesystem and task
 // services; demo data is opt-in, session-only and cannot write to user files.
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import {
   AlignLeft,
   AlignRight,
@@ -98,6 +105,26 @@ export function NotesPage() {
   const [panel, setPanel] = useState<"list" | "folders" | "document" | "info">(
     "list",
   );
+  const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [panelWidths, setPanelWidths] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("startspace.notes.panel-widths") ?? "null");
+      if (
+        saved &&
+        ["folders", "list", "info"].every(
+          (key) => typeof saved[key] === "number",
+        )
+      )
+        return {
+          folders: Math.max(180, saved.folders),
+          list: Math.max(180, saved.list),
+          info: Math.max(350, saved.info),
+        };
+    } catch {
+      // Fall back to the responsive defaults when browser storage is unavailable.
+    }
+    return { folders: 240, list: 300, info: 350 };
+  });
   const [draft, setDraft] = useState("");
   const [baseline, setBaseline] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -135,6 +162,9 @@ export function NotesPage() {
   const failedSaveRef = useRef<string | null>(null);
   const draftRef = useRef(draft);
   draftRef.current = draft;
+  const documentScrollRef = useRef<HTMLDivElement>(null);
+  const noteScrollPositions = useRef(new Map<string, number>());
+  const activeNoteIdRef = useRef<string | null>(null);
   useEffect(() => {
     let active = true;
     void readLegacyBookmarkMetadata().then((legacy) => {
@@ -322,6 +352,64 @@ export function NotesPage() {
     selected.id === editingId &&
     dirty &&
     selected.content !== baseline;
+
+  useEffect(() => {
+    const previous = activeNoteIdRef.current;
+    if (previous && documentScrollRef.current)
+      noteScrollPositions.current.set(previous, documentScrollRef.current.scrollTop);
+    activeNoteIdRef.current = activeNote?.id ?? null;
+    if (!activeNote?.id || !documentScrollRef.current) return;
+    documentScrollRef.current.scrollTop =
+      noteScrollPositions.current.get(activeNote.id) ?? 0;
+  }, [activeNote?.id]);
+
+  /** Saves a resized desktop pane width locally without storing workspace content. */
+  const setPanelWidth = useCallback(
+    (panel: "folders" | "list" | "info", value: number) => {
+      setPanelWidths((current) => {
+        const minimum = panel === "info" ? 350 : 180;
+        const next = {
+          ...current,
+          [panel]: Math.min(480, Math.max(minimum, value)),
+        };
+        try {
+          localStorage.setItem(
+            "startspace.notes.panel-widths",
+            JSON.stringify(next),
+          );
+        } catch {
+          // Resizing remains available if browser storage is temporarily unavailable.
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
+  /** Begins a pointer or keyboard-controlled desktop pane resize. */
+  const beginPanelResize = useCallback(
+    (
+      panel: "folders" | "list" | "info",
+      event: ReactPointerEvent<HTMLDivElement>,
+    ) => {
+      const frame = event.currentTarget.parentElement;
+      if (!frame) return;
+      event.preventDefault();
+      const rect = frame.getBoundingClientRect();
+      const move = (moveEvent: PointerEvent) => {
+        const value =
+          panel === "info" ? rect.right - moveEvent.clientX : moveEvent.clientX - rect.left - (panel === "list" ? panelWidths.folders : 0);
+        setPanelWidth(panel, value);
+      };
+      const stop = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", stop);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", stop, { once: true });
+    },
+    [panelWidths.folders, setPanelWidth],
+  );
 
   /** Defers navigation until the dirty document has been resolved by the user. */
   const guard = useCallback((next: () => void) => {
@@ -1038,7 +1126,18 @@ export function NotesPage() {
           Info
         </button>
       </div>
-      <div className="notes-frame flex-1" data-panel={panel}>
+      <div
+        className="notes-frame flex-1"
+        data-panel={panel}
+        data-inspector-open={inspectorOpen}
+        style={
+          {
+            "--notes-folders-width": `${panelWidths.folders}px`,
+            "--notes-list-width": `${panelWidths.list}px`,
+            "--notes-info-width": `${panelWidths.info}px`,
+          } as CSSProperties
+        }
+      >
         <div className="notes-folders border-r border-border">
           <NotesNavigator
             index={index}
@@ -1360,6 +1459,23 @@ export function NotesPage() {
                         <PenLine size={20} aria-hidden="true" />
                       )}
                     </button>
+                    <button
+                      className="notes-icon-button hidden shrink-0 min-[1600px]:inline-flex"
+                      aria-label={
+                        inspectorOpen
+                          ? "Collapse note information"
+                          : "Show note information"
+                      }
+                      title={
+                        inspectorOpen
+                          ? "Collapse note information"
+                          : "Show note information"
+                      }
+                      aria-pressed={inspectorOpen}
+                      onClick={() => setInspectorOpen((open) => !open)}
+                    >
+                      <Info size={20} aria-hidden="true" />
+                    </button>
                     {externalConflict && !busy && (
                       <button
                         className="notes-icon-button shrink-0"
@@ -1453,7 +1569,17 @@ export function NotesPage() {
                   </p>
                 </div>
               </header>
-              <div className="app-scrollbar min-h-0 flex-1 overflow-auto">
+              <div
+                ref={documentScrollRef}
+                className="app-scrollbar min-h-0 flex-1 overflow-auto"
+                onScroll={(event) => {
+                  if (activeNote?.id)
+                    noteScrollPositions.current.set(
+                      activeNote.id,
+                      event.currentTarget.scrollTop,
+                    );
+                }}
+              >
                 {mode === "edit" ? (
                   <textarea
                     dir={direction}
@@ -1556,7 +1682,10 @@ export function NotesPage() {
               bookmarkMeta.available && !bookmarkMeta.error
             }
             busy={busy}
-            onClose={() => setPanel("document")}
+            onClose={() => {
+              setInspectorOpen(false);
+              setPanel("document");
+            }}
             onLinkTask={async (id) => {
               if (!activeNote) return;
               setBusy(true);
@@ -1639,6 +1768,29 @@ export function NotesPage() {
             }}
           />
         </div>
+        {(
+          ["folders", "list", "info"] as const
+        ).map((resizePanel) => (
+          <div
+            key={resizePanel}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={`Resize ${resizePanel === "info" ? "information" : resizePanel} panel`}
+            tabIndex={0}
+            className={`notes-resize-handle notes-resize-${resizePanel}`}
+            onPointerDown={(event) => beginPanelResize(resizePanel, event)}
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+              event.preventDefault();
+              const direction = event.key === "ArrowRight" ? 16 : -16;
+              setPanelWidth(
+                resizePanel,
+                panelWidths[resizePanel] +
+                  (resizePanel === "info" ? -direction : direction),
+              );
+            }}
+          />
+        ))}
       </div>
       {action && (
         <NotesDialog

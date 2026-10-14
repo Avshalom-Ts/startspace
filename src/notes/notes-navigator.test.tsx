@@ -27,6 +27,7 @@ describe("NotesNavigator", () => {
     onDeleteFolder = vi.fn(),
     workspace: FileSystemDirectoryHandle | null = null,
     onRenameFolder = vi.fn(),
+    onFolder = vi.fn(),
   ) {
     act(() =>
       root.render(
@@ -40,7 +41,7 @@ describe("NotesNavigator", () => {
           favoritesCount={0}
           demo
           onView={vi.fn()}
-          onFolder={vi.fn()}
+          onFolder={onFolder}
           onCreate={onCreate}
           onDeleteFolder={onDeleteFolder}
           onRenameFolder={onRenameFolder}
@@ -146,6 +147,34 @@ describe("NotesNavigator", () => {
     render("Personal/Ideas", vi.fn(), vi.fn(), second);
     expect(
       container.querySelector('[aria-label="Collapse Personal"]'),
+    ).not.toBeNull();
+  });
+  it("supports treeview arrow navigation and selects the focused folder", () => {
+    const onFolder = vi.fn();
+    render("", vi.fn(), vi.fn(), null, vi.fn(), onFolder);
+    const rootFolder = container.querySelector<HTMLButtonElement>(
+      '[data-folder-id=""]',
+    )!;
+    rootFolder.focus();
+    act(() =>
+      rootFolder.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
+    );
+    expect((document.activeElement as HTMLElement).dataset.folderId).toBe(
+      "Personal",
+    );
+    act(() =>
+      (document.activeElement as HTMLButtonElement).dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      ),
+    );
+    expect(onFolder).toHaveBeenCalledWith("Personal");
+    act(() =>
+      (document.activeElement as HTMLButtonElement).dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+      ),
+    );
+    expect(
+      container.querySelector('[data-folder-id="Personal/Ideas"]'),
     ).not.toBeNull();
   });
 });

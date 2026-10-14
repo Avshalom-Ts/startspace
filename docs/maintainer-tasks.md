@@ -7,13 +7,13 @@ implementation notes.
 
 ## Notes
 
-- **NOTES-08 (P2):** Make the Notes page easier to use: support full keyboard
-  navigation in the folder tree, allow resizing panels, show details in pop-up
-  side panels, and remember where each page was scrolled to. See [Notes implementation tasks](pages-tasks/notes-layout-tasks.md).
+- **NOTES-17 (P2):** Support opening multiple notes in tabs and viewing two
+  notes side by side. Preserve each open note's draft, dirty-navigation guard,
+  scroll position, and active inspector context; define clear close and
+  responsive behavior before implementation.
 
-  _Example: Someone can use the arrow keys to browse folders, drag a panel
-  wider for long filenames, and return to a note exactly where they stopped
-  reading._
+  _Example: Someone keeps a project plan open beside a meeting note, compares
+  sections while editing, and returns to both notes at the same positions.
 
 - **NOTES-09 (P2):** Add one New menu for creating bookmarks, notes, and tasks.
   Make the shared search box fully accessible to screen-reader and keyboard

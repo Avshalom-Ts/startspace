@@ -48,6 +48,9 @@ Unreleased ready for the next changes. See the
 
 ### Changed
 
+- Notes now supports keyboard folder-tree navigation, resizable desktop panes,
+  a collapsible information inspector, and in-session scroll restoration per
+  note.
 - The Notes information pane now separates its table of contents, tags, links,
   and tasks into dedicated tabs. Compact file details and any blocked-remote-image
   warning remain visible at the bottom.
