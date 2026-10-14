@@ -15,14 +15,6 @@ implementation notes.
   _Example: Someone keeps a project plan open beside a meeting note, compares
   sections while editing, and returns to both notes at the same positions.
 
-- **NOTES-09 (P2):** Add one New menu for creating bookmarks, notes, and tasks.
-  Make the shared search box fully accessible to screen-reader and keyboard
-  users. See [Notes implementation tasks](pages-tasks/notes-layout-tasks.md).
-
-  _Example: From the same New button, a person can choose “Note,” “Task,” or
-  “Bookmark”; while searching, a screen reader announces the available results
-  and which one is selected._
-
 - **NOTES-10 (P2):** Bring back the folder-import screen. Test what happens
   when browser access is removed and restored, when workspaces are very large,
   and when files use unusual text encodings. See [Notes implementation tasks](pages-tasks/notes-layout-tasks.md).

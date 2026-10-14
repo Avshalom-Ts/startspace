@@ -1,5 +1,5 @@
-// Shared full-width navigation; Notes exposes its own creation action.
-import { useEffect, useState } from "react";
+// Shared full-width navigation and the global creation menu.
+import { useEffect, useRef, useState } from "react";
 import {
   FileText,
   GitBranch,
@@ -9,6 +9,7 @@ import {
   Menu,
   Moon,
   Plus,
+  ChevronDown,
   Settings,
   Sun,
   type LucideIcon,
@@ -25,11 +26,28 @@ export function Header({
   page: string;
 }) {
   const route = "#" + page;
-  const [menu, setMenu] = useState(false);
+  const [navigationMenu, setNavigationMenu] = useState(false);
+  const [newMenu, setNewMenu] = useState(false);
+  const newMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setMenu(false);
+    setNavigationMenu(false);
+    setNewMenu(false);
   }, [page]);
+  useEffect(() => {
+    const close = (event: MouseEvent) => {
+      if (!newMenuRef.current?.contains(event.target as Node)) setNewMenu(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setNewMenu(false);
+    };
+    window.addEventListener("mousedown", close);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
   const icons: Record<string, LucideIcon> = {
     Home: House,
     Links: Link,
@@ -69,29 +87,60 @@ export function Header({
         <div className="flex items-center gap-3">
           <ModeToggle />
           <GitHubLink />
-          {route === "#notes" && (
+          <div ref={newMenuRef} className="relative">
             <button
+              type="button"
               className="notes-primary"
-              onClick={() =>
-                window.dispatchEvent(new Event("startspace:new-note"))
-              }
+              aria-haspopup="menu"
+              aria-expanded={newMenu}
+              aria-controls="global-new-menu"
+              onClick={() => setNewMenu((open) => !open)}
             >
               <Plus size={20} aria-hidden="true" />
-              New note
+              New
+              <ChevronDown size={16} aria-hidden="true" />
             </button>
-          )}
+            {newMenu && (
+              <div
+                id="global-new-menu"
+                role="menu"
+                aria-label="Create new"
+                className="absolute right-0 z-40 mt-2 w-44 rounded-md border border-border bg-surface p-1 shadow-xl"
+              >
+                {[
+                  ["Bookmark", "#links?new=bookmark", Link],
+                  ["Note", "#notes?new=note", FileText],
+                  ["Task", "#tasks?new=task", ListTodo],
+                ].map(([label, href, Icon]) => {
+                  const NewIcon = Icon as LucideIcon;
+                  return (
+                    <a
+                      key={label as string}
+                      role="menuitem"
+                      href={href as string}
+                      className="flex min-h-9 items-center gap-2 rounded px-3 text-sm text-fg hover:bg-page"
+                      onClick={() => setNewMenu(false)}
+                    >
+                      <NewIcon size={16} aria-hidden="true" />
+                      {label as string}
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+          </div>
           <button
             className="notes-icon-button md:hidden"
             aria-label="Toggle navigation"
             title="Toggle navigation"
-            aria-expanded={menu}
-            onClick={() => setMenu(!menu)}
+            aria-expanded={navigationMenu}
+            onClick={() => setNavigationMenu(!navigationMenu)}
           >
             <Menu size={20} aria-hidden="true" />
           </button>
         </div>
       </div>
-      {menu && (
+      {navigationMenu && (
         <nav
           aria-label="Mobile navigation"
           className="grid grid-cols-3 gap-2 border-t border-border p-3 md:hidden"

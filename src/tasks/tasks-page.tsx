@@ -73,6 +73,7 @@ export function TasksPage() {
     ? visibleColumns.filter((column) => column.id === activeStatus)
     : visibleColumns;
   const columnsViewportRef = useRef<HTMLDivElement>(null);
+  const newTaskInputRef = useRef<HTMLInputElement>(null);
   const selectedTask =
     board.tasks.find((task) => task.id === selectedId) ?? null;
   const bookmarkItems = useMemo(
@@ -94,6 +95,19 @@ export function TasksPage() {
     window.addEventListener("hashchange", selectLinkedTask);
     return () => window.removeEventListener("hashchange", selectLinkedTask);
   }, [board.tasks]);
+
+  useEffect(() => {
+    const focusNewTask = () => {
+      if (
+        new URLSearchParams(location.hash.split("?")[1] ?? "").get("new") ===
+        "task"
+      )
+        newTaskInputRef.current?.focus();
+    };
+    focusNewTask();
+    window.addEventListener("hashchange", focusNewTask);
+    return () => window.removeEventListener("hashchange", focusNewTask);
+  }, []);
 
   useEffect(() => {
     if (board.error) notifications.error(board.error);
@@ -327,6 +341,7 @@ export function TasksPage() {
               status
             </div>
             <input
+              ref={newTaskInputRef}
               data-task-title
               value={newTitle}
               onChange={(event) => setNewTitle(event.target.value)}

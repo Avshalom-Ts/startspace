@@ -14,6 +14,7 @@ Unreleased ready for the next changes. See the
 
 ### Added
 
+- The top navigation now has one New menu for bookmarks, notes, and tasks.
 - Notes can link and unlink current browser bookmarks from the note information
   pane. An explicit importer moves saved legacy bookmark-to-note relationships
   into the connected workspace without importing other extension metadata.
@@ -48,6 +49,8 @@ Unreleased ready for the next changes. See the
 
 ### Changed
 
+- Shared search now exposes accessible combobox results and announces available
+  results and the keyboard-selected result to assistive technology.
 - Notes now supports keyboard folder-tree navigation, resizable desktop panes,
   a collapsible information inspector, and in-session scroll restoration per
   note.

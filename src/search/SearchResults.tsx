@@ -73,7 +73,8 @@ export function SearchResults({
   return (
     <div
       className="app-scrollbar max-h-[min(32rem,calc(100vh-12rem))] w-full overflow-y-auto border border-border bg-page p-4 shadow-lg flex flex-col gap-5"
-      role="region"
+      id="search-results"
+      role="listbox"
       aria-label="Search results"
     >
       {!hasLocal && (
@@ -90,6 +91,8 @@ export function SearchResults({
               id={`search-result-${index}`}
               href={bookmark.url}
               className={itemClass(index)}
+              role="option"
+              aria-selected={activeResultIndex === index}
             >
               <span className="truncate">{bookmark.title || bookmark.url}</span>
               {matchType === "url" && (
@@ -116,6 +119,8 @@ export function SearchResults({
               id={`search-result-${noteOffset + index}`}
               href={`#notes?note=${encodeURIComponent(note.id)}`}
               className={itemClass(noteOffset + index)}
+              role="option"
+              aria-selected={activeResultIndex === noteOffset + index}
             >
               <span className="truncate">{note.title}</span>
               <span className="truncate text-xs text-muted">
@@ -135,6 +140,8 @@ export function SearchResults({
               id={`search-result-${taskOffset + index}`}
               href={`#tasks?task=${encodeURIComponent(task.id)}`}
               className={itemClass(taskOffset + index)}
+              role="option"
+              aria-selected={activeResultIndex === taskOffset + index}
             >
               <span className="truncate">{task.title}</span>
               {task.description && (
@@ -152,6 +159,8 @@ export function SearchResults({
           <button
             type="button"
             id={`search-result-${webOffset}`}
+            role="option"
+            aria-selected={activeResultIndex === webOffset}
             onClick={onWebSearch}
             className={itemClass(webOffset)}
           >

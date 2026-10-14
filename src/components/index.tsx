@@ -9,12 +9,24 @@ export const SearchBar = forwardRef<
     onChange: (value: string) => void;
     onSubmit?: () => void;
     onNavigate?: (direction: "previous" | "next") => void;
+    resultCount?: number;
+    activeResultIndex?: number;
     onFocus?: () => void;
     onBlur?: () => void;
   }
 >(
   (
-    { value, onChange, onSubmit, onNavigate, onFocus, onBlur, compact = false },
+    {
+      value,
+      onChange,
+      onSubmit,
+      onNavigate,
+      onFocus,
+      onBlur,
+      resultCount = 0,
+      activeResultIndex = -1,
+      compact = false,
+    },
     ref,
   ) => {
     const [isFocused, setIsFocused] = useState(false);
@@ -28,7 +40,14 @@ export const SearchBar = forwardRef<
           <input
             ref={ref}
             type="search"
+            role="combobox"
             aria-label="Search StartSpace"
+            aria-autocomplete="list"
+            aria-expanded={Boolean(value.trim() && resultCount)}
+            aria-controls="search-results"
+            aria-activedescendant={
+              activeResultIndex >= 0 ? `search-result-${activeResultIndex}` : undefined
+            }
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onFocus={() => {

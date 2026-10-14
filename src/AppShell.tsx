@@ -107,6 +107,15 @@ export function AppShell() {
     ],
     [searchResults],
   );
+  const activeSearchLabel = useMemo(() => {
+    const results = [
+      ...searchResults.bookmarks.map((result) => result.bookmark.title || result.bookmark.url),
+      ...searchResults.notes.map((result) => result.note.title),
+      ...searchResults.tasks.map((task) => task.title),
+      ...(searchResults.webQuery ? [`Search the web for ${searchResults.webQuery}`] : []),
+    ];
+    return activeSearchResult >= 0 ? results[activeSearchResult] : null;
+  }, [activeSearchResult, searchResults]);
   useEffect(() => setActiveSearchResult(-1), [searchQuery]);
   /** Sends only an explicitly submitted query to the browser's default provider. */
   const submitWebSearch = async () => {
@@ -218,8 +227,17 @@ export function AppShell() {
               onChange={setSearchQuery}
               onSubmit={submitSearch}
               onNavigate={navigateSearchResults}
+              resultCount={searchResultUrls.length}
+              activeResultIndex={activeSearchResult}
               compact
             />
+            <p className="sr-only" role="status" aria-live="polite">
+              {searchQuery.trim()
+                ? activeSearchLabel
+                  ? `${searchResultUrls.length} results. ${activeSearchLabel} selected.`
+                  : `${searchResultUrls.length} results available.`
+                : ""}
+            </p>
             {searchQuery.trim() && (
               <div className="absolute inset-x-0 top-full z-20">
                 <SearchResults
@@ -262,7 +280,16 @@ export function AppShell() {
                   }}
                   onSubmit={submitSearch}
                   onNavigate={navigateSearchResults}
+                  resultCount={searchResultUrls.length}
+                  activeResultIndex={activeSearchResult}
                 />
+                <p className="sr-only" role="status" aria-live="polite">
+                  {searchQuery.trim()
+                    ? activeSearchLabel
+                      ? `${searchResultUrls.length} results. ${activeSearchLabel} selected.`
+                      : `${searchResultUrls.length} results available.`
+                    : ""}
+                </p>
                 <nav
                   aria-label="Search scope"
                   className="mt-2 flex flex-wrap justify-center gap-2"

@@ -23,12 +23,12 @@ This is the implementation backlog, not a claim that all design requirements shi
 - [x] NOTES-05: verified note moves/renames and recursive folder rename with original files preserved on copy mismatch; stable Note IDs and historical paths follow app-managed moves. See [ADR 0018](../decisions/0018-verified-folder-moves.md).
 - [x] NOTES-07: Notes settings now explicitly controls remote Markdown images; encoded relative Markdown links and heading fragments open the linked note and section.
 - [x] NOTES-08: The folder tree supports standard keyboard navigation; desktop panes resize and retain their widths; note scroll positions are restored during the visit. The persistent inspector is collapsible rather than a pop-up drawer.
+- [x] NOTES-09: A global top-navigation New menu opens existing bookmark, note, and task creation flows. Shared search now provides combobox/listbox semantics and announces result counts and keyboard selection.
 
 ## Remaining work
 
 | ID | Priority | Task / acceptance criteria | Current UI |
 | --- | --- | --- | --- |
-| NOTES-09 | P2 | Add a global New dropdown for bookmark/note/task and complete combobox ARIA across shared search. | Notes-specific New note; existing shared search reused. |
 | NOTES-10 | P2 | Restore directory import UI and test real browser permission revocation, recovery, very large workspaces and disk encoding edge cases. | Existing import services unchanged; new Notes UI does not expose import. |
 | NOTES-16 | P2 | Implement a persistent top-center global interactive message for cases that need a user decision: provide accessible explicit actions and dismiss, remain visible until acted on or dismissed, and deduplicate updates so it never reappears on every keystroke. Preserve the existing transient notification behavior for ordinary feedback; keep messages outside page work areas. | Existing global notification stack is transient/top-right; no persistent top-center interactive message exists yet. |
 

@@ -151,6 +151,11 @@ export function LinksPage(props: LinksPageProps) {
       const query = params.get("q");
       const viewName = params.get("view");
       const tag = params.get("tag");
+      if (params.get("new") === "bookmark") {
+        history.replaceState(null, "", "#links");
+        setEditor({ mode: "create-link", parentId: roots[0]?.id });
+        return;
+      }
       if (viewName === "favorites" || viewName === "recent") {
         setView({ kind: viewName });
         setFilters(EMPTY_FILTERS);
@@ -166,7 +171,7 @@ export function LinksPage(props: LinksPageProps) {
     window.addEventListener("hashchange", applyNavigationHandoff);
     return () =>
       window.removeEventListener("hashchange", applyNavigationHandoff);
-  }, []);
+  }, [roots]);
 
   useEffect(() => {
     if (view.kind === "folder" && !viewFolder && !props.loading)

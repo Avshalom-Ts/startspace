@@ -586,6 +586,16 @@ export function NotesPage() {
         openNote(id);
         return;
       }
+      if (params.get("new") === "note") {
+        history.replaceState(null, "", "#notes");
+        openAttemptRef.current++;
+        guard(() => {
+          setAction("note");
+          setName("");
+          setActionError("");
+        });
+        return;
+      }
       const nextView = params.get("view");
       setView(
         nextView === "recent" || nextView === "favorites" ? nextView : "all",
