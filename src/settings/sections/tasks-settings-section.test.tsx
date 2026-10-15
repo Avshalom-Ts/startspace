@@ -17,7 +17,7 @@ it("renders default task statuses using the real task hook without a workspace",
   const root = createRoot(container);
 
   try {
-    await act(async () => root.render(<TasksSettingsSection />));
+    await act(async () => root.render(<TasksSettingsSection homeLimit={20} onHomeLimitChange={vi.fn()} />));
 
     expect(
       Array.from(container.querySelectorAll("li"), (item) => item.textContent),

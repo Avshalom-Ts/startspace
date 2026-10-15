@@ -1,8 +1,17 @@
+// Settings for tasks, including their Home page item limit.
+import HomeLimitSettings from "../components/home-limit-settings";
 import { useTasks } from "../../tasks/use-tasks";
 import SettingsCard from "../components/settings-card";
 import { Check } from "lucide-react";
 
-export default function TasksSettingsSection() {
+/** Renders task behavior and Home display settings. */
+export default function TasksSettingsSection({
+  homeLimit,
+  onHomeLimitChange,
+}: {
+  homeLimit: number;
+  onHomeLimitChange: (value: number) => void;
+}) {
   const tasks = useTasks();
 
   return (
@@ -28,10 +37,11 @@ export default function TasksSettingsSection() {
           </ul>
         )}
       </SettingsCard>
-      <p className="px-1 text-xs text-muted">
-        Priority defaults and task labels are not available in the current task
-        file format.
-      </p>
+      <HomeLimitSettings
+        label="Tasks on Home"
+        value={homeLimit}
+        onChange={onHomeLimitChange}
+      />
     </div>
   );
 }

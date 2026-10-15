@@ -296,3 +296,9 @@ files. See [remaining tasks](pages-tasks/notes-layout-tasks.md).
 See the [changelog](../CHANGELOG.md) for released and unreleased changes.
 Maintainers can follow the [manual Chrome Web Store guide](publishing-to-chrome.md)
 to prepare and upload a release without using CI/CD.
+
+Home section limits are set in each feature’s Settings tab (**Links**, **Tasks**,
+and **Notes**), under **Home page**.
+Favorite links, tasks, and notes each default to 20 items. Choose any nonnegative
+whole number (0 hides items); changes save when leaving the field or pressing Enter.
+Favorite notes appear first, followed by recent notes, within the same notes limit.

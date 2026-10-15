@@ -234,3 +234,9 @@ Browser-default search and the removal of stored engine preferences are defined 
 ### Notes layout transition (feature/notes-layout)
 
 ADR 0009 introduces four Notes panes and reuses global search on Notes. Existing path IDs, Markdown files, tasks.json and bookmark metadata remain unchanged. Safe preview and dirty-buffer guards live in the Notes UI. Demo data is explicitly opt-in and in-memory. See docs/pages-tasks/notes-layout-tasks.md for remaining work.
+
+Home section limits (`homeLinksLimit`, `homeTasksLimit`, `homeNotesLimit`) are
+additive device preferences in `chrome.storage.local`, defaulting to 20 for
+existing configurations. Portable backups preserve and validate these nonnegative
+integers. Notes are ordered favorites first, then by last open, before applying
+the shared notes limit. No workspace format migration is required.

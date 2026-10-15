@@ -1,13 +1,19 @@
+// Settings for notes, including their Home page item limit.
+import HomeLimitSettings from "../components/home-limit-settings";
 import SettingsCard from "../components/settings-card";
 import { FileText } from "lucide-react";
 import SwitchRow from "../components/switch-row";
 
 export default function NotesSettingsSection({
+  homeLimit,
+  onHomeLimitChange,
   notes,
   workspaceReady,
   loadRemoteNoteImages,
   updatePreference,
 }: {
+  homeLimit: number;
+  onHomeLimitChange: (value: number) => void;
   notes: any;
   workspaceReady: boolean;
   loadRemoteNoteImages: boolean;
@@ -25,7 +31,9 @@ export default function NotesSettingsSection({
           <li>
             Edits autosave after a short pause; conflicts preserve your draft.
           </li>
-          <li>Markdown preview loads workspace images without a network request.</li>
+          <li>
+            Markdown preview loads workspace images without a network request.
+          </li>
         </ul>
         <button
           type="button"
@@ -36,6 +44,7 @@ export default function NotesSettingsSection({
           <span aria-hidden="true">â†»</span> Refresh workspace
         </button>
       </SettingsCard>
+
       <SettingsCard
         title="Markdown privacy"
         subtitle="Control external content in note previews"
@@ -48,6 +57,12 @@ export default function NotesSettingsSection({
           onChange={updatePreference}
         />
       </SettingsCard>
+      <HomeLimitSettings
+        label="Notes on Home"
+        value={homeLimit}
+        onChange={onHomeLimitChange}
+        detail="Favorite notes appear first and count toward this limit, followed by recent notes."
+      />
     </div>
   );
 }

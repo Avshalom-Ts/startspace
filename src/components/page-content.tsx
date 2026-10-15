@@ -1,3 +1,4 @@
+// Home dashboard with configurable limits and favorites-first notes.
 import { useMemo } from "react";
 import {
   Check,
@@ -9,7 +10,7 @@ import {
 } from "lucide-react";
 import type { BookmarkNode } from "../hooks/useBookmarks";
 import { useBookmarkMetadata, useBookmarkTree } from "../hooks/useBookmarkTree";
-import { useConfig } from "../hooks/useConfig";
+import { homeLimit, useConfig } from "../hooks/useConfig";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useNotifications } from "../notifications/notification-context";
 import { useNotes } from "../notes/use-notes";
@@ -87,6 +88,9 @@ export function PageContent() {
   const bookmarkData = useBookmarkMetadata();
   const { config } = useConfig();
   const notifications = useNotifications();
+  const linksLimit = homeLimit(config?.preferences?.homeLinksLimit);
+  const tasksLimit = homeLimit(config?.preferences?.homeTasksLimit);
+  const notesLimit = homeLimit(config?.preferences?.homeNotesLimit);
 
   const bookmarks = useMemo(
     () => flattenBookmarks(bookmarkTree.tree),
@@ -101,20 +105,21 @@ export function PageContent() {
             first.title.localeCompare(second.title) ||
             first.id.localeCompare(second.id),
         )
-        .slice(0, 7),
-    [bookmarks, bookmarkData.metadata],
+        .slice(0, linksLimit),
+    [bookmarks, bookmarkData.metadata, linksLimit],
   );
   const recentNotes = useMemo(() => {
     const metadata = notePreferences.document?.notes ?? {};
     return (notes.index?.notes ?? [])
-      .filter((note) => note.stableId && metadata[note.stableId]?.lastOpenedAt)
+      .filter((note) => note.stableId && (metadata[note.stableId]?.favorite || metadata[note.stableId]?.lastOpenedAt))
       .sort((first, second) =>
+        Number(!!metadata[second.stableId!]?.favorite) - Number(!!metadata[first.stableId!]?.favorite) ||
         (metadata[second.stableId!]?.lastOpenedAt ?? "").localeCompare(
           metadata[first.stableId!]?.lastOpenedAt ?? "",
-        ),
+        ) || first.title.localeCompare(second.title) || first.id.localeCompare(second.id),
       )
-      .slice(0, 5);
-  }, [notes.index, notePreferences.document]);
+      .slice(0, notesLimit);
+  }, [notes.index, notePreferences.document, notesLimit]);
   const pendingTasks = useMemo(() => {
     const doneStatus = tasks.columns.find(
       (column) => column.title.toLowerCase() === "done",
@@ -129,8 +134,8 @@ export function PageContent() {
           first.id.localeCompare(second.id)
         );
       })
-      .slice(0, 5);
-  }, [tasks.tasks, tasks.columns]);
+      .slice(0, tasksLimit);
+  }, [tasks.tasks, tasks.columns, tasksLimit]);
 
   const openInNewTab = config?.preferences?.openLinksInNewTab ?? false;
   const bookmarkTarget = openInNewTab ? "_blank" : "_self";
@@ -155,7 +160,7 @@ export function PageContent() {
       {/* Recent Notes Panel */}
       <div className="contents">
         <DashboardPanel
-          title="Recent Notes"
+          title="Notes"
           icon={Clock3}
           href="#notes?view=recent"
           className="min-h-0 min-[1500px]:col-start-1 min-[1500px]:row-start-1 min-[1500px]:row-span-2"
@@ -166,6 +171,8 @@ export function PageContent() {
             </p>
           ) : notes.loading || notePreferences.document === null ? (
             <p className="py-2 text-sm text-muted">Loading recent notes…</p>
+          ) : notesLimit === 0 ? (
+            <p className="py-2 text-sm text-muted">Notes are hidden by your Home page limit.</p>
           ) : recentNotes.length ? (
             <ul>
               {recentNotes.map((note: NoteEntry) => (
@@ -174,11 +181,11 @@ export function PageContent() {
                     href={`#notes?note=${encodeURIComponent(note.id)}`}
                     className="flex min-h-10 items-center gap-2 border-b border-border/70 px-1 hover:bg-accent/10"
                   >
-                    <FileText
-                      size={17}
-                      aria-hidden="true"
-                      className="shrink-0 text-accent"
-                    />
+                    {notePreferences.document?.notes[note.stableId!]?.favorite ? (
+                      <Star size={17} aria-label="Favorite note" className="shrink-0 text-accent" />
+                    ) : (
+                      <FileText size={17} aria-hidden="true" className="shrink-0 text-accent" />
+                    )}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm text-fg">
                         {note.title}
@@ -199,7 +206,7 @@ export function PageContent() {
             </ul>
           ) : (
             <p className="py-2 text-sm text-muted">
-              Notes you open will appear here.
+              Favorite notes and notes you open will appear here.
             </p>
           )}
         </DashboardPanel>
@@ -214,11 +221,19 @@ export function PageContent() {
           className="min-h-0 min-[1500px]:col-start-2 min-[1500px]:row-start-1 min-[1500px]:row-span-2"
         >
           {!bookmarkData.available ? (
-            <p className="py-4 text-sm text-muted">Connect a workspace to see favorites.</p>
+            <p className="py-4 text-sm text-muted">
+              Connect a workspace to see favorites.
+            </p>
           ) : bookmarkData.error ? (
             <div role="alert" className="py-4 text-sm">
               <p>{bookmarkData.error}</p>
-              <button type="button" className="notes-button" onClick={() => void bookmarkData.reload()}>Retry</button>
+              <button
+                type="button"
+                className="notes-button"
+                onClick={() => void bookmarkData.reload()}
+              >
+                Retry
+              </button>
             </div>
           ) : bookmarkTree.loading || bookmarkData.loading ? (
             <p className="py-4 text-sm text-muted">Loading favorites…</p>
@@ -253,9 +268,15 @@ export function PageContent() {
               ))}
             </div>
           )}
-          {bookmarkData.available && !bookmarkData.error && !bookmarkData.loading && !bookmarkTree.loading && favorites.length === 0 && (
-            <p className="mt-2 text-xs text-muted">Add your first favorite.</p>
-          )}
+          {bookmarkData.available &&
+            !bookmarkData.error &&
+            !bookmarkData.loading &&
+            !bookmarkTree.loading &&
+            favorites.length === 0 && (
+              <p className="mt-2 text-xs text-muted">
+                {linksLimit === 0 ? "Favorite links are hidden by your Home page limit." : "Add your first favorite."}
+              </p>
+            )}
         </DashboardPanel>
       </div>
 
@@ -273,6 +294,8 @@ export function PageContent() {
             </p>
           ) : tasks.loading ? (
             <p className="py-2 text-sm text-muted">Loading tasks…</p>
+          ) : tasksLimit === 0 ? (
+            <p className="py-2 text-sm text-muted">Tasks are hidden by your Home page limit.</p>
           ) : pendingTasks.length ? (
             <ul>
               {pendingTasks.map((task) => {

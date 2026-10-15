@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useConfig, DEFAULT_PREFERENCES } from "../hooks/useConfig";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useTheme } from "../hooks/useTheme";
@@ -12,7 +12,6 @@ import {
 import { BackupValidationError } from "../backup/backup-format";
 import { getBrowserSearchInfo } from "../search/browser-search";
 import GeneralSettingsSection from "./sections/general-settings-section";
-import SearchSettingsSection from "./sections/search-settings-section";
 import NotesSettingsSection from "./sections/notes-settings-section";
 import LinksSettingsSection from "./sections/links-settings-section";
 import TasksSettingsSection from "./sections/tasks-settings-section";
@@ -107,7 +106,7 @@ export function SettingsPage() {
 
   const updatePreference = async (
     key: keyof typeof DEFAULT_PREFERENCES,
-    value: boolean,
+    value: boolean | number,
   ) => {
     if (!config) return;
     setSaved("");
@@ -253,15 +252,16 @@ export function SettingsPage() {
               updatePreference={updatePreference}
               timeZone={timeZone}
               currentTime={currentTime}
+              searchInfo={searchInfo}
             />
-          )}
-
-          {category === "search" && (
-            <SearchSettingsSection searchInfo={searchInfo} />
           )}
 
           {category === "notes" && (
             <NotesSettingsSection
+              homeLimit={preferences.homeNotesLimit}
+              onHomeLimitChange={(value) =>
+                void updatePreference("homeNotesLimit", value)
+              }
               notes={notes}
               workspaceReady={workspaceReady}
               loadRemoteNoteImages={preferences.loadRemoteNoteImages}
@@ -272,10 +272,23 @@ export function SettingsPage() {
           )}
 
           {category === "links" && (
-            <LinksSettingsSection showSaved={showSaved} />
+            <LinksSettingsSection
+              showSaved={showSaved}
+              homeLimit={preferences.homeLinksLimit}
+              onHomeLimitChange={(value) =>
+                void updatePreference("homeLinksLimit", value)
+              }
+            />
           )}
 
-          {category === "tasks" && <TasksSettingsSection />}
+          {category === "tasks" && (
+            <TasksSettingsSection
+              homeLimit={preferences.homeTasksLimit}
+              onHomeLimitChange={(value) =>
+                void updatePreference("homeTasksLimit", value)
+              }
+            />
+          )}
 
           {category === "about" && <AboutSettingsSection />}
         </main>

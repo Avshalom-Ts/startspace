@@ -119,3 +119,7 @@ _To be refined once the project has users or a release._
 - **Initial simplicity:** the first version intentionally keeps scope narrow. Future features (command palette, shortcuts, widgets, themes, PWA, more browsers) are explicitly deferred.
 - **Open source distribution:** intended distribution is Chrome Web Store / Firefox Add-ons for normal users, and GitHub source + build + load-unpacked for developers.
 - **Security boundary:** secrets, credentials, private keys, and production data are out of scope; local configuration should be stored in ignored environment files where needed, with required variables documented.
+
+Home shows independently configurable maximum counts for favorite links, tasks,
+and notes (20 each by default). Favorite notes count toward the notes maximum
+and appear ahead of recent notes.

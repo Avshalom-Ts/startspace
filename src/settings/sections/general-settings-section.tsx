@@ -1,8 +1,11 @@
-﻿import SettingsCard from "../components/settings-card";
-import { Moon, Sun, Palette, SlidersHorizontal, Clock3 } from "lucide-react";
+// General appearance and startup settings.
+import SettingsCard from "../components/settings-card";
+import { Moon, Sun, SlidersHorizontal, Clock3 } from "lucide-react";
 import type { AccentName } from "../../hooks/useTheme";
 import SwitchRow from "../components/switch-row";
 import type { UserPreferences } from "../../hooks/useConfig";
+import { BrowserSearchSettings } from "../components/browser-search-settings";
+import { Search, ExternalLink } from "lucide-react";
 
 const ACCENT_CHOICES: { id: AccentName; label: string; color: string }[] = [
   { id: "amber", label: "Amber", color: "#d97706" },
@@ -22,6 +25,7 @@ export default function GeneralSettingsSection({
   updatePreference,
   timeZone,
   currentTime,
+  searchInfo,
 }: {
   theme: "dark" | "light";
   accent: AccentName;
@@ -31,17 +35,21 @@ export default function GeneralSettingsSection({
   preferences: UserPreferences;
   updatePreference: (
     key: keyof UserPreferences,
-    value: boolean,
+    value: boolean | number,
   ) => Promise<void>;
   timeZone: string;
   currentTime: Date;
+  searchInfo: {
+    available: boolean;
+    name: string | null;
+  } | null;
 }) {
   return (
     <div className="space-y-3">
       <SettingsCard
         title="Appearance"
         subtitle="Theme and accent color"
-        icon={Palette}
+        icon={Search}
       >
         <fieldset>
           <legend className="mb-2 text-xs font-medium text-muted">Theme</legend>
@@ -94,6 +102,22 @@ export default function GeneralSettingsSection({
             ))}
           </div>
         </fieldset>
+      </SettingsCard>
+      <SettingsCard
+        title="Web Search"
+        subtitle="Browser-managed search provider"
+        icon={ExternalLink}
+      >
+        <p className="text-sm font-medium text-fg">
+          Uses your browser&apos;s default search engine.
+        </p>
+        <BrowserSearchSettings />
+        {!searchInfo?.available && (
+          <p className="mt-2 text-xs text-muted">
+            Local bookmark, note, and task search remains available when browser
+            search integration is unavailable.
+          </p>
+        )}
       </SettingsCard>
       <SettingsCard
         title="Startup & Behavior"

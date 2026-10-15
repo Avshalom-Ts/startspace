@@ -9,11 +9,13 @@ const { save, error } = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
-vi.mock("../hooks/useConfig", () => ({
+vi.mock("../hooks/useConfig", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../hooks/useConfig")>(),
   DEFAULT_PREFERENCES: {
     showGreeting: true, openLinksInNewTab: false,
     fetchDescriptionOnSave: true, fetchDescriptionOnNewTab: true,
     loadRemoteNoteImages: false,
+    homeLinksLimit: 20, homeTasksLimit: 20, homeNotesLimit: 20,
   },
   useConfig: () => ({
     config: { version: 1, currentWorkspace: null },
@@ -29,11 +31,12 @@ vi.mock("../hooks/useTheme", () => ({
   useTheme: () => ({ theme: "dark", accent: "amber", mounted: true }),
 }));
 vi.mock("../notes/use-notes", () => ({ useNotes: () => ({}) }));
-vi.mock("../tasks/use-tasks", () => ({ useTasks: () => ({}) }));
+vi.mock("../tasks/use-tasks", () => ({ useTasks: () => ({ columns: [] }) }));
 vi.mock("../notifications/notification-context", () => ({
   useNotifications: () => ({ error }),
 }));
-vi.mock("../search/browser-search", () => ({
+vi.mock("../search/browser-search", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../search/browser-search")>(),
   getBrowserSearchInfo: async () => ({ available: false }),
 }));
 
@@ -71,11 +74,11 @@ it("hides the confirmation exactly 3 seconds after a preference is saved", async
   await act(async () => root.render(<SettingsPage />));
   await click('[aria-label="Show greeting on Home page"]');
   expect(save).toHaveBeenCalledOnce();
-  expect(container.querySelector('[role="status"]')?.textContent).toBe("Saved");
+  expect(container.querySelector('span[role="status"]')?.textContent).toBe("Saved");
   await advance(2999);
-  expect(container.querySelector('[role="status"]')).not.toBeNull();
+  expect(container.querySelector('span[role="status"]')).not.toBeNull();
   await advance(1);
-  expect(container.querySelector('[role="status"]')).toBeNull();
+  expect(container.querySelector('span[role="status"]')).toBeNull();
 });
 
 it("restarts the timer when the same confirmation is shown for another layout save", async () => {
@@ -85,11 +88,11 @@ it("restarts the timer when the same confirmation is shown for another layout sa
   await advance(2000);
   await click('[role="radiogroup"] button:first-child');
   await advance(1000);
-  expect(container.querySelector('[role="status"]')?.textContent).toBe("Saved");
+  expect(container.querySelector('span[role="status"]')?.textContent).toBe("Saved");
   await advance(1999);
-  expect(container.querySelector('[role="status"]')).not.toBeNull();
+  expect(container.querySelector('span[role="status"]')).not.toBeNull();
   await advance(1);
-  expect(container.querySelector('[role="status"]')).toBeNull();
+  expect(container.querySelector('span[role="status"]')).toBeNull();
 });
 
 it("shows both fetching switches enabled by default and saves disabling each", async () => {
@@ -125,7 +128,7 @@ it("does not show a success confirmation when saving fails", async () => {
   save.mockRejectedValueOnce(new Error("Synthetic save failure"));
   await act(async () => root.render(<SettingsPage />));
   await click('[aria-label="Show greeting on Home page"]');
-  expect(container.querySelector('[role="status"]')).toBeNull();
+  expect(container.querySelector('span[role="status"]')).toBeNull();
   expect(error).toHaveBeenCalledWith("Setting could not be saved. Try again.");
 });
 
@@ -145,4 +148,44 @@ it("clears the pending timer when the settings page unmounts", async () => {
     setTimeoutSpy.mockRestore();
     clearTimeoutSpy.mockRestore();
   }
+});
+
+/** Edits a Home limit and leaves the field to persist it. */
+async function editLimit(input: HTMLInputElement, value: string) {
+  await act(async () => {
+    input.value = value;
+    input.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+  });
+}
+
+it.each([
+  ["links", "homeLinksLimit"],
+  ["tasks", "homeTasksLimit"],
+  ["notes", "homeNotesLimit"],
+])("shows and saves the Home limit in the %s tab", async (category, key) => {
+  localStorage.setItem("startspace.settings.category", category);
+  await act(async () => root.render(<SettingsPage />));
+  const inputs = container.querySelectorAll<HTMLInputElement>('input[type="number"]');
+  expect(inputs).toHaveLength(1);
+  expect(inputs[0]!.value).toBe("20");
+  await editLimit(inputs[0]!, "7");
+  expect(save.mock.lastCall?.[0].preferences[key]).toBe(7);
+});
+
+it("keeps feature Home limits out of General settings", async () => {
+  await act(async () => root.render(<SettingsPage />));
+  expect(container.querySelector('input[type="number"]')).toBeNull();
+});
+
+it("rejects empty, negative, and fractional Home limits and accepts zero", async () => {
+  localStorage.setItem("startspace.settings.category", "links");
+  await act(async () => root.render(<SettingsPage />));
+  const input = container.querySelector<HTMLInputElement>('input[type="number"]')!;
+  for (const value of ["", "-1", "2.5"]) {
+    await editLimit(input, value);
+    expect(input.value).toBe("20");
+  }
+  expect(save).not.toHaveBeenCalled();
+  await editLimit(input, "0");
+  expect(save.mock.lastCall?.[0].preferences.homeLinksLimit).toBe(0);
 });

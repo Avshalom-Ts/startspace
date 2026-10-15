@@ -1,3 +1,5 @@
+// Settings for links, including their Home page item limit.
+import HomeLimitSettings from "../components/home-limit-settings";
 import { useState } from "react";
 import SettingsCard from "../components/settings-card";
 import { Link2, SlidersHorizontal } from "lucide-react";
@@ -7,8 +9,12 @@ import { WebsiteAccess } from "../components/website-access";
 import SwitchRow from "../components/switch-row";
 
 export default function LinksSettingsSection({
+  homeLimit,
+  onHomeLimitChange,
   showSaved,
 }: {
+  homeLimit: number;
+  onHomeLimitChange: (value: number) => void;
   showSaved: () => void;
 }) {
   const { config, save } = useConfig();
@@ -116,6 +122,12 @@ export default function LinksSettingsSection({
           ))}
         </div>
       </SettingsCard>
+
+      <HomeLimitSettings
+        label="Favorite links on Home"
+        value={homeLimit}
+        onChange={onHomeLimitChange}
+      />
     </div>
   );
 }

@@ -1,9 +1,8 @@
-import { Check, FileText, Info, Link2, Search, Settings2 } from "lucide-react";
+import { Check, FileText, Info, Link2, Settings2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export type Category =
   | "general"
-  | "search"
   | "workspace"
   | "notes"
   | "links"
@@ -21,12 +20,6 @@ export const CATEGORIES: {
     title: "General",
     description: "Appearance, startup, behavior",
     icon: Settings2,
-  },
-  {
-    id: "search",
-    title: "Search",
-    description: "Local search, web search",
-    icon: Search,
   },
   {
     id: "notes",

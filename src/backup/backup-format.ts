@@ -6,7 +6,7 @@
 
 import type { Config } from "../hooks/useConfig";
 import { parseBookmarkDocument, parseBookmarkMetadata } from "../links/bookmark-metadata-model";
-import { DEFAULT_PREFERENCES } from "../hooks/useConfig";
+import { DEFAULT_PREFERENCES, isHomeLimit } from "../hooks/useConfig";
 
 export const BACKUP_KIND = "startspace-backup";
 export const BACKUP_VERSION = 2;
@@ -73,9 +73,9 @@ function parseConfig(value: unknown): Config {
     if (!isRecord(value.preferences)) throw new BackupValidationError("The backup contains invalid preferences.");
     for (const key of Object.keys(DEFAULT_PREFERENCES) as (keyof typeof DEFAULT_PREFERENCES)[]) {
       if (value.preferences[key] !== undefined) {
-        if (typeof value.preferences[key] !== "boolean")
+        if (typeof DEFAULT_PREFERENCES[key] === "number" ? !isHomeLimit(value.preferences[key]) : typeof value.preferences[key] !== "boolean")
           throw new BackupValidationError("The backup contains invalid preferences.");
-        preferences[key] = value.preferences[key];
+        Object.assign(preferences, { [key]: value.preferences[key] });
       }
     }
   }

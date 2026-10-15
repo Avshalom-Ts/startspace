@@ -123,3 +123,15 @@ it("discards legacy engine preferences when restoring a backup", () => {
     backup.extension.config,
   );
 });
+
+it("preserves numeric Home limits alongside boolean preferences", () => {
+  const fixture = backupFixture();
+  fixture.extension.config.preferences = { homeLinksLimit: 0, homeTasksLimit: 35, homeNotesLimit: 8, showGreeting: false };
+  expect(parseBackupJson(JSON.stringify(fixture)).extension.config.preferences).toEqual(fixture.extension.config.preferences);
+});
+
+it.each([-1, 1.5, "20", null, true])("rejects malformed Home limits in backups: %s", (value) => {
+  const fixture = backupFixture();
+  Object.assign(fixture.extension.config, { preferences: { homeNotesLimit: value } });
+  expect(() => parseBackupJson(JSON.stringify(fixture))).toThrow(BackupValidationError);
+});

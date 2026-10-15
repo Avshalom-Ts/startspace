@@ -14,6 +14,10 @@ Unreleased ready for the next changes. See the
 
 ### Added
 
+- The Links, Tasks, and Notes settings tabs each control their Home section limit,
+  defaulting to 20 each. Favorite notes appear first within the shared notes limit.
+  Existing configurations use these defaults without migration.
+
 - The top navigation now has one New menu for bookmarks, notes, and tasks.
 - Notes can link and unlink current browser bookmarks from the note information
   pane. An explicit importer moves saved legacy bookmark-to-note relationships

@@ -22,6 +22,9 @@ export interface Config {
 }
 
 export interface UserPreferences {
+  homeLinksLimit: number;
+  homeTasksLimit: number;
+  homeNotesLimit: number;
   showGreeting: boolean;
   openLinksInNewTab: boolean;
   fetchDescriptionOnSave: boolean;
@@ -30,6 +33,9 @@ export interface UserPreferences {
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
+  homeLinksLimit: 20,
+  homeTasksLimit: 20,
+  homeNotesLimit: 20,
   showGreeting: true,
   openLinksInNewTab: false,
   fetchDescriptionOnSave: true,
@@ -40,6 +46,16 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 // ---------------------------------------------------------------------------
 // Storage helpers — extension storage via chrome.storage.local.
 // ---------------------------------------------------------------------------
+
+/** Accepts nonnegative whole-number Home limits, including zero to hide items. */
+export function isHomeLimit(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+/** Resolves missing or malformed stored Home limits to the default of 20. */
+export function homeLimit(value: unknown): number {
+  return isHomeLimit(value) ? value : 20;
+}
 
 const CONFIG_KEY = "startspace.config";
 
