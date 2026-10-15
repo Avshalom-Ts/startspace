@@ -258,6 +258,8 @@ export function SettingsPage() {
 
           {category === "notes" && (
             <NotesSettingsSection
+              searchLimit={preferences.searchNotesLimit}
+              onSearchLimitChange={(value) => void updatePreference("searchNotesLimit", value)}
               homeLimit={preferences.homeNotesLimit}
               onHomeLimitChange={(value) =>
                 void updatePreference("homeNotesLimit", value)
@@ -274,6 +276,8 @@ export function SettingsPage() {
           {category === "links" && (
             <LinksSettingsSection
               showSaved={showSaved}
+              searchLimit={preferences.searchLinksLimit}
+              onSearchLimitChange={(value) => void updatePreference("searchLinksLimit", value)}
               homeLimit={preferences.homeLinksLimit}
               onHomeLimitChange={(value) =>
                 void updatePreference("homeLinksLimit", value)
@@ -283,6 +287,8 @@ export function SettingsPage() {
 
           {category === "tasks" && (
             <TasksSettingsSection
+              searchLimit={preferences.searchTasksLimit}
+              onSearchLimitChange={(value) => void updatePreference("searchTasksLimit", value)}
               homeLimit={preferences.homeTasksLimit}
               onHomeLimitChange={(value) =>
                 void updatePreference("homeTasksLimit", value)

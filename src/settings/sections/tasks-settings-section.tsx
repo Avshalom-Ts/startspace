@@ -1,4 +1,4 @@
-// Settings for tasks, including their Home page item limit.
+// Settings for tasks, including independent Home and search item limits.
 import HomeLimitSettings from "../components/home-limit-settings";
 import { useTasks } from "../../tasks/use-tasks";
 import SettingsCard from "../components/settings-card";
@@ -6,9 +6,13 @@ import { Check } from "lucide-react";
 
 /** Renders task behavior and Home display settings. */
 export default function TasksSettingsSection({
+  searchLimit,
+  onSearchLimitChange,
   homeLimit,
   onHomeLimitChange,
 }: {
+  searchLimit: number;
+  onSearchLimitChange: (value: number) => void;
   homeLimit: number;
   onHomeLimitChange: (value: number) => void;
 }) {
@@ -38,9 +42,12 @@ export default function TasksSettingsSection({
         )}
       </SettingsCard>
       <HomeLimitSettings
-        label="Tasks on Home"
-        value={homeLimit}
-        onChange={onHomeLimitChange}
+        feature="Tasks"
+        homeLabel="Tasks on Home"
+        homeLimit={homeLimit}
+        onHomeLimitChange={onHomeLimitChange}
+        searchLimit={searchLimit}
+        onSearchLimitChange={onSearchLimitChange}
       />
     </div>
   );

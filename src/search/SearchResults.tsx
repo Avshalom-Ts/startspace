@@ -6,13 +6,15 @@
 // presentational — matching and ranking live in search.ts, data gathering in
 // use-search-data.ts.
 
-import type { SearchResults as SearchResultsData } from "./search";
+import type { SearchResults as SearchResultsData, LocalSearchScope } from "./search";
 import { useEffect } from "react";
 
 /** Props for the grouped search results panel. */
 export interface SearchResultsProps {
   /** The orchestrated results to render. */
   results: SearchResultsData;
+  onShowAll: (scope: LocalSearchScope) => void;
+  unlimitedScope: LocalSearchScope | null;
   onWebSearch: () => void;
   /** The raw query, used to label the web fallback. */
   query: string;
@@ -49,6 +51,8 @@ function Group({
  */
 export function SearchResults({
   results,
+  onShowAll,
+  unlimitedScope,
   onWebSearch,
   query,
   activeResultIndex,
@@ -79,7 +83,7 @@ export function SearchResults({
     >
       {!hasLocal && (
         <p className="text-sm text-muted">
-          No local matches in your bookmarks, notes, or tasks.
+          No local matches in the selected features.
         </p>
       )}
 
@@ -102,12 +106,16 @@ export function SearchResults({
               )}
             </a>
           ))}
-          <a
-            href={`#links?q=${encodeURIComponent(query.trim())}`}
-            className="self-end text-xs text-muted underline hover:text-accent"
-          >
-            View all in Links
-          </a>
+          {unlimitedScope !== "bookmarks" && (
+            <button
+              type="button"
+              onClick={() => onShowAll("bookmarks")}
+              aria-label="All result from bookmarks"
+              className="self-end text-xs text-muted underline hover:text-accent"
+            >
+              All result
+            </button>
+          )}
         </Group>
       )}
 
@@ -129,6 +137,16 @@ export function SearchResults({
               </span>
             </a>
           ))}
+          {unlimitedScope !== "notes" && (
+            <button
+              type="button"
+              onClick={() => onShowAll("notes")}
+              aria-label="All result from notes"
+              className="self-end text-xs text-muted underline hover:text-accent"
+            >
+              All result
+            </button>
+          )}
         </Group>
       )}
 
@@ -151,6 +169,16 @@ export function SearchResults({
               )}
             </a>
           ))}
+          {unlimitedScope !== "tasks" && (
+            <button
+              type="button"
+              onClick={() => onShowAll("tasks")}
+              aria-label="All result from tasks"
+              className="self-end text-xs text-muted underline hover:text-accent"
+            >
+              All result
+            </button>
+          )}
         </Group>
       )}
 

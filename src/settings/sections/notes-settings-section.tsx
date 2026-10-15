@@ -1,10 +1,12 @@
-// Settings for notes, including their Home page item limit.
+// Settings for notes, including independent Home and search item limits.
 import HomeLimitSettings from "../components/home-limit-settings";
 import SettingsCard from "../components/settings-card";
-import { FileText } from "lucide-react";
+import { FileText, RefreshCw } from "lucide-react";
 import SwitchRow from "../components/switch-row";
 
 export default function NotesSettingsSection({
+  searchLimit,
+  onSearchLimitChange,
   homeLimit,
   onHomeLimitChange,
   notes,
@@ -12,6 +14,8 @@ export default function NotesSettingsSection({
   loadRemoteNoteImages,
   updatePreference,
 }: {
+  searchLimit: number;
+  onSearchLimitChange: (value: number) => void;
   homeLimit: number;
   onHomeLimitChange: (value: number) => void;
   notes: any;
@@ -41,7 +45,7 @@ export default function NotesSettingsSection({
           disabled={!workspaceReady || notes.loading}
           className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-md border border-border px-3 text-sm text-fg hover:bg-page disabled:opacity-50"
         >
-          <span aria-hidden="true">â†»</span> Refresh workspace
+          <RefreshCw size={16} aria-hidden="true" /> Refresh workspace
         </button>
       </SettingsCard>
 
@@ -58,10 +62,13 @@ export default function NotesSettingsSection({
         />
       </SettingsCard>
       <HomeLimitSettings
-        label="Notes on Home"
-        value={homeLimit}
-        onChange={onHomeLimitChange}
-        detail="Favorite notes appear first and count toward this limit, followed by recent notes."
+        feature="Notes"
+        homeLabel="Notes on Home"
+        homeDetail="Favorite notes appear first and count toward this limit, followed by recent notes."
+        homeLimit={homeLimit}
+        onHomeLimitChange={onHomeLimitChange}
+        searchLimit={searchLimit}
+        onSearchLimitChange={onSearchLimitChange}
       />
     </div>
   );

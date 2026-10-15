@@ -135,3 +135,15 @@ it.each([-1, 1.5, "20", null, true])("rejects malformed Home limits in backups: 
   Object.assign(fixture.extension.config, { preferences: { homeNotesLimit: value } });
   expect(() => parseBackupJson(JSON.stringify(fixture))).toThrow(BackupValidationError);
 });
+
+it("preserves the three search result contributions in backups", () => {
+  const fixture = backupFixture();
+  fixture.extension.config.preferences = { searchLinksLimit: 12, searchNotesLimit: 6, searchTasksLimit: 0 };
+  expect(parseBackupJson(JSON.stringify(fixture)).extension.config.preferences).toEqual(fixture.extension.config.preferences);
+});
+
+it.each([-1, 1.5, "6", null, true])("rejects malformed search limits in backups: %s", (value) => {
+  const fixture = backupFixture();
+  Object.assign(fixture.extension.config, { preferences: { searchNotesLimit: value } });
+  expect(() => parseBackupJson(JSON.stringify(fixture))).toThrow(BackupValidationError);
+});

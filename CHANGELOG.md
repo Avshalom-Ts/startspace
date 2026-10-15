@@ -14,6 +14,15 @@ Unreleased ready for the next changes. See the
 
 ### Added
 
+- Each feature’s settings tab groups Home display and search limits in one Home
+  page card, with a title, description, and count field for each setting.
+
+- Links, Notes, and Tasks settings each include an independent search-result limit
+  (default 6). Search scopes toggle independently and all start selected, showing
+  up to 18 local matches plus one Web action by default. All result beneath a
+  feature shows only that feature's matches in the dropdown without a limit.
+  Existing configurations use the defaults; backups preserve the new settings.
+
 - The Links, Tasks, and Notes settings tabs each control their Home section limit,
   defaulting to 20 each. Favorite notes appear first within the shared notes limit.
   Existing configurations use these defaults without migration.
@@ -103,6 +112,8 @@ Unreleased ready for the next changes. See the
   Workspace selection, reconnection, and disconnection remain available.
 
 ### Fixed
+
+- Notes settings now uses a refresh icon instead of garbled text on Refresh workspace.
 
 - Autosaving a note no longer mistakes its own in-progress write for an
   external disk change and repeatedly shows a conflict choice.

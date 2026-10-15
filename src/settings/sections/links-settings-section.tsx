@@ -1,4 +1,4 @@
-// Settings for links, including their Home page item limit.
+// Settings for links, including independent Home and search item limits.
 import HomeLimitSettings from "../components/home-limit-settings";
 import { useState } from "react";
 import SettingsCard from "../components/settings-card";
@@ -9,10 +9,14 @@ import { WebsiteAccess } from "../components/website-access";
 import SwitchRow from "../components/switch-row";
 
 export default function LinksSettingsSection({
+  searchLimit,
+  onSearchLimitChange,
   homeLimit,
   onHomeLimitChange,
   showSaved,
 }: {
+  searchLimit: number;
+  onSearchLimitChange: (value: number) => void;
   homeLimit: number;
   onHomeLimitChange: (value: number) => void;
   showSaved: () => void;
@@ -124,9 +128,12 @@ export default function LinksSettingsSection({
       </SettingsCard>
 
       <HomeLimitSettings
-        label="Favorite links on Home"
-        value={homeLimit}
-        onChange={onHomeLimitChange}
+        feature="Bookmarks"
+        homeLabel="Favorite links on Home"
+        homeLimit={homeLimit}
+        onHomeLimitChange={onHomeLimitChange}
+        searchLimit={searchLimit}
+        onSearchLimitChange={onSearchLimitChange}
       />
     </div>
   );

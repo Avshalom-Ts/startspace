@@ -19,6 +19,8 @@ Add shared product and technical terms here as they are introduced.
 | Central search bar | The centered homepage input that searches Bookmarks → Notes → Tasks → Web. Results open in a scrollable dropdown; Arrow Up/Down selects a result and Enter opens it or runs the web fallback. | Lowercase "central search bar". |
 | Web search engine | The external web search used as the final step of the search order. The browser owns the selection; StartSpace uses its Search API and links to browser settings. | Lowercase "web search engine". |
 | Note explorer | The persistent left pane of Notes. It renders the real workspace root, nested folders, and Markdown notes and remains visible beside the active note. | Lowercase "note explorer" generically; "Notes explorer" is acceptable in UI copy. |
+| Search scope | An independently selected source in central search: Bookmarks, Notes, Tasks, or Web. All start selected; each local source uses its own configured result limit. | Lowercase "search scope". |
+| All result | The action beneath a search feature that selects only that source and shows all its matches within the dropdown. | Use the UI label "All result". |
 | Active search result | The search-dropdown item currently selected with Arrow Up or Arrow Down. Enter opens it. | Lowercase except when beginning a sentence. |
 | File System Access API | The browser API used to let the user choose and access the workspace folder, and to read/write notes, tasks, and backups. | Spell out on first use; "File System Access API" thereafter. |
 | Bookmark API | The browser API StartSpace uses to read and manage browser bookmarks. The browser is the source of truth for bookmark data. | "Bookmark API" (capital B, capital A). |

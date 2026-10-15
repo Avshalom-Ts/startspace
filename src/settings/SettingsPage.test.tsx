@@ -16,6 +16,7 @@ vi.mock("../hooks/useConfig", async (importOriginal) => ({
     fetchDescriptionOnSave: true, fetchDescriptionOnNewTab: true,
     loadRemoteNoteImages: false,
     homeLinksLimit: 20, homeTasksLimit: 20, homeNotesLimit: 20,
+    searchLinksLimit: 6, searchTasksLimit: 6, searchNotesLimit: 6,
   },
   useConfig: () => ({
     config: { version: 1, currentWorkspace: null },
@@ -166,9 +167,9 @@ it.each([
   localStorage.setItem("startspace.settings.category", category);
   await act(async () => root.render(<SettingsPage />));
   const inputs = container.querySelectorAll<HTMLInputElement>('input[type="number"]');
-  expect(inputs).toHaveLength(1);
-  expect(inputs[0]!.value).toBe("20");
-  await editLimit(inputs[0]!, "7");
+  expect(inputs).toHaveLength(2);
+  expect(inputs[1]!.value).toBe("20");
+  await editLimit(inputs[1]!, "7");
   expect(save.mock.lastCall?.[0].preferences[key]).toBe(7);
 });
 
@@ -180,7 +181,7 @@ it("keeps feature Home limits out of General settings", async () => {
 it("rejects empty, negative, and fractional Home limits and accepts zero", async () => {
   localStorage.setItem("startspace.settings.category", "links");
   await act(async () => root.render(<SettingsPage />));
-  const input = container.querySelector<HTMLInputElement>('input[type="number"]')!;
+  const input = container.querySelectorAll<HTMLInputElement>('input[type="number"]')[1]!;
   for (const value of ["", "-1", "2.5"]) {
     await editLimit(input, value);
     expect(input.value).toBe("20");
@@ -188,4 +189,22 @@ it("rejects empty, negative, and fractional Home limits and accepts zero", async
   expect(save).not.toHaveBeenCalled();
   await editLimit(input, "0");
   expect(save.mock.lastCall?.[0].preferences.homeLinksLimit).toBe(0);
+});
+
+it.each([
+  ["links", "searchLinksLimit"],
+  ["tasks", "searchTasksLimit"],
+  ["notes", "searchNotesLimit"],
+])("shows and saves the search contribution in the %s tab", async (category, key) => {
+  localStorage.setItem("startspace.settings.category", category);
+  await act(async () => root.render(<SettingsPage />));
+  const input = container.querySelector<HTMLInputElement>('input[type="number"]')!;
+  expect(input.value).toBe("6");
+  for (const invalid of ["", "-1", "1.5"]) {
+    await editLimit(input, invalid);
+    expect(input.value).toBe("6");
+  }
+  expect(save).not.toHaveBeenCalled();
+  await editLimit(input, "12");
+  expect(save.mock.lastCall?.[0].preferences[key]).toBe(12);
 });

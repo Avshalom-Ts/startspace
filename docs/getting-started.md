@@ -215,8 +215,8 @@ Once installed and your workspace is chosen:
    to the browser's bookmarks. HTTP(S) links use Chrome's browser-managed
    favicon when available, with a local initial fallback; FTP and file links
    use the fallback. Chrome may display a permission warning for website icons.
-   **View all in Links** under bookmark search
-   results opens All Links filtered by your query. Outside the extension, or with `#links?demo=1`,
+   **All result** beneath bookmark search results shows every matching bookmark
+   inside the dropdown. Outside the extension, or with `#links?demo=1`,
    **Preview the layout** shows synthetic bookmarks that are never saved.
    Descriptions remain manually editable. **Fetch description** in the details
    panel replaces the current description directly, without an extra apply step.
@@ -302,3 +302,18 @@ and **Notes**), under **Home page**.
 Favorite links, tasks, and notes each default to 20 items. Choose any nonnegative
 whole number (0 hides items); changes save when leaving the field or pressing Enter.
 Favorite notes appear first, followed by recent notes, within the same notes limit.
+
+Search result counts are set in **Settings → Links / Notes / Tasks → Home page**,
+in the search results row, defaulting to 6 per feature. Each Home page card groups
+the search and Home display settings, with a title, description, and count per row. The Bookmarks, Notes, Tasks, and Web
+buttons toggle independently; all four start selected, without a separate All
+button. Each selected feature keeps its own configured maximum. With default
+counts, all features show up to 18 local matches plus one Web action; deselecting
+Bookmarks leaves up to 6 Notes and 6 Tasks plus Web. Counts are not redistributed.
+Set a feature's search count to 0 to hide its limited results.
+
+**All result** below a feature's matches keeps the query and opens every match
+from that feature in the dropdown, with other sources (including Web) deselected.
+Changing a scope button returns to the configured limits. Arrow Up/Down continues
+to navigate the displayed matches. Search counts save when leaving the field or
+pressing Enter, and are included in backups.

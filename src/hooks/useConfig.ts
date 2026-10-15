@@ -22,6 +22,9 @@ export interface Config {
 }
 
 export interface UserPreferences {
+  searchLinksLimit: number;
+  searchTasksLimit: number;
+  searchNotesLimit: number;
   homeLinksLimit: number;
   homeTasksLimit: number;
   homeNotesLimit: number;
@@ -33,6 +36,9 @@ export interface UserPreferences {
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
+  searchLinksLimit: 6,
+  searchTasksLimit: 6,
+  searchNotesLimit: 6,
   homeLinksLimit: 20,
   homeTasksLimit: 20,
   homeNotesLimit: 20,
@@ -47,7 +53,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
 // Storage helpers — extension storage via chrome.storage.local.
 // ---------------------------------------------------------------------------
 
-/** Accepts nonnegative whole-number Home limits, including zero to hide items. */
+/** Validates nonnegative whole-number item limits for Home, search, and backups. */
 export function isHomeLimit(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }

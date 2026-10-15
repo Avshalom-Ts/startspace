@@ -123,3 +123,9 @@ _To be refined once the project has users or a release._
 Home shows independently configurable maximum counts for favorite links, tasks,
 and notes (20 each by default). Favorite notes count toward the notes maximum
 and appear ahead of recent notes.
+
+Central search shows up to 6 matches per local feature by default, configurable
+in each feature's Settings tab. Bookmarks, Notes, Tasks, and Web are independent
+scope toggles, initially all selected (18 local matches plus one Web action).
+Deselected features do not contribute results or change other features' limits.
+All result displays only that feature's matches without a cap in the dropdown.

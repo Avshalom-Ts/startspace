@@ -12,6 +12,11 @@ StartSpace has no traditional database in scope initially. Persistent data has t
    layout preferences use localStorage; directory handles, last-note selection,
    and unsaved draft recovery use IndexedDB.
 
+Home counts (default 20) and search-result counts (default 6) are independent,
+additive per-feature numeric preferences in extension config. Missing fields use
+defaults; portable backup validation preserves nonnegative whole-number counts.
+No workspace file migration or config version bump is required.
+
 ## Rules
 
 - Select and document the storage approach for StartSpace metadata and config before introducing persistent data beyond the browser's bookmark store and the workspace filesystem.

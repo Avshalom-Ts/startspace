@@ -15,7 +15,7 @@ import type { BookmarkNode } from "../hooks/useBookmarks";
 import type { NoteEntry } from "../types/notes";
 
 /** Default maximum number of results shown per group. */
-export const DEFAULT_GROUP_LIMIT = 5;
+export const DEFAULT_GROUP_LIMIT = 6;
 export type SearchScope = "all" | "bookmarks" | "notes" | "tasks" | "web";
 
 /** A bookmark that matched the query, with its match reason. */
@@ -127,5 +127,29 @@ export function orchestrateSearch(
         ? filterTasks(input.tasks, normalized).slice(0, limit)
         : [],
     webQuery: scope === "all" || scope === "web" ? normalized : null,
+  };
+}
+
+export type LocalSearchScope = "bookmarks" | "notes" | "tasks";
+export type SelectedSearchScope = LocalSearchScope | "web";
+
+/** Searches selected sources with independent configured caps or one unlimited feature. */
+export function searchSelectedSources(
+  input: Parameters<typeof orchestrateSearch>[0],
+  query: string,
+  selected: readonly SelectedSearchScope[],
+  limits: Record<LocalSearchScope, number>,
+  unlimited: LocalSearchScope | null = null,
+): SearchResults {
+  const matches = orchestrateSearch(input, query, Infinity);
+  const cap = (scope: LocalSearchScope) => {
+    if (!selected.includes(scope)) return 0;
+    return unlimited === scope ? Infinity : limits[scope];
+  };
+  return {
+    bookmarks: matches.bookmarks.slice(0, cap("bookmarks")),
+    notes: matches.notes.slice(0, cap("notes")),
+    tasks: matches.tasks.slice(0, cap("tasks")),
+    webQuery: selected.includes("web") ? matches.webQuery : null,
   };
 }

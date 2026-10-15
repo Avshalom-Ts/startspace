@@ -4,7 +4,7 @@ import { Header } from "./Header";
 import { SearchBar, PageFooter } from "./components";
 import { NAV } from "./data/nav";
 import { useTheme } from "./hooks/useTheme";
-import { useConfig } from "./hooks/useConfig";
+import { isHomeLimit, useConfig } from "./hooks/useConfig";
 import { PageContent } from "./components/page-content";
 import { LinksPage } from "./links/links-page";
 import { NotesPage } from "./notes/notes-page";
@@ -14,7 +14,11 @@ import { useBookmarkTree, useBookmarkMetadata } from "./hooks/useBookmarkTree";
 import { useSearchData } from "./search/use-search-data";
 import { searchWeb } from "./search/browser-search";
 import { useNotifications } from "./notifications/notification-context";
-import { orchestrateSearch, type SearchScope } from "./search/search";
+import {
+  searchSelectedSources,
+  type SelectedSearchScope,
+  type LocalSearchScope,
+} from "./search/search";
 import { SearchResults } from "./search/SearchResults";
 import { collectBookmarkNodeIds } from "./bookmarks/bookmark-tree";
 import { useDescriptionFetching } from "./links/use-description-fetching";
@@ -29,8 +33,29 @@ type PageName = (typeof PAGE_NAMES)[number];
 export function AppShell() {
   const notifications = useNotifications();
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchScope, setSearchScope] = useState<SearchScope>("all");
+  const [searchScopes, setSearchScopes] = useState<SelectedSearchScope[]>([
+    "bookmarks", "notes", "tasks", "web",
+  ]);
   const [activeSearchResult, setActiveSearchResult] = useState(-1);
+  const [unlimitedScope, setUnlimitedScope] = useState<LocalSearchScope | null>(null);
+
+  /** Toggles independent search sources and returns expanded results to limited mode. */
+  const toggleSearchScope = (scope: SelectedSearchScope) => {
+    setSearchScopes((current) =>
+      current.includes(scope)
+        ? current.filter((item) => item !== scope)
+        : [...current, scope],
+    );
+    setUnlimitedScope(null);
+    setActiveSearchResult(-1);
+  };
+
+  /** Keeps all matches from one feature inside the dropdown. */
+  const showAllResults = (scope: LocalSearchScope) => {
+    setSearchScopes([scope]);
+    setUnlimitedScope(scope);
+    setActiveSearchResult(-1);
+  };
   const { mounted } = useTheme();
   const { config: appConfig } = useConfig();
   const [page, setPage] = useState<PageName>("home");
@@ -86,13 +111,24 @@ export function AppShell() {
   const searchData = useSearchData();
   const searchResults = useMemo(
     () =>
-      orchestrateSearch(
+      searchSelectedSources(
         searchData,
         searchQuery,
-        undefined,
-        page === "home" ? searchScope : "all",
+        searchScopes,
+        {
+          bookmarks: isHomeLimit(appConfig?.preferences?.searchLinksLimit)
+            ? appConfig.preferences.searchLinksLimit
+            : 6,
+          notes: isHomeLimit(appConfig?.preferences?.searchNotesLimit)
+            ? appConfig.preferences.searchNotesLimit
+            : 6,
+          tasks: isHomeLimit(appConfig?.preferences?.searchTasksLimit)
+            ? appConfig.preferences.searchTasksLimit
+            : 6,
+        },
+        unlimitedScope,
       ),
-    [searchData, searchQuery, searchScope, page],
+    [searchData, searchQuery, searchScopes, unlimitedScope, appConfig],
   );
   const searchResultUrls = useMemo(
     () => [
@@ -116,7 +152,7 @@ export function AppShell() {
     ];
     return activeSearchResult >= 0 ? results[activeSearchResult] : null;
   }, [activeSearchResult, searchResults]);
-  useEffect(() => setActiveSearchResult(-1), [searchQuery]);
+  useEffect(() => setActiveSearchResult(-1), [searchQuery, searchResults]);
   /** Sends only an explicitly submitted query to the browser's default provider. */
   const submitWebSearch = async () => {
     try {
@@ -243,6 +279,8 @@ export function AppShell() {
                 <SearchResults
                   onWebSearch={() => void submitWebSearch()}
                   results={searchResults}
+                  onShowAll={showAllResults}
+                  unlimitedScope={unlimitedScope}
                   query={searchQuery}
                   activeResultIndex={activeSearchResult}
                 />
@@ -296,7 +334,6 @@ export function AppShell() {
                 >
                   {(
                     [
-                      ["all", "All"],
                       ["bookmarks", "Bookmarks"],
                       ["notes", "Notes"],
                       ["tasks", "Tasks"],
@@ -306,9 +343,9 @@ export function AppShell() {
                     <button
                       key={scope}
                       type="button"
-                      aria-pressed={searchScope === scope}
-                      onClick={() => setSearchScope(scope)}
-                      className={`rounded-full border px-3 py-1 text-xs ${searchScope === scope ? "border-accent bg-accent/15 text-fg" : "border-border bg-surface/70 text-muted hover:text-fg"}`}
+                      aria-pressed={searchScopes.includes(scope)}
+                      onClick={() => toggleSearchScope(scope)}
+                      className={`rounded-full border px-3 py-1 text-xs ${searchScopes.includes(scope) ? "border-accent bg-accent/15 text-fg" : "border-border bg-surface/70 text-muted hover:text-fg"}`}
                     >
                       {label}
                     </button>
@@ -319,6 +356,8 @@ export function AppShell() {
                     <SearchResults
                       onWebSearch={() => void submitWebSearch()}
                       results={searchResults}
+                      onShowAll={showAllResults}
+                      unlimitedScope={unlimitedScope}
                       query={searchQuery}
                       activeResultIndex={activeSearchResult}
                     />

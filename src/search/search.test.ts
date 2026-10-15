@@ -5,7 +5,7 @@
 // Bookmarks → Notes → Tasks → Web orchestration.
 
 import { describe, expect, it } from "vitest";
-import { flattenBookmarks, orchestrateSearch, searchBookmarks } from "./search";
+import { flattenBookmarks, orchestrateSearch, searchBookmarks, searchSelectedSources } from "./search";
 import type { BookmarkNode } from "../hooks/useBookmarks";
 import type { NoteEntry } from "../types/notes";
 import type { Task } from "../tasks/tasks-model";
@@ -164,5 +164,48 @@ describe("orchestrateSearch", () => {
       3,
     );
     expect(results.notes).toHaveLength(3);
+  });
+});
+
+describe("selected search sources", () => {
+  const input = {
+    bookmarkTree: Array.from({ length: 40 }, (_, i) => bookmark(`b${i}`, `match ${i}`, `https://example.test/${i}`)),
+    notes: Array.from({ length: 40 }, (_, i) => note(`n${i}.md`, `match ${i}`, "")),
+    tasks: Array.from({ length: 40 }, (_, i) => task(`t${i}`, `match ${i}`)),
+  };
+  const limits = { bookmarks: 6, notes: 6, tasks: 6 };
+  it("shows 18 local matches plus one web action by default", () => {
+    const results = searchSelectedSources(input, "match", ["bookmarks", "notes", "tasks", "web"], limits);
+    expect([results.bookmarks.length, results.notes.length, results.tasks.length]).toEqual([6, 6, 6]);
+    expect(results.webQuery).toBe("match");
+  });
+  it("keeps each selected feature at its configured limit", () => {
+    const results = searchSelectedSources(input, "match", ["notes", "tasks", "web"], limits);
+    expect([results.bookmarks.length, results.notes.length, results.tasks.length]).toEqual([0, 6, 6]);
+    expect(results.webQuery).toBe("match");
+  });
+  it("keeps a single selected feature at its own limit", () => {
+    const results = searchSelectedSources(input, "match", ["notes", "web"], limits);
+    expect(results.notes).toHaveLength(6);
+  });
+  it("honors unequal per-feature limits without redistributing deselected shares", () => {
+    const limits = { bookmarks: 12, notes: 6, tasks: 6 };
+    const results = searchSelectedSources(input, "match", ["bookmarks", "notes", "tasks"], limits);
+    expect([results.bookmarks.length, results.notes.length, results.tasks.length]).toEqual([12, 6, 6]);
+    const withoutBookmarks = searchSelectedSources(input, "match", ["notes", "tasks"], limits);
+    expect([withoutBookmarks.notes.length, withoutBookmarks.tasks.length]).toEqual([6, 6]);
+  });
+  it("can show every match for only one feature without a web action", () => {
+    const results = searchSelectedSources(input, "match", ["notes"], limits, "notes");
+    expect(results.notes).toHaveLength(40);
+    expect(results.bookmarks).toEqual([]);
+    expect(results.tasks).toEqual([]);
+    expect(results.webQuery).toBeNull();
+  });
+  it("handles empty selection, web only, empty queries, and zero feature limits", () => {
+    expect(searchSelectedSources(input, "match", [], limits)).toEqual({ bookmarks: [], notes: [], tasks: [], webQuery: null });
+    expect(searchSelectedSources(input, "match", ["web"], limits)).toEqual({ bookmarks: [], notes: [], tasks: [], webQuery: "match" });
+    expect(searchSelectedSources(input, " ", ["notes", "web"], limits).webQuery).toBeNull();
+    expect(searchSelectedSources(input, "match", ["notes"], { bookmarks: 0, notes: 0, tasks: 0 }).notes).toEqual([]);
   });
 });

@@ -240,3 +240,12 @@ additive device preferences in `chrome.storage.local`, defaulting to 20 for
 existing configurations. Portable backups preserve and validate these nonnegative
 integers. Notes are ordered favorites first, then by last open, before applying
 the shared notes limit. No workspace format migration is required.
+
+Central search uses additive `searchLinksLimit`, `searchNotesLimit`, and
+`searchTasksLimit` numeric preferences in `chrome.storage.local` (default 6 each).
+The four scopes start selected and toggle independently. The orchestration layer
+caps each selected local source independently; deselecting a source does not
+redistribute its allowance. Web contributes one explicit action when selected.
+All result selects a single local source and removes its cap in the same dropdown;
+changing scopes restores configured caps. Backup validation accepts nonnegative
+whole-number counts and retains legacy backups without migration.
