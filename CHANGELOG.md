@@ -14,6 +14,10 @@ Unreleased ready for the next changes. See the
 
 ### Added
 
+- Tasks settings can include or exclude each board column from the Home Tasks
+  section. All columns are included by default; choices are saved per workspace
+  and filter tasks before the Home count limit without changing search or the board.
+
 - Each feature’s settings tab groups Home display and search limits in one Home
   page card, with a title, description, and count field for each setting.
 

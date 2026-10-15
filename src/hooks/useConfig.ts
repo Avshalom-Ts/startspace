@@ -21,7 +21,10 @@ export interface Config {
   preferences?: Partial<UserPreferences>;
 }
 
+export type HomeTaskHiddenColumns = Record<string, string[]>;
+
 export interface UserPreferences {
+  homeTaskHiddenColumns: HomeTaskHiddenColumns;
   searchLinksLimit: number;
   searchTasksLimit: number;
   searchNotesLimit: number;
@@ -36,6 +39,7 @@ export interface UserPreferences {
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
+  homeTaskHiddenColumns: {},
   searchLinksLimit: 6,
   searchTasksLimit: 6,
   searchNotesLimit: 6,
@@ -61,6 +65,20 @@ export function isHomeLimit(value: unknown): value is number {
 /** Resolves missing or malformed stored Home limits to the default of 20. */
 export function homeLimit(value: unknown): number {
   return isHomeLimit(value) ? value : 20;
+}
+
+/** Validates workspace-scoped lists of column IDs excluded from Home. */
+export function isHomeTaskHiddenColumns(value: unknown): value is HomeTaskHiddenColumns {
+  return !!value && typeof value === "object" && !Array.isArray(value) &&
+    Object.values(value).every((ids) => Array.isArray(ids) &&
+      ids.every((id) => typeof id === "string" && id.length > 0));
+}
+
+/** Returns hidden column IDs for this workspace; missing or invalid settings include all. */
+export function hiddenHomeTaskColumns(value: unknown, workspaceId: string | null): string[] {
+  return workspaceId && isHomeTaskHiddenColumns(value) && Object.prototype.hasOwnProperty.call(value, workspaceId)
+    ? value[workspaceId]!
+    : [];
 }
 
 const CONFIG_KEY = "startspace.config";

@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type { BookmarkNode } from "../hooks/useBookmarks";
 import { useBookmarkMetadata, useBookmarkTree } from "../hooks/useBookmarkTree";
-import { homeLimit, useConfig } from "../hooks/useConfig";
+import { homeLimit, hiddenHomeTaskColumns, useConfig } from "../hooks/useConfig";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useNotifications } from "../notifications/notification-context";
 import { useNotes } from "../notes/use-notes";
@@ -124,7 +124,9 @@ export function PageContent() {
     const doneStatus = tasks.columns.find(
       (column) => column.title.toLowerCase() === "done",
     )?.id;
-    return [...tasks.tasks]
+    const hiddenColumns = hiddenHomeTaskColumns(config?.preferences?.homeTaskHiddenColumns, workspace.grant.id);
+    return tasks.tasks
+      .filter((task) => !hiddenColumns.includes(task.status))
       .sort((first, second) => {
         const firstDone = first.status === doneStatus;
         const secondDone = second.status === doneStatus;
@@ -135,7 +137,7 @@ export function PageContent() {
         );
       })
       .slice(0, tasksLimit);
-  }, [tasks.tasks, tasks.columns, tasksLimit]);
+  }, [tasks.tasks, tasks.columns, tasksLimit, config?.preferences?.homeTaskHiddenColumns, workspace.grant.id]);
 
   const openInNewTab = config?.preferences?.openLinksInNewTab ?? false;
   const bookmarkTarget = openInNewTab ? "_blank" : "_self";
@@ -336,7 +338,7 @@ export function PageContent() {
             </ul>
           ) : (
             <div className="flex items-center justify-between py-2 text-sm text-muted">
-              <span>No tasks yet.</span>
+              <span>{tasks.tasks.length ? "No tasks from the selected columns." : "No tasks yet."}</span>
               <a href="#tasks" className="text-accent hover:underline">
                 New task
               </a>

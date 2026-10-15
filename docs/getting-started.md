@@ -317,3 +317,9 @@ from that feature in the dropdown, with other sources (including Web) deselected
 Changing a scope button returns to the configured limits. Arrow Up/Down continues
 to navigate the displayed matches. Search counts save when leaving the field or
 pressing Enter, and are included in backups.
+
+In **Settings → Tasks → Home page → Task columns on Home**, toggle each current
+column to choose which tasks appear in the Home Tasks section. All columns,
+including new ones, are included by default. Choices are saved per workspace on
+this device, included in backups, and applied before the Home task limit. These
+choices do not affect task search or column visibility on the Tasks board.

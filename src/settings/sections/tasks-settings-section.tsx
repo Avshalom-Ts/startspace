@@ -1,4 +1,5 @@
 // Settings for tasks, including independent Home and search item limits.
+import SwitchRow from "../components/switch-row";
 import HomeLimitSettings from "../components/home-limit-settings";
 import { useTasks } from "../../tasks/use-tasks";
 import SettingsCard from "../components/settings-card";
@@ -10,7 +11,13 @@ export default function TasksSettingsSection({
   onSearchLimitChange,
   homeLimit,
   onHomeLimitChange,
+  hiddenColumnIds,
+  onHiddenColumnIdsChange,
+  workspaceReady,
 }: {
+  hiddenColumnIds: string[];
+  onHiddenColumnIdsChange: (ids: string[]) => void;
+  workspaceReady: boolean;
   searchLimit: number;
   onSearchLimitChange: (value: number) => void;
   homeLimit: number;
@@ -48,7 +55,33 @@ export default function TasksSettingsSection({
         onHomeLimitChange={onHomeLimitChange}
         searchLimit={searchLimit}
         onSearchLimitChange={onSearchLimitChange}
-      />
+      >
+        <fieldset className="pt-3">
+          <legend className="pt-3 text-sm font-medium text-fg">Task columns on Home</legend>
+          <p className="mb-2 text-xs text-muted">
+            Choose which columns contribute tasks to Home. New columns are included by default.
+          </p>
+          {!workspaceReady ? (
+            <p className="text-sm text-muted">Connect a workspace to choose its columns.</p>
+          ) : tasks.loading ? (
+            <p className="text-sm text-muted">Loading columns…</p>
+          ) : tasks.error ? (
+            <p role="alert" className="text-sm text-muted">Columns could not be loaded. Reconnect the workspace and try again.</p>
+          ) : (
+            tasks.columns.map((column) => (
+              <SwitchRow
+                key={column.id}
+                label={column.title}
+                detail="Show tasks from this column on Home."
+                checked={!hiddenColumnIds.includes(column.id)}
+                onChange={(show) => onHiddenColumnIdsChange(show
+                  ? hiddenColumnIds.filter((id) => id !== column.id)
+                  : [...new Set([...hiddenColumnIds, column.id])])}
+              />
+            ))
+          )}
+        </fieldset>
+      </HomeLimitSettings>
     </div>
   );
 }

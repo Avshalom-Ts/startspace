@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { PageContent } from "./page-content";
 
-const state = vi.hoisted(() => ({ preferences: {} as Record<string, number> }));
+const state = vi.hoisted(() => ({ preferences: {} as Record<string, unknown> }));
 vi.mock("../hooks/useConfig", async (importOriginal) => ({
   ...await importOriginal<typeof import("../hooks/useConfig")>(),
   useConfig: () => ({ config: { preferences: state.preferences } }),
@@ -16,7 +16,7 @@ vi.mock("../hooks/useBookmarkTree", () => ({
 }));
 vi.mock("../notes/use-notes", () => ({ useNotes: () => ({ index: { notes: Array.from({ length: 30 }, (_, i) => ({ id: `note-${i}`, stableId: `stable-${i}`, title: `Note ${i}`, folder: "" })) } }) }));
 vi.mock("../notes/use-note-preferences", () => ({ useNotePreferences: () => ({ document: { notes: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`stable-${i}`, { favorite: i === 29 || i === 0, lastOpenedAt: i === 29 ? null : `2026-10-${String(i + 1).padStart(2, "0")}T00:00:00Z` }])) } }) }));
-vi.mock("../tasks/use-tasks", () => ({ useTasks: () => ({ columns: [], tasks: Array.from({ length: 30 }, (_, i) => ({ id: String(i), title: `Task ${i}`, updatedAt: "2026-10-01", status: "todo" })) }) }));
+vi.mock("../tasks/use-tasks", () => ({ useTasks: () => ({ columns: [], tasks: Array.from({ length: 30 }, (_, i) => ({ id: String(i), title: `Task ${i}`, updatedAt: "2026-10-01", status: i < 10 ? "done" : "todo" })) }) }));
 vi.mock("../notifications/notification-context", () => ({ useNotifications: () => ({}) }));
 vi.mock("../links/links-ui", () => ({ LinkIcon: () => null }));
 
@@ -51,4 +51,17 @@ it("applies independent limits and updates them when preferences change", async 
   state.preferences = { homeLinksLimit: 0, homeTasksLimit: 0, homeNotesLimit: 0 };
   await act(async () => root.render(<PageContent />));
   expect(items().map((list) => list.length)).toEqual([0, 0, 0]);
+});
+
+it("filters hidden columns before applying the Home limit and scopes exclusions to the workspace", async () => {
+  state.preferences = { homeTasksLimit: 5, homeTaskHiddenColumns: { test: ["done"], other: ["todo"] } };
+  await act(async () => root.render(<PageContent />));
+  expect([...items()[1]!].map((a) => a.textContent)).toEqual(["Task 10", "Task 11", "Task 12", "Task 13", "Task 14"]);
+  state.preferences = { homeTaskHiddenColumns: { test: ["done", "todo"] } };
+  await act(async () => root.render(<PageContent />));
+  expect(items()[1]).toHaveLength(0);
+  expect(container.textContent).toContain("No tasks from the selected columns.");
+  state.preferences = { homeTaskHiddenColumns: { other: ["todo", "done"] } };
+  await act(async () => root.render(<PageContent />));
+  expect(items()[1]).toHaveLength(20);
 });

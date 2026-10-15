@@ -249,3 +249,10 @@ redistribute its allowance. Web contributes one explicit action when selected.
 All result selects a single local source and removes its cap in the same dropdown;
 changing scopes restores configured caps. Backup validation accepts nonnegative
 whole-number counts and retains legacy backups without migration.
+
+Home task column exclusions live in the additive config preference
+`homeTaskHiddenColumns`, a map from registered workspace ID to hidden column IDs.
+Missing entries include all columns, including newly created ones. Renames retain
+the stable column ID. Home filters excluded statuses before sorting and applying
+its task count; search and the Kanban board use their existing behavior. Portable
+backups validate and preserve the map; no workspace file migration is needed.

@@ -1,5 +1,5 @@
 // Shared Home page settings card for each feature's display and search limits.
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { isHomeLimit } from "../../hooks/useConfig";
 import SettingsCard from "./settings-card";
@@ -59,7 +59,9 @@ export default function HomeLimitSettings({
   onHomeLimitChange,
   searchLimit,
   onSearchLimitChange,
+  children,
 }: {
+  children?: ReactNode;
   feature: string;
   homeLabel: string;
   homeDetail?: string;
@@ -89,6 +91,7 @@ export default function HomeLimitSettings({
           defaultLimit={20}
           onChange={onHomeLimitChange}
         />
+        {children}
       </div>
     </SettingsCard>
   );

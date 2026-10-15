@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useConfig, DEFAULT_PREFERENCES } from "../hooks/useConfig";
+import { useConfig, DEFAULT_PREFERENCES, hiddenHomeTaskColumns, isHomeTaskHiddenColumns, type UserPreferences } from "../hooks/useConfig";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { useTheme } from "../hooks/useTheme";
 import { useNotes } from "../notes/use-notes";
@@ -106,7 +106,7 @@ export function SettingsPage() {
 
   const updatePreference = async (
     key: keyof typeof DEFAULT_PREFERENCES,
-    value: boolean | number,
+    value: UserPreferences[keyof UserPreferences],
   ) => {
     if (!config) return;
     setSaved("");
@@ -287,6 +287,15 @@ export function SettingsPage() {
 
           {category === "tasks" && (
             <TasksSettingsSection
+              workspaceReady={workspaceReady && !!workspace.grant.id}
+              hiddenColumnIds={hiddenHomeTaskColumns(preferences.homeTaskHiddenColumns, workspace.grant.id)}
+              onHiddenColumnIdsChange={(ids) => {
+                if (!workspace.grant.id) return;
+                void updatePreference("homeTaskHiddenColumns", {
+                  ...(isHomeTaskHiddenColumns(preferences.homeTaskHiddenColumns) ? preferences.homeTaskHiddenColumns : {}),
+                  [workspace.grant.id]: ids,
+                });
+              }}
               searchLimit={preferences.searchTasksLimit}
               onSearchLimitChange={(value) => void updatePreference("searchTasksLimit", value)}
               homeLimit={preferences.homeTasksLimit}

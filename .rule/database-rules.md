@@ -42,3 +42,8 @@ No workspace file migration or config version bump is required.
 ## When a database becomes relevant
 
 If a future version introduces a need that the current model cannot meet (and the local-first philosophy is preserved), document the need, the chosen approach, and the migration plan before implementing it. Any such change should be recorded as an ADR in `docs/decisions/`.
+
+Home task column exclusions are device config (`homeTaskHiddenColumns`), keyed
+by registered workspace ID with arrays of stable column IDs. Missing entries
+include every column. Preserve and validate this map in backups; do not change
+workspace task files or board column visibility for Home-only choices.

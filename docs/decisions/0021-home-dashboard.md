@@ -58,3 +58,13 @@ MVP: hero, greeting, search with chips, Favorites, Recent, Tasks, and Notes summ
 ## Acceptance
 
 Browser rename/delete updates launchers; Add favorite never duplicates a bookmark; Recent changes only on opening notes; task completion persists; folder counts match descendants; web runs only by explicit action; missing workspace shows honest partial availability; all panels work at 360 px and by keyboard.
+
+## Home task column preferences (2026-10-15)
+
+The Tasks settings Home page card lists all current board columns with inclusion
+toggles. All are included initially and new columns default to included. Store
+exclusions in device config as `homeTaskHiddenColumns[workspaceId]`, using stable
+column IDs so renames retain the choice and different workspaces remain isolated.
+Filter Home tasks before sorting and limiting. The Tasks board and global search
+remain unaffected. Backup validation preserves the additive preference; existing
+configurations require no migration.

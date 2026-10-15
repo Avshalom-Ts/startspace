@@ -129,3 +129,7 @@ in each feature's Settings tab. Bookmarks, Notes, Tasks, and Web are independent
 scope toggles, initially all selected (18 local matches plus one Web action).
 Deselected features do not contribute results or change other features' limits.
 All result displays only that feature's matches without a cap in the dropdown.
+
+Tasks Home settings list current board columns with individual inclusion toggles.
+All columns are included by default. Choices are workspace-specific device
+preferences and filter Home tasks before the maximum count is applied.

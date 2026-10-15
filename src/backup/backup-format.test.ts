@@ -147,3 +147,15 @@ it.each([-1, 1.5, "6", null, true])("rejects malformed search limits in backups:
   Object.assign(fixture.extension.config, { preferences: { searchNotesLimit: value } });
   expect(() => parseBackupJson(JSON.stringify(fixture))).toThrow(BackupValidationError);
 });
+
+it("preserves workspace-specific Home task column exclusions", () => {
+  const fixture = backupFixture();
+  fixture.extension.config.preferences = { homeTaskHiddenColumns: { "ws-fixture": ["done", "custom-column"], other: [] } };
+  expect(parseBackupJson(JSON.stringify(fixture)).extension.config.preferences).toEqual(fixture.extension.config.preferences);
+});
+
+it.each([[], null, true, { workspace: "done" }, { workspace: [1] }, { workspace: [""] }])("rejects malformed Home column exclusions: %s", (value) => {
+  const fixture = backupFixture();
+  Object.assign(fixture.extension.config, { preferences: { homeTaskHiddenColumns: value } });
+  expect(() => parseBackupJson(JSON.stringify(fixture))).toThrow(BackupValidationError);
+});

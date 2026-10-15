@@ -4,7 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { SettingsPage } from "./SettingsPage";
 
-const { save, error } = vi.hoisted(() => ({
+const { save, error, workspaceState } = vi.hoisted(() => ({
+  workspaceState: { connected: false },
   save: vi.fn(),
   error: vi.fn(),
 }));
@@ -17,22 +18,25 @@ vi.mock("../hooks/useConfig", async (importOriginal) => ({
     loadRemoteNoteImages: false,
     homeLinksLimit: 20, homeTasksLimit: 20, homeNotesLimit: 20,
     searchLinksLimit: 6, searchTasksLimit: 6, searchNotesLimit: 6,
+    homeTaskHiddenColumns: { other: ["done"] },
   },
   useConfig: () => ({
-    config: { version: 1, currentWorkspace: null },
+    config: { version: 1, currentWorkspace: workspaceState.connected ? { id: "test", name: "Test" } : null },
     save,
   }),
 }));
 vi.mock("../hooks/useWorkspace", () => ({
   useWorkspace: () => ({
-    grant: { handle: null, permission: "prompt", id: null, name: "" },
+    grant: workspaceState.connected
+      ? { handle: {}, permission: "granted", id: "test", name: "Test" }
+      : { handle: null, permission: "prompt", id: null, name: "" },
   }),
 }));
 vi.mock("../hooks/useTheme", () => ({
   useTheme: () => ({ theme: "dark", accent: "amber", mounted: true }),
 }));
 vi.mock("../notes/use-notes", () => ({ useNotes: () => ({}) }));
-vi.mock("../tasks/use-tasks", () => ({ useTasks: () => ({ columns: [] }) }));
+vi.mock("../tasks/use-tasks", () => ({ useTasks: () => ({ columns: [{ id: "todo", title: "To do" }, { id: "done", title: "Done" }] }) }));
 vi.mock("../notifications/notification-context", () => ({
   useNotifications: () => ({ error }),
 }));
@@ -47,6 +51,7 @@ let root: Root;
 let container: HTMLDivElement;
 
 beforeEach(() => {
+  workspaceState.connected = false;
   vi.useFakeTimers();
   save.mockReset().mockResolvedValue(undefined);
   error.mockReset();
@@ -207,4 +212,23 @@ it.each([
   expect(save).not.toHaveBeenCalled();
   await editLimit(input, "12");
   expect(save.mock.lastCall?.[0].preferences[key]).toBe(12);
+});
+
+it("saves Home task column choices for the current workspace and retains other workspace choices", async () => {
+  workspaceState.connected = true;
+  localStorage.setItem("startspace.settings.category", "tasks");
+  await act(async () => root.render(<SettingsPage />));
+  await click('[role="switch"][aria-label="Done"]');
+  expect(save.mock.lastCall?.[0].preferences.homeTaskHiddenColumns).toEqual({ other: ["done"], test: ["done"] });
+  expect(container.querySelector('span[role="status"]')?.textContent).toBe("Saved");
+});
+
+it("reports a failure when Home task column choices cannot be saved", async () => {
+  workspaceState.connected = true;
+  save.mockRejectedValue(new Error("Synthetic storage failure"));
+  localStorage.setItem("startspace.settings.category", "tasks");
+  await act(async () => root.render(<SettingsPage />));
+  await click('[role="switch"][aria-label="Done"]');
+  expect(error).toHaveBeenCalledWith("Setting could not be saved. Try again.");
+  expect(container.querySelector('span[role="status"]')).toBeNull();
 });
