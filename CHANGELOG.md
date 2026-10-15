@@ -14,6 +14,35 @@ Unreleased ready for the next changes. See the
 
 ### Added
 
+- Task cards, buttons, and selectors show a pointer cursor on hover. Disabled
+  task controls use the unavailable cursor; text fields retain the text cursor.
+
+- Task details use a labeled trash icon for deletion. Sidebar column eye controls
+  use primary text color when visible and appear dimmed when hidden.
+
+- The task details sidebar separates Info, Linked notes, and Linked bookmarks
+  into tabs. Info contains title, description, and column; drafts remain intact
+  when switching tabs. The Add task modal keeps its single-form layout.
+
+- Task note and bookmark links use searchable multi-select dropdowns in the
+  details sidebar. Focus shows all available targets; search
+  matches titles, note paths, and bookmark URLs. Selected links stay visible with
+  unlink controls, and dropdowns support keyboard selection and RTL text.
+  Dropdowns overlay surrounding content without shifting the form layout.
+
+- The Tasks filter fills the available header width between the page title and Add task.
+
+- Add task now opens a simple modal with title, description, and column,
+  replacing the inline title input. Links are added afterward in the sidebar.
+  Column Add buttons preselect
+  their column; the global New menu opens the same form. Task details
+  save together, RTL/LTR direction is detected automatically, and failed saves
+  retain the draft for retry.
+
+- Task titles and descriptions automatically detect text direction for Hebrew,
+  Arabic, and English while creating, editing, and viewing tasks, including Home,
+  search results, and linked task titles.
+
 - Tasks settings can include or exclude each board column from the Home Tasks
   section. All columns are included by default; choices are saved per workspace
   and filter tasks before the Home count limit without changing search or the board.

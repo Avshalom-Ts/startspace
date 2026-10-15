@@ -66,6 +66,8 @@ The product outcome: a browser homepage that feels like the user's own workspace
   - Main search searches both note titles and content.
 - **Tasks:**
   - Local Kanban board.
+  - Create tasks in a simple modal with title, description, and column. Add note
+    and bookmark links in the sidebar afterward; task text supports RTL and LTR.
   - Tasks stored in the workspace.
   - Tasks can be linked to Notes and Bookmarks (e.g., Task → Learn Proxmox → related Notes → related Bookmarks).
 - **Local Workspace:**

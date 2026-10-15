@@ -117,6 +117,11 @@ StartSpace is an open-source, local-first browser extension that replaces the br
 ### Tasks Module
 
 - Local Kanban board.
+- A native creation dialog collects title, description, and column; relationships
+  are added afterward through the task sidebar. `useTasks.addTask` saves all
+  initial fields in one workspace write,
+  avoiding partially created tasks. Native modality traps focus; close restores
+  focus to the invoking control. Titles and descriptions use automatic direction.
 - Tasks stored in the workspace.
 - The board document is `.startspace/tasks.json`. A legacy root-only file
   produces a manual-move warning instead of silently creating an empty board.

@@ -57,3 +57,35 @@ MVP: default four statuses, smart views, priorities, due dates, labels, filterin
 ## Acceptance
 
 Create a task in Review, save/reopen and verify status. Complete/reopen restores the prior status. Today/Upcoming/Overdue behave correctly around local midnight and timezone changes. Keyboard ordering works, including filtered restrictions. Linked note/bookmark rename/delete is handled. Failure rollback, retained drafts, malformed data protection, live counts and mobile one-column navigation work.
+
+## Task creation modal (2026-10-15)
+
+Replace inline title entry with a native modal shared by the header Add task,
+sidebar New task, per-column Add task, and global New → Task entry points.
+Collect title, description, column, note links, and bookmark links before a single
+workspace save. Use stable note IDs when available. Title and description use
+`dir="auto"`. Keep the draft after failure, prevent duplicate submissions, and
+restore focus to the invoking control on close. No task schema migration is needed.
+
+## Searchable task relationships (2026-10-15)
+
+Use one shared searchable multi-select for note and bookmark links in creation
+and task details. Focus shows all available targets; filtering includes title
+and note path or bookmark URL. Keep selected links visible independently of the
+filter. Arrow keys navigate and Enter toggles without submitting a form; Escape
+closes an open dropdown before the surrounding dialog. Stable note and browser
+bookmark IDs, workspace storage, and the existing linking operations are unchanged.
+
+## Task sidebar tabs (2026-10-15)
+
+The task details sidebar uses Info, Linked notes, and Linked bookmarks tabs.
+Info contains title, description, column, and Save details. Keep draft edits
+when switching tabs; a different task starts on Info. Tabs support arrow keys,
+Home, and End. The creation modal retains its single-form layout.
+
+## Simplified creation form (2026-10-15)
+
+Superseding the creation-link controls above, the modal collects only title,
+description, and column. New tasks start with empty note/bookmark links; add
+relationships afterward through the sidebar's Linked notes and Linked bookmarks
+tabs. Keep the modal payload, caller, and tests aligned with these three fields.

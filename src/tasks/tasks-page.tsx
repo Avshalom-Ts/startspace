@@ -4,7 +4,7 @@
 // useTasks; note relationships use workspace-stable IDs and bookmarks use
 // browser Bookmark IDs. No note or bookmark content is duplicated here.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   Circle,
@@ -12,7 +12,7 @@ import {
   LayoutGrid,
   Plus,
   Search,
-  SlidersHorizontal,
+  Trash2,
   X,
 } from "lucide-react";
 import { useWorkspace } from "../hooks/useWorkspace";
@@ -26,6 +26,8 @@ import {
   type TaskColumn,
   type TaskStatus,
 } from "./tasks-model";
+import LinkPicker from "./task-link-picker";
+import { TaskCreateDialog } from "./task-create-dialog";
 import { useTasks } from "./use-tasks";
 import { useNotifications } from "../notifications/notification-context";
 
@@ -48,7 +50,7 @@ export function TasksPage() {
   const notes = useNotes();
   const bookmarks = useBookmarkTree();
   const [query, setQuery] = useState("");
-  const [newTitle, setNewTitle] = useState("");
+  const [creatingTask, setCreatingTask] = useState(false);
   const [newTaskStatus, setNewTaskStatus] = useState<string | null>(null);
   const [newColumnTitle, setNewColumnTitle] = useState("");
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
@@ -73,7 +75,6 @@ export function TasksPage() {
     ? visibleColumns.filter((column) => column.id === activeStatus)
     : visibleColumns;
   const columnsViewportRef = useRef<HTMLDivElement>(null);
-  const newTaskInputRef = useRef<HTMLInputElement>(null);
   const selectedTask =
     board.tasks.find((task) => task.id === selectedId) ?? null;
   const bookmarkItems = useMemo(
@@ -102,7 +103,7 @@ export function TasksPage() {
         new URLSearchParams(location.hash.split("?")[1] ?? "").get("new") ===
         "task"
       )
-        newTaskInputRef.current?.focus();
+        setCreatingTask(true);
     };
     focusNewTask();
     window.addEventListener("hashchange", focusNewTask);
@@ -116,7 +117,8 @@ export function TasksPage() {
   useEffect(() => {
     if (!selectedTask) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSelectedId(null);
+      if (event.key === "Escape" && !document.querySelector("dialog[open]"))
+        setSelectedId(null);
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
@@ -129,17 +131,10 @@ export function TasksPage() {
     setDraftStatus(task.status);
   };
 
-  const addTask = async (status?: TaskStatus) => {
-    const task = await board.addTask(
-      newTitle,
-      status ?? newTaskStatus ?? board.columns[0]?.id,
-    );
-    if (task) {
-      setNewTitle("");
-      setNewTaskStatus(null);
-      selectTask(task);
-      notifications.success("Task created.");
-    }
+  /** Opens the creation form, optionally preselecting a board column. */
+  const openCreateTask = (status?: TaskStatus) => {
+    setNewTaskStatus(status ?? null);
+    setCreatingTask(true);
   };
 
   const saveDetails = async () => {
@@ -203,7 +198,7 @@ export function TasksPage() {
         <div className="flex justify-center gap-2">
           <button
             onClick={() => void chooseWorkspace()}
-            className="rounded-md border border-border bg-page px-4 py-2 text-sm font-medium text-fg hover:border-fg/40"
+            className="cursor-pointer disabled:cursor-not-allowed rounded-md border border-border bg-page px-4 py-2 text-sm font-medium text-fg hover:border-fg/40"
           >
             Choose folder
           </button>
@@ -220,20 +215,16 @@ export function TasksPage() {
 
   return (
     <section className="flex min-h-0 w-full flex-1 gap-3 overflow-hidden">
+      {/* Sidebar for task views and status filters */}
       <aside className="hidden w-52 shrink-0 flex-col rounded-lg border border-border bg-surface/30 p-3 md:flex">
         <div className="mb-3 flex items-center justify-between px-1">
           <h2 className="text-sm font-semibold text-fg">Tasks</h2>
           <button
             type="button"
-            onClick={() => {
-              setNewTaskStatus(null);
-              document
-                .querySelector<HTMLInputElement>("[data-task-title]")
-                ?.focus();
-            }}
+            onClick={() => openCreateTask()}
             title="New task"
             aria-label="New task"
-            className="rounded p-1 text-muted hover:bg-page hover:text-fg"
+            className="cursor-pointer disabled:cursor-not-allowed rounded p-1 text-muted hover:bg-page hover:text-fg"
           >
             <Plus size={18} aria-hidden="true" />
           </button>
@@ -243,7 +234,7 @@ export function TasksPage() {
             type="button"
             onClick={() => setActiveStatus(null)}
             aria-current={activeStatus === null ? "page" : undefined}
-            className={`flex min-h-9 w-full items-center justify-between rounded-md px-2 text-sm ${activeStatus === null ? "bg-accent/15 text-fg" : "text-muted hover:bg-page hover:text-fg"}`}
+            className={`cursor-pointer disabled:cursor-not-allowed flex min-h-9 w-full items-center justify-between rounded-md px-2 text-sm ${activeStatus === null ? "bg-accent/15 text-fg" : "text-muted hover:bg-page hover:text-fg"}`}
           >
             <span className="flex items-center gap-2">
               <LayoutGrid size={16} aria-hidden="true" /> All tasks
@@ -266,7 +257,7 @@ export function TasksPage() {
                     aria-current={
                       activeStatus === column.id ? "page" : undefined
                     }
-                    className={`flex min-h-9 min-w-0 flex-1 items-center justify-between rounded-md px-2 text-sm ${activeStatus === column.id ? "bg-accent/15 text-fg" : "text-muted hover:bg-page hover:text-fg"}`}
+                    className={`cursor-pointer disabled:cursor-not-allowed flex min-h-9 min-w-0 flex-1 items-center justify-between rounded-md px-2 text-sm ${activeStatus === column.id ? "bg-accent/15 text-fg" : "text-muted hover:bg-page hover:text-fg"}`}
                   >
                     <span className="truncate">{column.title}</span>
                     <span className="ml-2 text-xs">{count}</span>
@@ -276,7 +267,8 @@ export function TasksPage() {
                     onClick={() => void board.toggleColumn(column.id)}
                     title={`${column.visible ? "Hide" : "Show"} ${column.title}`}
                     aria-label={`${column.visible ? "Hide" : "Show"} ${column.title}`}
-                    className="rounded p-1 text-muted opacity-70 hover:bg-page hover:text-fg"
+                    aria-pressed={column.visible}
+                    className={`cursor-pointer disabled:cursor-not-allowed rounded p-1 hover:bg-page ${column.visible ? "text-fg" : "text-muted opacity-40 hover:opacity-70"}`}
                   >
                     <Eye size={14} aria-hidden="true" />
                   </button>
@@ -302,26 +294,26 @@ export function TasksPage() {
           />
           <button
             onClick={() => void addColumn()}
-            className="mt-2 flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-sm text-muted hover:bg-page hover:text-fg"
+            className="cursor-pointer disabled:cursor-not-allowed mt-2 flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-sm text-muted hover:bg-page hover:text-fg"
           >
             <Plus size={15} aria-hidden="true" /> Add column
           </button>
         </div>
       </aside>
 
+      {/* Main content area for tasks */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="mb-3 flex flex-wrap items-end justify-between gap-3 px-1">
-          <div>
+        <header className="mb-3 flex items-end gap-3 px-1">
+          <div className="shrink-0">
             <h1 className="text-xl font-semibold text-fg">Tasks</h1>
             <p className="mt-0.5 text-xs text-muted">
               {query
                 ? `${visibleTasks.length} of ${board.tasks.length} tasks`
-                : `${board.tasks.length} tasks`}
-              {` · ${visibleColumns.length} columns`}
+                : `Total ${board.tasks.length} tasks`}
             </p>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <label className="relative">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <label className="relative min-w-0 flex-1">
               <Search
                 size={16}
                 aria-hidden="true"
@@ -333,26 +325,12 @@ export function TasksPage() {
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Filter tasks"
                 aria-label="Filter tasks"
-                className="h-9 w-44 rounded-md border border-border bg-surface pl-8 pr-3 text-sm text-fg placeholder-muted focus:border-accent focus:outline-none"
+                className="h-9 w-full rounded-md border border-border bg-surface pl-8 pr-3 text-sm text-fg placeholder-muted focus:border-accent focus:outline-none"
               />
             </label>
-            <div className="hidden items-center gap-1 rounded-md border border-border bg-surface px-2 py-1.5 text-xs text-muted sm:flex">
-              <SlidersHorizontal size={14} aria-hidden="true" /> Grouped by
-              status
-            </div>
-            <input
-              ref={newTaskInputRef}
-              data-task-title
-              value={newTitle}
-              onChange={(event) => setNewTitle(event.target.value)}
-              onKeyDown={(event) => event.key === "Enter" && void addTask()}
-              placeholder="New task title"
-              aria-label="New task title"
-              className="h-9 w-40 rounded-md border border-border bg-surface px-3 text-sm text-fg placeholder-muted focus:border-accent focus:outline-none"
-            />
             <button
-              onClick={() => void addTask()}
-              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-accent px-3 text-sm font-medium text-accent-foreground hover:brightness-110"
+              onClick={() => openCreateTask()}
+              className="cursor-pointer disabled:cursor-not-allowed inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md bg-accent px-3 text-sm font-medium text-accent-foreground hover:brightness-110"
             >
               <Plus size={16} aria-hidden="true" /> Add task
             </button>
@@ -417,7 +395,7 @@ export function TasksPage() {
                         <button
                           onClick={() => beginRenameColumn(column)}
                           title="Rename column"
-                          className="min-w-0 flex-1 truncate text-left text-sm font-semibold text-fg"
+                          className="cursor-pointer disabled:cursor-not-allowed min-w-0 flex-1 truncate text-left text-sm font-semibold text-fg"
                         >
                           {column.title}
                         </button>
@@ -429,7 +407,7 @@ export function TasksPage() {
                         onClick={() => setColumnPendingDelete(column)}
                         title={`Delete ${column.title}`}
                         aria-label={`Delete ${column.title}`}
-                        className="rounded p-1 text-muted hover:bg-page hover:text-red-500"
+                        className="cursor-pointer disabled:cursor-not-allowed rounded p-1 text-muted hover:bg-page hover:text-red-500"
                       >
                         <X size={15} aria-hidden="true" />
                       </button>
@@ -442,14 +420,14 @@ export function TasksPage() {
                           onDragStart={(event) =>
                             event.dataTransfer.setData("text/task-id", task.id)
                           }
-                          className={`rounded-md border bg-page p-3 ${selectedId === task.id ? "border-accent bg-accent/10" : "border-border"}`}
+                          className={`cursor-pointer rounded-md border bg-page p-3 ${selectedId === task.id ? "border-accent bg-accent/10" : "border-border"}`}
                         >
                           <div className="flex items-start gap-2">
                             <button
                               type="button"
                               onClick={() => selectTask(task)}
                               aria-label={`Open ${task.title}`}
-                              className="mt-0.5 shrink-0 text-muted hover:text-accent"
+                              className="cursor-pointer disabled:cursor-not-allowed mt-0.5 shrink-0 text-muted hover:text-accent"
                             >
                               {column.title.toLowerCase() === "done" ? (
                                 <CheckCircle2 size={17} aria-hidden="true" />
@@ -460,13 +438,19 @@ export function TasksPage() {
                             <button
                               type="button"
                               onClick={() => selectTask(task)}
-                              className="min-w-0 flex-1 text-left"
+                              className="cursor-pointer disabled:cursor-not-allowed min-w-0 flex-1 text-left"
                             >
-                              <h3 className="wrap-break-word text-sm font-medium text-fg">
+                              <h3
+                                dir="auto"
+                                className="wrap-break-word text-start text-sm font-medium text-fg"
+                              >
                                 {task.title}
                               </h3>
                               {task.description && (
-                                <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted">
+                                <p
+                                  dir="auto"
+                                  className="mt-1 line-clamp-2 text-start text-xs leading-5 text-muted"
+                                >
                                   {task.description}
                                 </p>
                               )}
@@ -494,13 +478,8 @@ export function TasksPage() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        setNewTaskStatus(column.id);
-                        document
-                          .querySelector<HTMLInputElement>("[data-task-title]")
-                          ?.focus();
-                      }}
-                      className="mt-2 flex min-h-9 shrink-0 items-center justify-center gap-1 rounded-md border border-transparent text-sm text-muted hover:border-border hover:bg-page hover:text-fg"
+                      onClick={() => openCreateTask(column.id)}
+                      className="cursor-pointer disabled:cursor-not-allowed mt-2 flex min-h-9 shrink-0 items-center justify-center gap-1 rounded-md border border-transparent text-sm text-muted hover:border-border hover:bg-page hover:text-fg"
                     >
                       <Plus size={15} aria-hidden="true" /> Add task
                     </button>
@@ -521,10 +500,11 @@ export function TasksPage() {
                 onClick={() => setSelectedId(null)}
                 aria-label="Close task details"
                 title="Close task details"
-                className="absolute inset-0 z-20 bg-black/40 wide:hidden"
+                className="cursor-pointer disabled:cursor-not-allowed absolute inset-0 z-20 bg-black/40 wide:hidden"
               />
               <div className="absolute inset-y-0 right-0 z-30 flex w-full max-w-md flex-col shadow-2xl md:w-90 wide:w-82.5">
                 <TaskDetails
+                  key={selectedTask.id}
                   task={selectedTask}
                   title={draftTitle}
                   description={draftDescription}
@@ -573,6 +553,24 @@ export function TasksPage() {
         </div>
       </div>
 
+      {creatingTask && (
+        <TaskCreateDialog
+          columns={board.columns}
+          loading={board.loading}
+          initialStatus={newTaskStatus ?? board.columns[0]?.id ?? ""}
+          onClose={() => setCreatingTask(false)}
+          onCreate={async (input) => {
+            const task = await board.addTask(input.title, input.status, {
+              description: input.description,
+            });
+            if (!task) return false;
+            selectTask(task);
+            notifications.success("Task created.");
+            return true;
+          }}
+        />
+      )}
+
       {columnPendingDelete && (
         <div
           className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4"
@@ -600,13 +598,13 @@ export function TasksPage() {
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setColumnPendingDelete(null)}
-                className="rounded border border-border px-3 py-2 text-sm text-fg hover:border-fg/40 hover:bg-surface"
+                className="cursor-pointer disabled:cursor-not-allowed rounded border border-border px-3 py-2 text-sm text-fg hover:border-fg/40 hover:bg-surface"
               >
                 Cancel
               </button>
               <button
                 onClick={() => void confirmDeleteColumn()}
-                className="rounded border border-red-500 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-500/20"
+                className="cursor-pointer disabled:cursor-not-allowed rounded border border-red-500 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-500/20"
               >
                 Delete
               </button>
@@ -651,6 +649,13 @@ function TaskDetails({
   onClose: () => void;
   onToggleLink: (kind: "note" | "bookmark", value: string) => void;
 }) {
+  const [tab, setTab] = useState("info");
+  const tabId = useId();
+  const tabs = [
+    { id: "info", label: "Info" },
+    { id: "notes", label: "Linked notes" },
+    { id: "bookmarks", label: "Linked bookmarks" },
+  ];
   return (
     <aside
       aria-label="Task details"
@@ -658,6 +663,7 @@ function TaskDetails({
     >
       <div className="sticky top-0 z-10 mb-4 flex items-center justify-between border-b border-border bg-surface pb-3">
         <h2
+          dir="auto"
           id="task-details-title"
           className="min-w-0 truncate text-sm font-semibold text-fg"
         >
@@ -666,23 +672,55 @@ function TaskDetails({
         <div className="flex items-center gap-3">
           <button
             onClick={onDelete}
-            className="text-xs text-muted hover:text-red-500"
+            aria-label="Delete task"
+            title="Delete task"
+            className="cursor-pointer disabled:cursor-not-allowed rounded p-1 text-muted hover:bg-page hover:text-red-500"
           >
-            Delete task
+            <Trash2 size={18} aria-hidden="true" />
           </button>
           <button
             onClick={onClose}
             aria-label="Close task details"
             title="Close task details"
-            className="rounded p-1 text-muted hover:bg-page hover:text-fg"
+            className="cursor-pointer disabled:cursor-not-allowed rounded p-1 text-muted hover:bg-page hover:text-fg"
           >
             <X size={18} aria-hidden="true" />
           </button>
         </div>
       </div>
+      <div role="tablist" aria-label="Task details sections" className="mb-4 flex border-b border-border">
+        {tabs.map((item, index) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            id={`${tabId}-tab-${item.id}`}
+            aria-controls={`${tabId}-panel-${item.id}`}
+            aria-selected={tab === item.id}
+            tabIndex={tab === item.id ? 0 : -1}
+            onClick={() => setTab(item.id)}
+            onKeyDown={(event) => {
+              let next = index;
+              if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+              else if (event.key === "ArrowLeft") next = (index + tabs.length - 1) % tabs.length;
+              else if (event.key === "Home") next = 0;
+              else if (event.key === "End") next = tabs.length - 1;
+              else return;
+              event.preventDefault();
+              const target = tabs[next]!;
+              setTab(target.id);
+              document.getElementById(`${tabId}-tab-${target.id}`)?.focus();
+            }}
+            className={`cursor-pointer disabled:cursor-not-allowed min-w-0 flex-1 border-b-2 px-2 py-2 text-xs font-medium ${tab === item.id ? "border-accent text-fg" : "border-transparent text-muted hover:text-fg"}`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
       <div className="space-y-4">
-        <div className="space-y-3">
+        <div role="tabpanel" id={`${tabId}-panel-info`} aria-labelledby={`${tabId}-tab-info`} hidden={tab !== "info"} className="space-y-3">
           <input
+            dir="auto"
             value={title}
             onChange={(event) => onTitleChange(event.target.value)}
             aria-label="Task title"
@@ -693,7 +731,7 @@ function TaskDetails({
             <select
               value={status}
               onChange={(event) => onStatusChange(event.target.value)}
-              className="mt-1 w-full rounded-md border border-border bg-page px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
+              className="cursor-pointer disabled:cursor-not-allowed mt-1 w-full rounded-md border border-border bg-page px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
             >
               {columns.map((column) => (
                 <option key={column.id} value={column.id}>
@@ -703,6 +741,7 @@ function TaskDetails({
             </select>
           </label>
           <textarea
+            dir="auto"
             value={description}
             onChange={(event) => onDescriptionChange(event.target.value)}
             placeholder="Description"
@@ -711,17 +750,18 @@ function TaskDetails({
           />
           <button
             onClick={onSave}
-            className="min-h-9 w-full rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground hover:brightness-110"
+            className="cursor-pointer disabled:cursor-not-allowed min-h-9 w-full rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-foreground hover:brightness-110"
           >
             Save details
           </button>
         </div>
-        <div className="space-y-4 border-t border-border pt-4">
+        <div role="tabpanel" id={`${tabId}-panel-notes`} aria-labelledby={`${tabId}-tab-notes`} hidden={tab !== "notes"}>
           <LinkPicker
             title="Link notes"
             items={notes.map((note) => ({
               id: note.stableId ?? note.id,
               label: note.title,
+              detail: note.id,
             }))}
             selected={task.noteIds.map(
               (reference) =>
@@ -736,11 +776,14 @@ function TaskDetails({
             )}
             onToggle={(id) => onToggleLink("note", id)}
           />
+        </div>
+        <div role="tabpanel" id={`${tabId}-panel-bookmarks`} aria-labelledby={`${tabId}-tab-bookmarks`} hidden={tab !== "bookmarks"}>
           <LinkPicker
             title="Link bookmarks"
             items={bookmarks.map((bookmark) => ({
               id: bookmark.id,
-              label: bookmark.title,
+              label: bookmark.title || bookmark.url || bookmark.id,
+              detail: bookmark.url,
             }))}
             selected={task.bookmarkIds}
             onToggle={(id) => onToggleLink("bookmark", id)}
@@ -748,46 +791,5 @@ function TaskDetails({
         </div>
       </div>
     </aside>
-  );
-}
-
-function LinkPicker({
-  title,
-  items,
-  selected,
-  onToggle,
-}: {
-  title: string;
-  items: { id: string; label: string }[];
-  selected: string[];
-  onToggle: (id: string) => void;
-}) {
-  return (
-    <div>
-      <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-        {title}
-      </h3>
-      <div className="space-y-1 rounded border border-border p-2">
-        {items.length === 0 ? (
-          <p className="text-xs text-muted">None available</p>
-        ) : (
-          items.map((item) => (
-            <label
-              key={item.id}
-              className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-xs text-fg hover:bg-surface"
-            >
-              <input
-                type="checkbox"
-                checked={selected.includes(item.id)}
-                onChange={() => onToggle(item.id)}
-              />
-              <span className="truncate" title={item.id}>
-                {item.label}
-              </span>
-            </label>
-          ))
-        )}
-      </div>
-    </div>
   );
 }

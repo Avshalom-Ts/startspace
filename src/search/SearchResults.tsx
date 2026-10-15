@@ -161,9 +161,9 @@ export function SearchResults({
               role="option"
               aria-selected={activeResultIndex === taskOffset + index}
             >
-              <span className="truncate">{task.title}</span>
+              <span dir="auto" className="truncate text-start">{task.title}</span>
               {task.description && (
-                <span className="truncate text-xs text-muted">
+                <span dir="auto" className="truncate text-start text-xs text-muted">
                   {task.description}
                 </span>
               )}

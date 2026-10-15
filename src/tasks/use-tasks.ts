@@ -95,17 +95,27 @@ export function useTasks() {
     [columns, grant.handle, grant.permission],
   );
 
+  /** Creates a task and its optional description/relationships in one workspace write. */
   const addTask = useCallback(
-    async (title: string, status?: TaskStatus): Promise<Task | null> => {
+    async (
+      title: string,
+      status?: TaskStatus,
+      details: Partial<Pick<Task, "description" | "noteIds" | "bookmarkIds">> = {},
+    ): Promise<Task | null> => {
       const trimmed = title.trim();
       if (!trimmed) {
         setError("Enter a task title.");
         return null;
       }
-      const task = makeTask(trimmed, status);
+      const columnId = status ?? columns[0]?.id;
+      if (!columnId || !columns.some((column) => column.id === columnId)) {
+        setError("Choose an existing task column.");
+        return null;
+      }
+      const task = { ...makeTask(trimmed, columnId), ...details };
       return (await save([task, ...tasks])) ? task : null;
     },
-    [save, tasks],
+    [save, tasks, columns],
   );
 
   const updateTask = useCallback(

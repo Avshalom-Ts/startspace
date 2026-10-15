@@ -247,6 +247,19 @@ Once installed and your workspace is chosen:
    The last successfully opened note reopens for the same workspace after permission is granted; demo notes are never remembered as real notes.
    If unsaved changes survived a reload or crash, choose **Recover draft** or **Discard draft** when the workspace reconnects. Recovered text stays local to this device and cannot overwrite a changed disk file without passing the normal save check. A missing note still leaves its recovered text available to copy.
 4. **Tasks** — a local Kanban board for tasks; link tasks to notes and bookmarks.
+   **Add task** opens a simple modal with a required title, description, and column.
+   Link notes and bookmarks afterward in the task sidebar. Title and description automatically detect
+   RTL/LTR text direction. Adding from a column preselects it; **New → Task**
+   opens the same form. **Create task** saves all fields together. A failed save
+   keeps the draft open for retry; Cancel or Escape closes without creating a task.
+   The task sidebar has **Info**, **Linked notes**, and **Linked bookmarks** tabs.
+   Info contains title, description, column, and Save details. Switching tabs
+   preserves unsaved edits; the creation modal remains a single form.
+   In the task details sidebar, **Link notes** and **Link bookmarks**
+   are searchable dropdowns. Focus an input to see all available items; type to
+   filter by title, note path, or bookmark URL. Click items or use Arrow Up/Down
+   and Enter to toggle links. Selected links stay below the input with unlink
+   buttons. Escape closes the dropdown first, before closing the sidebar.
 5. **Settings** — choose your workspace, view browser search information, open browser search settings, and export or restore a backup.
    Saving a startup preference or the default Links layout shows **Saved** for 3 seconds after the latest successful save.
 6. **GitHub** — link to the source repository.

@@ -728,7 +728,7 @@ function RelatedTabs({
                 href={`#tasks?task=${encodeURIComponent(task.id)}`}
                 className="min-w-0 flex-1 hover:text-accent"
               >
-                <span className="block truncate text-sm text-fg">
+                <span dir="auto" className="block truncate text-start text-sm text-fg">
                   {task.title}
                 </span>
                 <span className="block text-xs text-muted">
@@ -758,7 +758,7 @@ function RelatedTabs({
               >
                 <option value="">Choose a task…</option>
                 {linkableTasks.map((task) => (
-                  <option key={task.id} value={task.id}>
+                  <option key={task.id} value={task.id} dir="auto">
                     {task.title} — {task.status}
                   </option>
                 ))}

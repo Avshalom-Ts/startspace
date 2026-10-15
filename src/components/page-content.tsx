@@ -320,6 +320,7 @@ export function PageContent() {
                       {completed && <Check size={13} aria-hidden="true" />}
                     </button>
                     <a
+                      dir="auto"
                       href={`#tasks?task=${encodeURIComponent(task.id)}`}
                       className={`min-w-0 flex-1 truncate text-sm ${completed ? "text-muted line-through" : "text-fg hover:text-accent"}`}
                     >

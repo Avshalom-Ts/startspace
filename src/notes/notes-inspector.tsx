@@ -394,6 +394,7 @@ export function NotesInspector({
                         ? undefined
                         : "#tasks?task=" + encodeURIComponent(task.id)
                     }
+                    dir="auto"
                     className="hover:text-accent"
                   >
                     {task.title}
@@ -431,7 +432,7 @@ export function NotesInspector({
                         ) : (
                           <Plus size={16} aria-hidden="true" />
                         )}
-                        {task.title}
+                        <span dir="auto" className="min-w-0 flex-1 text-start">{task.title}</span>
                       </button>
                     ))
                   ) : (
